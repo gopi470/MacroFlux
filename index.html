@@ -61,6 +61,8 @@
           <button class="dd-item" type="button" data-value="aeroplane_off" onclick="selectCmd(this)">✈️ &nbsp;AEROPLANE OFF</button>
           <button class="dd-item" type="button" data-value="location_on" onclick="selectCmd(this)">📍 &nbsp;LOCATION ON</button>
           <button class="dd-item" type="button" data-value="location_off" onclick="selectCmd(this)">📍 &nbsp;LOCATION OFF</button>
+          <button class="dd-item" type="button" data-value="vibrate_on" onclick="selectCmd(this)">📳 &nbsp;VIBRATE MODE ON</button>
+          <button class="dd-item" type="button" data-value="location_share" onclick="selectCmd(this)">🛰️ &nbsp;LIVE LOCATION</button>
           <button class="dd-item" type="button" data-value="start_sshd" onclick="selectCmd(this)">💻 &nbsp;START SSH PHONE</button>
           <!-- Add more dd-group-label + dd-item blocks here -->
         </div>
@@ -81,10 +83,11 @@
         <span class="mono-xs">STATUS</span>
         <div class="term-dots"><span></span><span></span><span></span></div>
       </div>
-      <div class="terminal-body">
-        <span class="t-prompt">›</span>
-        <span class="t-text" id="status">IDLE — AWAITING INPUT</span>
-        <span class="t-cursor">_</span>
+      <div class="terminal-body" id="terminalBody">
+        <div class="t-line">
+          <span class="t-prompt">›</span>
+          <span class="t-text">IDLE — AWAITING INPUT</span>
+        </div>
       </div>
     </div>
 

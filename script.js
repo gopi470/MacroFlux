@@ -8,10 +8,26 @@ setInterval(tick, 1000);
 
 /* ── Status helper ──────────────────────────────────────────── */
 function setStatus(msg, state) {
-  const t   = document.getElementById("status");
+  const body = document.getElementById("terminalBody");
   const dot = document.getElementById("dot");
-  t.textContent = msg;
-  t.className   = "t-text " + (state || "");
+
+  // Create new line element
+  const line = document.createElement("div");
+  line.className = "t-line";
+
+  const span = document.createElement("span");
+  span.className = "t-text " + (state || "");
+  span.textContent = msg;
+
+  line.innerHTML = `<span class="t-prompt">›</span>`;
+  line.appendChild(span);
+
+  body.appendChild(line);
+
+  // Auto-scroll to bottom
+  body.scrollTop = body.scrollHeight;
+
+  // Update status dot
   dot.className = "status-dot " + (state === "busy" ? "busy" : state === "err" ? "error" : "");
 }
 
@@ -21,10 +37,10 @@ const execBtn = document.getElementById("execBtn");
 execBtn.addEventListener("click", function (e) {
   if (execBtn.disabled) return; // 🛡️ prevent ripple when disabled
 
-  const rip  = document.getElementById("ripple");
+  const rip = document.getElementById("ripple");
   const rect = this.getBoundingClientRect();
   const size = Math.max(rect.width, rect.height);
-  rip.style.cssText = `width:${size}px;height:${size}px;left:${e.clientX-rect.left-size/2}px;top:${e.clientY-rect.top-size/2}px`;
+  rip.style.cssText = `width:${size}px;height:${size}px;left:${e.clientX - rect.left - size / 2}px;top:${e.clientY - rect.top - size / 2}px`;
   rip.classList.remove("go");
   void rip.offsetWidth;
   rip.classList.add("go");
@@ -104,6 +120,9 @@ function execute() {
   setTimeout(() => {
     const url = `https://api.muffinjuice.xyz/control?cmd=${selectedCmd}&key=${key}`;
     window.open(url, "_blank");
+
+    // Success log
+    setStatus(`EXECUTED: ${selectedCmd.toUpperCase()}`, "ok");
   }, 320);
 }
 
