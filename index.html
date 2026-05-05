@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Phone Control</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    body { font-family: sans-serif; text-align: center; margin-top: 50px; }
+    input, select, button { padding: 10px; margin: 10px; font-size: 16px; }
+  </style>
+</head>
+<body>
+
+<h2>📱 Remote Control</h2>
+
+<input type="password" id="key" placeholder="Enter Key"><br>
+
+<select id="cmd">
+  <option value="lock">Lock</option>
+  <option value="torch">Torch</option>
+</select><br>
+
+<button onclick="send()">Send</button>
+
+<script>
+function send() {
+  const key = document.getElementById("key").value;
+  const cmd = document.getElementById("cmd").value;
+
+  const url = `https://api.muffinjuice.xyz/control?cmd=${cmd}&key=${key}`;
+  window.location.href = url;
+}
+</script>
+
+</body>
+</html>
