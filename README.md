@@ -144,8 +144,18 @@ Click "Send" to execute the action on the device.
 ## Limitations
 
 * No server-side validation beyond MacroDroid logic
-* Redirect rules are static (no dynamic routing without Workers)
+* Redirect rules are static (handled by Cloudflare Functions for /location)
 * Query parameters are visible in browser history
+
+---
+
+## Live Location Flow
+
+1. **Trigger**: Select `LIVE LOCATION` and click `EXECUTE`.
+2. **Macro Action**: The phone receives the webhook and captures GPS coordinates.
+3. **Report**: The macro sends a GET request to:
+   `https://api.muffinjuice.xyz/location?lat=[lat]&lon=[lon]&link=[gmaps_link]&key=[your-key]`
+4. **Display**: The server redirects back to the UI, which parses the data and displays a clickable Google Maps link in the status terminal.
 
 ---
 

@@ -1,3 +1,37 @@
+/* ── URL Param Handler ──────────────────────────────────────── */
+function handleIncomingLocation() {
+  const params = new URLSearchParams(window.location.search);
+  const lat = params.get("lat");
+  const lon = params.get("lon");
+  const link = params.get("link");
+  const urlKey = params.get("key");
+
+  if (lat && lon) {
+    // If a key was provided in URL, pre-fill it
+    if (urlKey) {
+      document.getElementById("key").value = urlKey;
+    }
+    
+    setTimeout(() => {
+      setStatus("LOCATION RECEIVED", "ok");
+      const body = document.getElementById("terminalBody");
+      const line = document.createElement("div");
+      line.className = "t-line";
+      line.innerHTML = `
+        <span class="t-prompt">›</span>
+        <span class="t-text ok">
+          LAT: ${lat}<br>
+          LON: ${lon}<br>
+          <a href="${link}" target="_blank" style="color:var(--amber);text-decoration:underline;">[ VIEW ON MAP ]</a>
+        </span>
+      `;
+      body.appendChild(line);
+      body.scrollTop = body.scrollHeight;
+    }, 1000);
+  }
+}
+handleIncomingLocation();
+
 /* ── Clock ──────────────────────────────────────────────────── */
 const clockEl = document.getElementById("clock");
 function tick() {
