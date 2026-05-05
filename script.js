@@ -1,3 +1,44 @@
+/* ── Live Polling ───────────────────────────────────────────── */
+let lastLocationTimestamp = 0;
+
+async function pollLocation() {
+  try {
+    const res = await fetch("/get-location");
+    if (!res.ok) return;
+    
+    const data = await res.json();
+    if (data.timestamp > lastLocationTimestamp) {
+      lastLocationTimestamp = data.timestamp;
+      displayLocation(data.lat, data.lon, data.link);
+    }
+  } catch (e) {
+    // Ignore errors during background polling
+  }
+}
+
+function displayLocation(lat, lon, link) {
+  setStatus("LOCATION RECEIVED", "ok");
+  const body = document.getElementById("terminalBody");
+  const line = document.createElement("div");
+  line.className = "t-line";
+  
+  let content = "";
+  if (lat && lon) {
+    content += `LAT: ${lat}<br>LON: ${lon}<br>`;
+  }
+  content += `<a href="${link}" target="_blank" style="color:var(--amber);text-decoration:underline;">[ VIEW ON MAP ]</a>`;
+
+  line.innerHTML = `
+    <span class="t-prompt">›</span>
+    <span class="t-text ok">${content}</span>
+  `;
+  body.appendChild(line);
+  body.scrollTop = body.scrollHeight;
+}
+
+// Start polling every 5 seconds
+setInterval(pollLocation, 5000);
+
 /* ── URL Param Handler ──────────────────────────────────────── */
 function handleIncomingLocation() {
   const params = new URLSearchParams(window.location.search);
