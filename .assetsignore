@@ -1,2 +1,0 @@
-# Ignore the worker file so it isn't uploaded as a static asset
-_worker.js
