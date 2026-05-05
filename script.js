@@ -1,19 +1,18 @@
-/* ── Live Polling ───────────────────────────────────────────── */
-let lastLocationTimestamp = 0;
+/* ── URL Param Handler ──────────────────────────────────────── */
+function handleIncomingLocation() {
+  const params = new URLSearchParams(window.location.search);
+  const lat  = params.get("lat");
+  const lon  = params.get("lon");
+  const link = params.get("link");
 
-async function pollLocation() {
-  try {
-    const res = await fetch("/get-location");
-    if (!res.ok) return;
-    
-    const data = await res.json();
-    if (data.timestamp > lastLocationTimestamp) {
-      lastLocationTimestamp = data.timestamp;
-      displayLocation(data.lat, data.lon, data.link);
-    }
-  } catch (e) {
-    // Ignore errors during background polling
-  }
+  // Nothing to show
+  if (!lat && !lon && !link) return;
+
+  setTimeout(() => {
+    displayLocation(lat, lon, link);
+    // Clean up URL bar without reloading
+    window.history.replaceState({}, "", window.location.pathname);
+  }, 600);
 }
 
 function displayLocation(lat, lon, link) {
@@ -21,56 +20,16 @@ function displayLocation(lat, lon, link) {
   const body = document.getElementById("terminalBody");
   const line = document.createElement("div");
   line.className = "t-line";
-  
-  let content = "";
-  if (lat && lon) {
-    content += `LAT: ${lat}<br>LON: ${lon}<br>`;
-  }
-  content += `<a href="${link}" target="_blank" style="color:var(--amber);text-decoration:underline;">[ VIEW ON MAP ]</a>`;
 
-  line.innerHTML = `
-    <span class="t-prompt">›</span>
-    <span class="t-text ok">${content}</span>
-  `;
+  let content = "";
+  if (lat && lon) content += `LAT: ${lat}<br>LON: ${lon}<br>`;
+  if (link) content += `<a href="${link}" target="_blank" style="color:var(--amber);text-decoration:underline;">[ VIEW ON MAP ]</a>`;
+
+  line.innerHTML = `<span class="t-prompt">›</span><span class="t-text ok">${content}</span>`;
   body.appendChild(line);
   body.scrollTop = body.scrollHeight;
 }
 
-// Start polling every 5 seconds
-setInterval(pollLocation, 5000);
-
-/* ── URL Param Handler ──────────────────────────────────────── */
-function handleIncomingLocation() {
-  const params = new URLSearchParams(window.location.search);
-  const lat = params.get("lat");
-  const lon = params.get("lon");
-  const link = params.get("link");
-  const urlKey = params.get("key");
-
-  if (lat && lon) {
-    // If a key was provided in URL, pre-fill it
-    if (urlKey) {
-      document.getElementById("key").value = urlKey;
-    }
-    
-    setTimeout(() => {
-      setStatus("LOCATION RECEIVED", "ok");
-      const body = document.getElementById("terminalBody");
-      const line = document.createElement("div");
-      line.className = "t-line";
-      line.innerHTML = `
-        <span class="t-prompt">›</span>
-        <span class="t-text ok">
-          LAT: ${lat}<br>
-          LON: ${lon}<br>
-          <a href="${link}" target="_blank" style="color:var(--amber);text-decoration:underline;">[ VIEW ON MAP ]</a>
-        </span>
-      `;
-      body.appendChild(line);
-      body.scrollTop = body.scrollHeight;
-    }, 1000);
-  }
-}
 handleIncomingLocation();
 
 /* ── Clock ──────────────────────────────────────────────────── */

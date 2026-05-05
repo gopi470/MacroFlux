@@ -7,14 +7,5 @@
   },
   "assets": {
     "directory": "."
-  },
-  "compatibility_flags": [
-    "nodejs_compat"
-  ],
-  "kv_namespaces": [
-    {
-      "binding": "LOCATION_KV",
-      "id": "e8975787d82a410281a2868a90e5ba51"
-    }
-  ]
+  }
 }
