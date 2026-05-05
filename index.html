@@ -1,35 +1,26 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <title>Phone Control</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <style>
-    body { font-family: sans-serif; text-align: center; margin-top: 50px; }
-    input, select, button { padding: 10px; margin: 10px; font-size: 16px; }
-  </style>
+  <meta charset="UTF-8">
+  <title>Remote Phone Control</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-<h2>📱 Remote Control</h2>
+<div class="container">
+  <h1>Remote Control</h1>
 
-<input type="password" id="key" placeholder="Enter Key"><br>
+  <input type="password" id="key" placeholder="Enter Key">
 
-<select id="cmd">
-  <option value="lock">Lock</option>
-  <option value="torch">Torch</option>
-</select><br>
+  <div class="buttons">
+    <button onclick="sendCommand('lock')">Lock</button>
+    <button onclick="sendCommand('torch')">Torch</button>
+  </div>
 
-<button onclick="send()">Send</button>
+  <p id="status"></p>
+</div>
 
-<script>
-function send() {
-  const key = document.getElementById("key").value;
-  const cmd = document.getElementById("cmd").value;
-
-  const url = `https://api.muffinjuice.xyz/control?cmd=${cmd}&key=${key}`;
-  window.location.href = url;
-}
-</script>
-
+<script src="script.js"></script>
 </body>
 </html>
