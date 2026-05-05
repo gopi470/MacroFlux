@@ -123,7 +123,7 @@ https://api.muffinjuice.xyz
 Enter:
 
 * Key (shared secret)
-* Command (e.g., lock, torch)
+* Command (e.g., lock, aeroplane_on, location_on)
 
 Click "Send" to execute the action on the device.
 

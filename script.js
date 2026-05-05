@@ -45,12 +45,18 @@ function toggleDropdown() {
 }
 
 function openDropdown() {
+  const container = document.querySelector(".container");
+  container.classList.add("dropdown-open");
+  document.getElementById("dropdown").classList.add("open");
   document.getElementById("ddMenu").classList.add("open");
   document.getElementById("ddTrigger").classList.add("open");
   setExecDisabled(true);   // 🔒 disable button
 }
 
 function closeDropdown() {
+  const container = document.querySelector(".container");
+  container.classList.remove("dropdown-open");
+  document.getElementById("dropdown").classList.remove("open");
   document.getElementById("ddMenu").classList.remove("open");
   document.getElementById("ddTrigger").classList.remove("open");
   setExecDisabled(false);  // 🔓 enable button
