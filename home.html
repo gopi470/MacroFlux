@@ -43,8 +43,9 @@
       <label class="field-label" for="key">MACROS KEY</label>
       <div class="input-wrap">
         <input
-          type="password"
+          type="text"
           id="key"
+          class="stealth-input"
           placeholder="ENTER KEY..."
           autocomplete="off"
           spellcheck="false"
@@ -64,6 +65,9 @@
           </svg>
         </button>
         <div class="dd-menu" id="ddMenu">
+          <div class="dd-search-wrap">
+            <input type="text" id="ddSearch" placeholder="SEARCH COMMANDS..." autocomplete="off">
+          </div>
           <div class="dd-group-label">DEVICE</div>
           <button class="dd-item" type="button" data-value="lock"  onclick="selectCmd(this)">🔒 &nbsp;LOCK</button>
           <button class="dd-item" type="button" data-value="aeroplane_on" onclick="selectCmd(this)">✈️ &nbsp;AEROPLANE ON</button>

@@ -225,9 +225,9 @@ body {
 /* ── Input ──────────────────────────────────────────────────── */
 .input-wrap { position: relative; }
 
-input[type="password"],
 input[type="text"],
-textarea {
+textarea,
+.stealth-input {
   width: 100%;
   background: rgba(0,220,160,0.04);
   border: 1px solid var(--border);
@@ -238,6 +238,10 @@ textarea {
   color: var(--teal); outline: none;
   transition: border-color .2s var(--ease), box-shadow .2s var(--ease);
   caret-color: var(--teal);
+}
+.stealth-input {
+  -webkit-text-security: disc !important; /* Forces dots visually */
+  text-security: disc !important;
 }
 textarea {
   resize: none;
@@ -340,6 +344,29 @@ input:focus ~ .input-underline { width: 100%; }
 .dd-menu::-webkit-scrollbar { width: 4px; }
 .dd-menu::-webkit-scrollbar-thumb { background: var(--teal); border-radius: 10px; }
 
+.dd-search-wrap {
+  position: sticky; top: 0;
+  background: #020c08;
+  padding: 10px;
+  border-bottom: 1px solid var(--border);
+  z-index: 10;
+}
+#ddSearch {
+  width: 100%;
+  background: rgba(0,220,160,0.05);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 8px 12px;
+  color: var(--teal);
+  font-family: var(--mono);
+  font-size: 13px;
+  outline: none;
+}
+#ddSearch:focus {
+  border-color: var(--teal);
+  background: rgba(0,220,160,0.1);
+}
+
 .dd-menu.open {
   max-height: 320px; /* INCREASED HEIGHT */
   opacity: 1 !important;
@@ -351,7 +378,7 @@ input:focus ~ .input-underline { width: 100%; }
   padding: 7px 14px 4px;
   font-size: 9px; letter-spacing: 0.18em;
   color: var(--text-label);
-  position: sticky; top: 0; background: #020c08; z-index: 1;
+  position: sticky; top: 41px; background: #020c08; z-index: 1;
 }
 
 .dd-item {

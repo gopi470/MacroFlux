@@ -149,10 +149,47 @@ function openDropdown() {
   document.getElementById("ddTrigger").classList.add("open");
   setExecDisabled(true);   // 🔒 disable button
   
+  // Reset search
+  const search = document.getElementById("ddSearch");
+  search.value = "";
+  filterCommands("");
+  setTimeout(() => search.focus(), 100);
+
   // Reset focus
   focusedIndex = -1;
   updateFocus();
 }
+
+function filterCommands(query) {
+  const q = query.toLowerCase();
+  const items = document.querySelectorAll(".dd-item");
+  const labels = document.querySelectorAll(".dd-group-label");
+  
+  items.forEach(item => {
+    const text = item.textContent.toLowerCase();
+    item.style.display = text.includes(q) ? "block" : "none";
+  });
+
+  // Hide labels if no visible items below them
+  labels.forEach(label => {
+    let next = label.nextElementSibling;
+    let hasVisible = false;
+    while (next && next.classList.contains("dd-item")) {
+      if (next.style.display !== "none") {
+        hasVisible = true;
+        break;
+      }
+      next = next.nextElementSibling;
+    }
+    label.style.display = hasVisible ? "block" : "none";
+  });
+}
+
+document.getElementById("ddSearch").addEventListener("input", (e) => {
+  filterCommands(e.target.value);
+  focusedIndex = -1;
+  updateFocus();
+});
 
 function closeDropdown() {
   const container = document.querySelector(".container");
@@ -164,18 +201,18 @@ function closeDropdown() {
 }
 
 function updateFocus() {
-  const items = document.querySelectorAll(".dd-item");
-  items.forEach((item, index) => {
-    if (index === focusedIndex) {
-      item.classList.add("focused");
-      item.scrollIntoView({ block: "nearest", behavior: "smooth" });
-    } else {
-      item.classList.remove("focused");
-    }
-  });
+  const allItems = document.querySelectorAll(".dd-item");
+  const visibleItems = Array.from(allItems).filter(i => i.style.display !== "none");
+  
+  allItems.forEach(i => i.classList.remove("focused"));
+
+  if (focusedIndex >= 0 && visibleItems[focusedIndex]) {
+    visibleItems[focusedIndex].classList.add("focused");
+    visibleItems[focusedIndex].scrollIntoView({ block: "nearest", behavior: "smooth" });
+  }
   
   // Disable mouse hover effects while navigating with keyboard
-  items.forEach(i => i.classList.add("no-hover"));
+  allItems.forEach(i => i.classList.add("no-hover"));
 }
 
 function selectCmd(el) {
@@ -206,20 +243,24 @@ document.addEventListener("keydown", function (e) {
   const isOpen = menu.classList.contains("open");
   if (!isOpen) return;
 
-  const items = document.querySelectorAll(".dd-item");
+  const items = Array.from(document.querySelectorAll(".dd-item")).filter(i => i.style.display !== "none");
 
   if (e.key === "ArrowDown") {
     e.preventDefault();
-    focusedIndex = (focusedIndex + 1) % items.length;
-    updateFocus();
+    if (items.length > 0) {
+      focusedIndex = (focusedIndex + 1) % items.length;
+      updateFocus();
+    }
   } else if (e.key === "ArrowUp") {
     e.preventDefault();
-    focusedIndex = (focusedIndex - 1 + items.length) % items.length;
-    updateFocus();
+    if (items.length > 0) {
+      focusedIndex = (focusedIndex - 1 + items.length) % items.length;
+      updateFocus();
+    }
   } else if (e.key === "Enter") {
     if (isOpen) {
-      e.preventDefault();
-      if (focusedIndex >= 0) {
+      if (focusedIndex >= 0 && items[focusedIndex]) {
+        e.preventDefault();
         selectCmd(items[focusedIndex]);
       }
     } else {
@@ -275,11 +316,12 @@ function execute() {
     referenceTime = lastReportTime; // Use the current server time as the baseline
     setStatus("REQUEST SENT — AWAITING DEVICE...", "busy");
 
-    // 🛡️ FAILSAFE: If no response in 10 seconds, show what we have
+    // 🛡️ FAILSAFE: If no response in 30 seconds (GPS fix can be slow), show what we have
     setTimeout(() => {
       if (isWaitingForFreshData) {
         isWaitingForFreshData = false; // stop waiting
-        setStatus("RECENT LOCATION FETCH FAILED FROM MACROS", "err");
+        setStatus("LOCATION FETCH FAILED FROM MACROS", "err");
+        setStatus("TRY RECENT LOCATION OPTION", "busy");
         
         if (lastReceivedLink) {
           setStatus("PRINTING AVAILABLE DATA FROM KV", "busy");
@@ -288,17 +330,17 @@ function execute() {
           setStatus("NO DATA AVAILABLE IN DATABASE", "err");
         }
       }
-    }, 10000);
+    }, 30000);
   } else {
     setStatus(`EXECUTING: ${selectedCmd.toUpperCase()} ...`, "busy");
   }
 
   setTimeout(() => {
-    // Now using the local worker endpoint for better control/security
     let url = `/control?cmd=${selectedCmd}&key=${key}`;
     if (cmd2) url += `&cmd2=${encodeURIComponent(cmd2)}`;
-    
-    window.open(url, "_blank");
+
+    // SILENT EXECUTION: Send the command in the background
+    fetch(url).catch(() => {}); 
 
     // Success log
     if (selectedCmd !== "location_share_recent" && selectedCmd !== "location_share") {
