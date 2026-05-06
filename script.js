@@ -45,24 +45,24 @@ let pollInterval = null;
 function startListening(key) {
   if (pollInterval) clearInterval(pollInterval);
   
-  // Simple ID for easy MacroDroid setup
-  const mailboxId = "muffin-" + key.trim();
+  const topic = "muffin-" + key.trim();
   setStatus(`LISTENING FOR RESPONSE...`, "ok");
 
   pollInterval = setInterval(async () => {
     try {
-      const resp = await fetch(`https://dweet.io/get/latest/dweet/for/${mailboxId}`);
-      const data = await resp.json();
-      
-      if (data.this === "succeeded" && data.with.length > 0) {
-        const dweet = data.with[0];
-        const link = dweet.content.link;
-        const time = dweet.created;
+      // We poll for the latest message from ntfy.sh
+      const resp = await fetch(`https://ntfy.sh/${topic}/json?poll=1`);
+      const text = await resp.text();
+      if (!text) return;
 
-        if (link && time !== lastDweetTime) {
-          lastDweetTime = time;
-          displayLocation(link);
-        }
+      // ntfy can return multiple JSON objects in one response
+      const lines = text.trim().split("\n");
+      const lastMsg = JSON.parse(lines[lines.length - 1]);
+
+      if (lastMsg.message && lastMsg.id !== lastDweetTime) {
+        lastDweetTime = lastMsg.id;
+        // The message itself will be the link
+        displayLocation(lastMsg.message);
       }
     } catch (e) {
       console.error("Polling error:", e);
