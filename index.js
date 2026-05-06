@@ -7,8 +7,8 @@ export default {
     if (url.searchParams.has("link")) {
       const link = url.searchParams.get("link");
       // Store in KV with a short expiration
-      if (env.REMOTE_STORAGE) {
-        await env.REMOTE_STORAGE.put("latest_location", link, { expirationTtl: 3600 });
+      if (env.LOCATION_KV) {
+        await env.LOCATION_KV.put("latest_location", link, { expirationTtl: 3600 });
         return new Response("OK", { status: 200 });
       }
       return new Response("KV_NOT_CONFIGURED", { status: 500 });
@@ -16,7 +16,7 @@ export default {
 
     // 2. UI POLLING ENDPOINT
     if (url.pathname === "/poll") {
-      const link = env.REMOTE_STORAGE ? await env.REMOTE_STORAGE.get("latest_location") : null;
+      const link = env.LOCATION_KV ? await env.LOCATION_KV.get("latest_location") : null;
       return new Response(JSON.stringify({ link }), {
         headers: { 
           "Content-Type": "application/json",

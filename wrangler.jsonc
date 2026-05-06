@@ -8,8 +8,8 @@
   },
   "kv_namespaces": [
     {
-      "binding": "REMOTE_STORAGE",
-      "id": "PASTE_YOUR_KV_NAMESPACE_ID_HERE"
+      "binding": "LOCATION_KV",
+      "id": "ba4cf777253743638f718b522d73c3db"
     }
   ],
   "assets": {
