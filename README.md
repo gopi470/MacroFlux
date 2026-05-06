@@ -12,11 +12,30 @@ The system is designed to be:
 
 ---
 
-## Architecture
+## Architecture (Real-Time Case B)
 
-User → Web UI (Cloudflare Pages) → Custom Domain
-→ Redirect Rule (/control) → MacroDroid Webhook
-→ Android Device Action
+User → Web UI (Cloudflare Pages) → Worker Polls KV
+Phone → Worker /?link=... → Saves to Cloudflare KV
+
+This setup allows your PC browser to update **live** even if the request from the phone was a background process.
+
+---
+
+## Setup Requirements
+
+### 1. Cloudflare KV Namespace
+You must create a KV namespace to store the latest location:
+1. Go to **Cloudflare Dashboard** → **Workers & Pages** → **KV**.
+2. Click **Create a Namespace** and name it `REMOTE_STORAGE`.
+3. Copy the **ID** of the namespace.
+4. Open `wrangler.jsonc` and paste your ID into the `id` field.
+
+### 2. MacroDroid Configuration
+Update your MacroDroid action to send the link to your UI:
+`https://ui.muffinjuice.xyz/?link={v=gmaps_link}`
+
+### 3. Access Key
+The default access key is `ABC`. You can change this in `index.js`.
 
 ---
 
@@ -150,14 +169,13 @@ Click "Send" to execute the action on the device.
 
 ---
 
-## Live Location Flow
+## Live Location Flow (Case B)
 
 1. **Trigger**: Select `LIVE LOCATION` and click `EXECUTE`.
-2. **Listener**: The UI starts polling `ntfy.sh/muffin-[key]/json?poll=1` every 3 seconds.
-3. **Macro Action**: The phone receives the webhook and captures GPS coordinates.
-4. **Report**: The macro sends a GET request to the ntfy topic:
-   `https://ntfy.sh/muffin-[key]?m=[gmaps_link]`
-5. **Display**: The UI detects the new message and displays the styled "[ OPEN SATELLITE VIEW ]" button on the PC screen in real-time.
+2. **Macro Action**: The phone receives the webhook and captures GPS coordinates.
+3. **Report**: The macro sends a background GET request to `https://ui.muffinjuice.xyz/?link=...`.
+4. **Storage**: The Cloudflare Worker intercepts this request and saves the link to **KV Storage**.
+5. **Display**: The UI (which is polling every 2.5s) detects the new link in KV and automatically prints the **[ OPEN SATELLITE VIEW ]** button in the terminal.
 
 ---
 

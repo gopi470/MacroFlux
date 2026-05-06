@@ -1,4 +1,25 @@
-/* ── URL Param Handler ──────────────────────────────────────── */
+/* ── Real-time Polling (Case B) ────────────────────────────── */
+let lastReceivedLink = "";
+
+async function pollLocation() {
+  try {
+    const resp = await fetch("/poll");
+    const data = await resp.json();
+
+    if (data.link && data.link !== lastReceivedLink) {
+      lastReceivedLink = data.link;
+      displayLocation(data.link);
+    }
+  } catch (e) {
+    // Silently handle polling errors
+  }
+}
+
+function startPolling() {
+  // Start polling every 2.5 seconds
+  setInterval(pollLocation, 2500);
+}
+
 function handleIncomingLocation() {
   const params = new URLSearchParams(window.location.search);
   const link = params.get("link");
@@ -6,12 +27,19 @@ function handleIncomingLocation() {
   if (!link) return;
 
   setTimeout(() => {
+    lastReceivedLink = link; // Sync polling state
     displayLocation(link);
     window.history.replaceState({}, "", window.location.pathname);
   }, 600);
 }
 
 function displayLocation(link) {
+  // Check if terminal already has this link to avoid duplicates
+  const lines = document.querySelectorAll('.t-text.ok');
+  for (let l of lines) {
+    if (l.innerHTML.includes(link)) return;
+  }
+
   setStatus("LOCATION RECEIVED", "ok");
   const body = document.getElementById("terminalBody");
   const line = document.createElement("div");
@@ -29,6 +57,7 @@ function displayLocation(link) {
 }
 
 handleIncomingLocation();
+startPolling();
 
 /* ── Clock ──────────────────────────────────────────────────── */
 const clockEl = document.getElementById("clock");
@@ -37,38 +66,6 @@ function tick() {
 }
 tick();
 setInterval(tick, 1000);
-
-/* ── Real-Time Listener (Dweet.io) ─────────────────────────── */
-let lastDweetTime = null;
-let pollInterval = null;
-
-function startListening(key) {
-  if (pollInterval) clearInterval(pollInterval);
-  
-  const topic = "muffin-" + key.trim();
-  setStatus(`LISTENING FOR RESPONSE...`, "ok");
-
-  pollInterval = setInterval(async () => {
-    try {
-      // We poll for the latest message from ntfy.sh
-      const resp = await fetch(`https://ntfy.sh/${topic}/json?poll=1`);
-      const text = await resp.text();
-      if (!text) return;
-
-      // ntfy can return multiple JSON objects in one response
-      const lines = text.trim().split("\n");
-      const lastMsg = JSON.parse(lines[lines.length - 1]);
-
-      if (lastMsg.message && lastMsg.id !== lastDweetTime) {
-        lastDweetTime = lastMsg.id;
-        // The message itself will be the link
-        displayLocation(lastMsg.message);
-      }
-    } catch (e) {
-      console.error("Polling error:", e);
-    }
-  }, 3000);
-}
 
 /* ── Status helper ──────────────────────────────────────────── */
 function setStatus(msg, state) {
@@ -181,11 +178,9 @@ function execute() {
 
   setStatus(`EXECUTING: ${selectedCmd.toUpperCase()} ...`, "busy");
 
-  // Start listening for the response now that we have a key
-  startListening(key);
-
   setTimeout(() => {
-    const url = `https://api.muffinjuice.xyz/control?cmd=${selectedCmd}&key=${key}`;
+    // Now using the local worker endpoint for better control/security
+    const url = `/control?cmd=${selectedCmd}&key=${key}`;
     window.open(url, "_blank");
 
     // Success log

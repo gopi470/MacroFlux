@@ -1,10 +1,17 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "remote-control-ui",
+  "main": "index.js",
   "compatibility_date": "2026-05-05",
   "observability": {
     "enabled": true
   },
+  "kv_namespaces": [
+    {
+      "binding": "REMOTE_STORAGE",
+      "id": "PASTE_YOUR_KV_NAMESPACE_ID_HERE"
+    }
+  ],
   "assets": {
     "directory": "."
   }
