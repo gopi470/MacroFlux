@@ -6,12 +6,10 @@ export default {
     // MacroDroid sends: https://ui.muffinjuice.xyz/?link={v=gmaps_link}
     if (url.searchParams.has("link")) {
       const link = url.searchParams.get("link");
-      // Store in KV with a short expiration
       if (env.LOCATION_KV) {
         await env.LOCATION_KV.put("latest_location", link, { expirationTtl: 3600 });
-        return new Response("OK", { status: 200 });
       }
-      return new Response("KV_NOT_CONFIGURED", { status: 500 });
+      // Continue to serve assets so the sender also sees the UI
     }
 
     // 2. UI POLLING ENDPOINT

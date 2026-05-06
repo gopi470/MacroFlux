@@ -1,7 +1,7 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "remote-control-ui",
-  "main": "index.js",
+  "main": "_worker.js",
   "compatibility_date": "2026-05-05",
   "observability": {
     "enabled": true
