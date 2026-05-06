@@ -18,7 +18,7 @@ export default {
     if (url.pathname === "/poll") {
       const link = env.LOCATION_KV ? await env.LOCATION_KV.get("latest_location") : null;
       return new Response(JSON.stringify({ link }), {
-        headers: { 
+        headers: {
           "Content-Type": "application/json",
           "Cache-Control": "no-cache"
         }
@@ -29,7 +29,7 @@ export default {
     if (url.pathname === "/control") {
       const cmd = url.searchParams.get("cmd");
       const key = url.searchParams.get("key");
-      
+
       // Simple security check as requested
       if (key !== "ABC") {
         return new Response("UNAUTHORIZED", { status: 401 });
@@ -37,7 +37,7 @@ export default {
 
       // Redirect to your MacroDroid trigger URL
       // (Replace <your-id> with your actual MacroDroid ID)
-      const target = `https://trigger.macrodroid.com/YOUR_MACRODROID_ID/control?cmd=${cmd}&key=${key}`;
+      const target = `https://trigger.macrodroid.com/f1511af3-cec6-4889-9838-1cc4648ebed3/control?cmd=${cmd}&key=${key}`;
       return Response.redirect(target, 302);
     }
 
