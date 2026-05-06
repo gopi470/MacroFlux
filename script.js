@@ -3,7 +3,7 @@ let lastReceivedLink = "";
 
 async function pollLocation() {
   try {
-    const resp = await fetch("/poll");
+    const resp = await fetch("/poll?t=" + Date.now());
     const data = await resp.json();
 
     if (data.link && data.link !== lastReceivedLink) {
