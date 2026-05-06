@@ -14,8 +14,13 @@ export default {
 
     // 2. UI POLLING ENDPOINT
     if (url.pathname === "/poll") {
-      const link = env.LOCATION_KV ? await env.LOCATION_KV.get("latest_location") : null;
-      return new Response(JSON.stringify({ link }), {
+      const kvExists = !!env.LOCATION_KV;
+      const link = kvExists ? await env.LOCATION_KV.get("latest_location") : null;
+      
+      return new Response(JSON.stringify({ 
+        link, 
+        debug: kvExists ? "KV_CONNECTED" : "KV_MISSING_CHECK_DASHBOARD_BINDINGS" 
+      }), {
         headers: {
           "Content-Type": "application/json",
           "Cache-Control": "no-cache"
