@@ -118,7 +118,8 @@ Create a rule in Cloudflare:
 ## Usage
 
 Open:
-https://api.muffinjuice.xyz
+Open:
+https://ui.muffinjuice.xyz
 
 Enter:
 
@@ -152,10 +153,10 @@ Click "Send" to execute the action on the device.
 ## Live Location Flow
 
 1. **Trigger**: Select `LIVE LOCATION` and click `EXECUTE`.
-2. **Macro Action**: The phone receives the webhook and captures GPS coordinates.
+2. **Macro Action**: The phone receives the webhook and captures current GPS coordinates.
 3. **Report**: The macro sends a GET request to:
-   `https://api.muffinjuice.xyz/location?lat=[lat]&lon=[lon]&link=[gmaps_link]&key=[your-key]`
-4. **Display**: The server redirects back to the UI, which parses the data and displays a clickable Google Maps link in the status terminal.
+   `https://ui.muffinjuice.xyz/?link=[gmaps_link]`
+4. **Display**: The UI parses the `link` parameter and displays a styled "[ OPEN SATELLITE VIEW ]" button in the status terminal.
 
 ---
 

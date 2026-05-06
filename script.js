@@ -1,31 +1,29 @@
 /* ── URL Param Handler ──────────────────────────────────────── */
 function handleIncomingLocation() {
   const params = new URLSearchParams(window.location.search);
-  const lat  = params.get("lat");
-  const lon  = params.get("lon");
   const link = params.get("link");
 
-  // Nothing to show
-  if (!lat && !lon && !link) return;
+  if (!link) return;
 
   setTimeout(() => {
-    displayLocation(lat, lon, link);
-    // Clean up URL bar without reloading
+    displayLocation(link);
     window.history.replaceState({}, "", window.location.pathname);
   }, 600);
 }
 
-function displayLocation(lat, lon, link) {
+function displayLocation(link) {
   setStatus("LOCATION RECEIVED", "ok");
   const body = document.getElementById("terminalBody");
   const line = document.createElement("div");
   line.className = "t-line";
 
-  let content = "";
-  if (lat && lon) content += `LAT: ${lat}<br>LON: ${lon}<br>`;
-  if (link) content += `<a href="${link}" target="_blank" style="color:var(--amber);text-decoration:underline;">[ VIEW ON MAP ]</a>`;
+  line.innerHTML = `
+    <span class="t-prompt">›</span>
+    <span class="t-text ok">
+      MAP DATA ACQUIRED<br>
+      <a href="${link}" target="_blank" class="map-link">[ OPEN SATELLITE VIEW ]</a>
+    </span>`;
 
-  line.innerHTML = `<span class="t-prompt">›</span><span class="t-text ok">${content}</span>`;
   body.appendChild(line);
   body.scrollTop = body.scrollHeight;
 }
