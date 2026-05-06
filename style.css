@@ -24,6 +24,30 @@
 }
 
 /* ── Background ─────────────────────────────────────────────── */
+html {
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+  scrollbar-color: var(--teal) transparent;
+}
+
+/* Global Cyberpunk Scrollbar (Chrome/Edge/Safari) */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: var(--bg);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border-hi);
+  border-radius: 10px;
+  border: 1px solid transparent;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--teal);
+  box-shadow: 0 0 10px var(--teal-glow);
+}
+
 body {
   min-height: 100vh;
   background: var(--bg);
@@ -31,7 +55,9 @@ body {
   justify-content: center;
   align-items: center;
   font-family: var(--mono);
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior-y: auto;
 }
 
 .bg-grid {
@@ -41,6 +67,61 @@ body {
     linear-gradient(90deg, rgba(0,220,160,0.04) 1px, transparent 1px);
   background-size: 40px 40px;
   pointer-events: none; z-index: 0;
+}
+
+.reload-btn {
+  position: fixed; top: 20px; right: 20px;
+  width: 42px; height: 42px;
+  background: rgba(0, 220, 160, 0.05);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  color: var(--teal);
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; z-index: 1000;
+  transition: all 0.3s var(--ease);
+  backdrop-filter: blur(4px);
+}
+.reload-btn:hover {
+  background: var(--teal-dim);
+  border-color: var(--teal);
+  box-shadow: 0 0 15px var(--teal-glow);
+  transform: rotate(45deg);
+}
+.reload-btn:active {
+  transform: rotate(180deg) scale(0.9);
+}
+.reload-btn svg {
+  transition: transform 0.5s var(--ease);
+}
+.reload-btn:hover svg {
+  transform: rotate(-45deg); /* Counter-rotate icon to keep it straight while box rotates */
+}
+
+.logout-btn {
+  position: fixed; bottom: 20px; right: 20px;
+  padding: 10px 16px;
+  background: rgba(239, 68, 68, 0.05);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  border-radius: var(--r);
+  color: var(--red);
+  font-family: var(--mono); font-size: 11px; letter-spacing: 0.15em;
+  display: flex; align-items: center; gap: 10px;
+  text-decoration: none;
+  cursor: pointer; z-index: 1000;
+  transition: all 0.3s var(--ease);
+  backdrop-filter: blur(4px);
+}
+.logout-btn:hover {
+  background: rgba(239, 68, 68, 0.15);
+  border-color: var(--red);
+  box-shadow: 0 0 15px rgba(239, 68, 68, 0.3);
+  transform: translateY(-2px);
+}
+.logout-btn svg {
+  transition: transform 0.3s var(--ease);
+}
+.logout-btn:hover svg {
+  transform: translateX(3px);
 }
 
 .bg-vignette {
@@ -144,7 +225,9 @@ body {
 /* ── Input ──────────────────────────────────────────────────── */
 .input-wrap { position: relative; }
 
-input[type="password"] {
+input[type="password"],
+input[type="text"],
+textarea {
   width: 100%;
   background: rgba(0,220,160,0.04);
   border: 1px solid var(--border);
@@ -156,8 +239,18 @@ input[type="password"] {
   transition: border-color .2s var(--ease), box-shadow .2s var(--ease);
   caret-color: var(--teal);
 }
-input[type="password"]::placeholder { color: rgba(0,220,160,0.2); }
-input[type="password"]:focus {
+textarea {
+  resize: none;
+  overflow-y: hidden;
+  min-height: 42px;
+  line-height: 1.5;
+}
+input[type="password"]::placeholder,
+input[type="text"]::placeholder,
+textarea::placeholder { color: rgba(0,220,160,0.2); }
+input[type="password"]:focus,
+input[type="text"]:focus,
+textarea:focus {
   border-color: var(--teal);
   box-shadow: 0 0 0 3px rgba(0,220,160,0.1);
 }
@@ -168,7 +261,19 @@ input[type="password"]:focus {
   border-radius: 0 0 var(--r) var(--r);
   transition: width .3s var(--ease);
 }
-input[type="password"]:focus ~ .input-underline { width: 100%; }
+input:focus ~ .input-underline { width: 100%; }
+
+/* Secondary Param Wrapper */
+#cmd2Wrapper {
+  transition: all 0.3s var(--ease);
+}
+#cmd2Wrapper.visible {
+  display: block !important;
+  height: auto !important;
+  margin-bottom: 18px !important;
+  overflow: visible !important;
+  animation: fadeUp 0.4s both;
+}
 
 /* ── Select ─────────────────────────────────────────────────── */
 /* ── Custom Dropdown ────────────────────────────────────────── */
@@ -215,23 +320,30 @@ input[type="password"]:focus ~ .input-underline { width: 100%; }
 
 .dd-menu {
   position: absolute; top: 100%; left: 0; right: 0;
-  background: #051a14; /* Solid dark green background */
+  background: #051a14;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8);
   border: 1px solid var(--teal);
   border-top: none;
   border-bottom-left-radius: var(--r);
   border-bottom-right-radius: var(--r);
-  overflow: hidden;
+  overflow-y: auto; /* ENABLE SCROLL */
   max-height: 0;
-  opacity: 0; /* FIXED */
+  opacity: 0;
   pointer-events: none;
   transition: max-height .28s var(--ease), opacity .2s var(--ease);
   z-index: 100;
+  
+  /* Cyberpunk Scrollbar */
+  scrollbar-width: thin;
+  scrollbar-color: var(--teal) transparent;
 }
+.dd-menu::-webkit-scrollbar { width: 4px; }
+.dd-menu::-webkit-scrollbar-thumb { background: var(--teal); border-radius: 10px; }
+
 .dd-menu.open {
-  max-height: 260px;
+  max-height: 320px; /* INCREASED HEIGHT */
   opacity: 1 !important;
-  background: #020c08 !important; /* Extremely dark green, solid */
+  background: #020c08 !important;
   pointer-events: auto;
 }
 
@@ -239,6 +351,7 @@ input[type="password"]:focus ~ .input-underline { width: 100%; }
   padding: 7px 14px 4px;
   font-size: 9px; letter-spacing: 0.18em;
   color: var(--text-label);
+  position: sticky; top: 0; background: #020c08; z-index: 1;
 }
 
 .dd-item {
@@ -249,18 +362,20 @@ input[type="password"]:focus ~ .input-underline { width: 100%; }
   border: none; border-top: 1px solid var(--border);
   font-family: var(--mono); font-size: 12px;
   letter-spacing: 0.08em;
-  color: var(--text); /* FIXED: readable text */
+  color: var(--text);
   cursor: pointer; text-align: left;
   transition: background .15s var(--ease), color .15s var(--ease);
   -webkit-tap-highlight-color: transparent;
+  outline: none;
+  scroll-margin-top: 30px; /* SPACE FOR STICKY HEADER */
 }
-.dd-item:hover {
-  background: rgba(0, 220, 160, 0.1); 
-  color: #80ffe0; /* A softer, less "glowing" teal */
+.dd-item:not(.no-hover):hover, .dd-item.focused {
+  background: rgba(0, 220, 160, 0.15); 
+  color: #80ffe0;
 }
 .dd-item.active {
   color: #80ffe0;
-  background: rgba(0, 220, 160, 0.08);
+  background: rgba(0, 220, 160, 0.1);
 }
 
 select option, select optgroup {

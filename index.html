@@ -2,11 +2,33 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Remote Control Panel</title>
+  <title>System Login | Remote Control</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@500;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
+  <style>
+    .login-container {
+      max-width: 400px;
+      width: 90%;
+      text-align: center;
+    }
+    .login-title {
+      font-size: 24px;
+      color: var(--teal);
+      margin-bottom: 30px;
+      letter-spacing: 4px;
+      text-transform: uppercase;
+    }
+    .error-msg {
+      color: var(--red);
+      font-size: 12px;
+      margin-top: 10px;
+      height: 20px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+  </style>
 </head>
 <body>
 
@@ -14,85 +36,136 @@
   <div class="bg-vignette"></div>
   <div class="scanline"></div>
 
-  <div class="container">
+  <!-- Corner Reload Button -->
+  <button class="reload-btn" onclick="location.reload()" title="RELOAD SYSTEM">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M23 4v6h-6"></path>
+      <path d="M1 20v-6h6"></path>
+      <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+    </svg>
+  </button>
 
+  <div class="container login-container">
     <div class="panel-header">
       <div class="header-side">
-        <div class="status-dot" id="dot"></div>
-        <span class="mono-xs">SYS ONLINE</span>
+        <div class="status-dot busy" id="dot"></div>
+        <span class="mono-xs">SYSTEM LOCKED</span>
       </div>
-      <h1 class="panel-title">CTRL PANEL</h1>
+      <h1 class="panel-title">GATEWAY</h1>
       <div class="header-side right">
         <span class="mono-xs" id="clock">--:--:--</span>
       </div>
     </div>
 
     <div class="divider"></div>
+    
+    <div class="login-title">Identification Required</div>
 
-    <!-- Access Key -->
-    <div class="field-group">
-      <label class="field-label" for="key">ACCESS KEY</label>
-      <div class="input-wrap">
-        <input
-          type="password"
-          id="key"
-          placeholder="• • • • • • • •"
-          autocomplete="off"
-          spellcheck="false"
-        >
-        <div class="input-underline"></div>
-      </div>
-    </div>
-
-    <!-- Command Select (custom) -->
-    <div class="field-group">
-      <label class="field-label">COMMAND</label>
-      <div class="dropdown" id="dropdown">
-        <button class="dd-trigger" id="ddTrigger" type="button" onclick="toggleDropdown()">
-          <span class="dd-value" id="ddValue">— SELECT COMMAND —</span>
-          <svg class="dd-arrow" id="ddArrow" width="10" height="6" viewBox="0 0 10 6" fill="none">
-            <path d="M1 1L5 5L9 1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-          </svg>
-        </button>
-        <div class="dd-menu" id="ddMenu">
-          <div class="dd-group-label">DEVICE</div>
-          <button class="dd-item" type="button" data-value="lock"  onclick="selectCmd(this)">🔒 &nbsp;LOCK</button>
-          <button class="dd-item" type="button" data-value="aeroplane_on" onclick="selectCmd(this)">✈️ &nbsp;AEROPLANE ON</button>
-          <button class="dd-item" type="button" data-value="aeroplane_off" onclick="selectCmd(this)">✈️ &nbsp;AEROPLANE OFF</button>
-          <button class="dd-item" type="button" data-value="location_on" onclick="selectCmd(this)">📍 &nbsp;LOCATION ON</button>
-          <button class="dd-item" type="button" data-value="location_off" onclick="selectCmd(this)">📍 &nbsp;LOCATION OFF</button>
-          <button class="dd-item" type="button" data-value="vibrate_on" onclick="selectCmd(this)">📳 &nbsp;VIBRATE MODE ON</button>
-          <button class="dd-item" type="button" data-value="location_share" onclick="selectCmd(this)">🛰️ &nbsp;LIVE LOCATION</button>
-          <button class="dd-item" type="button" data-value="start_sshd" onclick="selectCmd(this)">💻 &nbsp;START SSH PHONE</button>
-          <!-- Add more dd-group-label + dd-item blocks here -->
+    <form id="loginForm">
+      <div class="field-group">
+        <label class="field-label" for="accessKey">ACCESS KEY</label>
+        <div class="input-wrap">
+          <input
+            type="password"
+            id="accessKey"
+            placeholder="ENTER ACCESS KEY..."
+            autocomplete="current-password"
+          >
+          <div class="input-underline"></div>
         </div>
       </div>
-    </div>
-    <div class="divider"></div>
 
-    <!-- Execute -->
-    <button class="exec-btn" id="execBtn" onclick="execute()">
-      <span class="exec-icon">▶</span>
-      <span class="exec-label">EXECUTE</span>
-      <div class="exec-ripple" id="ripple"></div>
-    </button>
+      <div class="divider" style="margin-top: 10px;"></div>
+
+      <button class="exec-btn" id="loginBtn" type="submit">
+        <span class="exec-icon">⚿</span>
+        <span class="exec-label">AUTHORIZE</span>
+        <div class="exec-ripple" id="ripple"></div>
+      </button>
+    </form>
 
     <!-- Status terminal -->
-    <div class="terminal">
+    <div class="terminal" style="margin-top: 30px; text-align: left;">
       <div class="terminal-bar">
-        <span class="mono-xs">STATUS</span>
+        <span class="mono-xs">GATEWAY STATUS</span>
         <div class="term-dots"><span></span><span></span><span></span></div>
       </div>
       <div class="terminal-body" id="terminalBody">
         <div class="t-line">
           <span class="t-prompt">›</span>
-          <span class="t-text">IDLE — AWAITING INPUT</span>
+          <span class="t-text">IDLE — AWAITING ACCESS KEY</span>
         </div>
       </div>
     </div>
-
   </div>
 
-<script src="script.js"></script>
+  <script>
+    // Status helper
+    function setStatus(msg, state) {
+      const body = document.getElementById("terminalBody");
+      const dot = document.getElementById("dot");
+
+      const line = document.createElement("div");
+      line.className = "t-line";
+
+      const span = document.createElement("span");
+      span.className = "t-text " + (state || "");
+      span.textContent = msg;
+
+      line.innerHTML = `<span class="t-prompt">›</span>`;
+      line.appendChild(span);
+
+      body.appendChild(line);
+      body.scrollTop = body.scrollHeight;
+
+      // Update status dot
+      dot.className = "status-dot " + (state === "busy" ? "busy" : state === "err" ? "error" : "");
+    }
+
+    // Simple Clock
+    function tick() {
+      document.getElementById("clock").textContent = new Date().toTimeString().slice(0, 8);
+    }
+    tick();
+    setInterval(tick, 1000);
+
+    // Login Logic
+    document.getElementById('loginForm').onsubmit = async (e) => {
+      e.preventDefault();
+      const inputEl = document.getElementById('accessKey');
+      const key = inputEl.value.trim();
+      const btn = document.getElementById('loginBtn');
+
+      if (!key) {
+        setStatus("ACCESS KEY REQUIRED", "err");
+        shake(inputEl);
+        return;
+      }
+
+      btn.disabled = true;
+      setStatus(`VERIFYING ACCESS KEY ...`, "busy");
+
+      // Small delay for terminal effect
+      setTimeout(() => {
+        window.location.href = `/login?key=${encodeURIComponent(key)}`;
+      }, 600);
+    };
+
+    // Show error if redirected back with error
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.has('error')) {
+      setStatus("ACCESS DENIED — INVALID CREDENTIALS", "err");
+      // Shake effect
+      const container = document.querySelector('.container');
+      container.style.animation = "shake 0.38s cubic-bezier(0.36, 0.07, 0.19, 0.97)";
+    }
+
+    // Shake effect helper
+    function shake(el) {
+      el.style.animation = "none";
+      void el.offsetWidth;
+      el.style.animation = "shake 0.38s cubic-bezier(0.36, 0.07, 0.19, 0.97)";
+    }
+  </script>
 </body>
 </html>

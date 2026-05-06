@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Remote Control Panel</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <div class="bg-grid"></div>
+  <div class="bg-vignette"></div>
+  <div class="scanline"></div>
+  
+  <!-- Corner Reload Button -->
+  <button class="reload-btn" onclick="location.reload()" title="RELOAD SYSTEM">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M23 4v6h-6"></path>
+      <path d="M1 20v-6h6"></path>
+      <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+    </svg>
+  </button>
+
+  <div class="container">
+
+    <div class="panel-header">
+      <div class="header-side">
+        <div class="status-dot" id="dot"></div>
+        <span class="mono-xs">SYS ONLINE</span>
+      </div>
+      <h1 class="panel-title">CTRL PANEL</h1>
+      <div class="header-side right">
+        <span class="mono-xs" id="clock">--:--:--</span>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- Macros Key -->
+    <div class="field-group">
+      <label class="field-label" for="key">MACROS KEY</label>
+      <div class="input-wrap">
+        <input
+          type="password"
+          id="key"
+          placeholder="ENTER KEY..."
+          autocomplete="off"
+          spellcheck="false"
+        >
+        <div class="input-underline"></div>
+      </div>
+    </div>
+
+    <!-- Command Select (custom) -->
+    <div class="field-group">
+      <label class="field-label">COMMAND</label>
+      <div class="dropdown" id="dropdown">
+        <button class="dd-trigger" id="ddTrigger" type="button" onclick="toggleDropdown()">
+          <span class="dd-value" id="ddValue">— SELECT COMMAND —</span>
+          <svg class="dd-arrow" id="ddArrow" width="10" height="6" viewBox="0 0 10 6" fill="none">
+            <path d="M1 1L5 5L9 1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+          </svg>
+        </button>
+        <div class="dd-menu" id="ddMenu">
+          <div class="dd-group-label">DEVICE</div>
+          <button class="dd-item" type="button" data-value="lock"  onclick="selectCmd(this)">🔒 &nbsp;LOCK</button>
+          <button class="dd-item" type="button" data-value="aeroplane_on" onclick="selectCmd(this)">✈️ &nbsp;AEROPLANE ON</button>
+          <button class="dd-item" type="button" data-value="aeroplane_off" onclick="selectCmd(this)">✈️ &nbsp;AEROPLANE OFF</button>
+          <button class="dd-item" type="button" data-value="location_on" onclick="selectCmd(this)">📍 &nbsp;LOCATION ON</button>
+          <button class="dd-item" type="button" data-value="location_off" onclick="selectCmd(this)">📍 &nbsp;LOCATION OFF</button>
+          <button class="dd-item" type="button" data-value="vibrate_on" onclick="selectCmd(this)">📳 &nbsp;VIBRATE MODE ON</button>
+          <button class="dd-item" type="button" data-value="vibrate_off" onclick="selectCmd(this)">📳 &nbsp;VIBRATE MODE OFF</button>
+          <button class="dd-item" type="button" data-value="vibrate_starwars" onclick="selectCmd(this)">🌌 &nbsp;VIBRATE STARWARS</button>
+          <button class="dd-item" type="button" data-value="wifi_on" onclick="selectCmd(this)">📶 &nbsp;WIFI ON</button>
+          <button class="dd-item" type="button" data-value="wifi_off" onclick="selectCmd(this)">📶 &nbsp;WIFI OFF</button>
+          <button class="dd-item" type="button" data-value="bluetooth_on" onclick="selectCmd(this)">🔵 &nbsp;BLUETOOTH ON</button>
+          <button class="dd-item" type="button" data-value="bluetooth_off" onclick="selectCmd(this)">🔵 &nbsp;BLUETOOTH OFF</button>
+          <button class="dd-item" type="button" data-value="autorotate_on" onclick="selectCmd(this)">🔄 &nbsp;AUTOROTATE ON</button>
+          <button class="dd-item" type="button" data-value="autorotate_off" onclick="selectCmd(this)">🔄 &nbsp;AUTOROTATE OFF</button>
+          <button class="dd-item" type="button" data-value="demo_on" onclick="selectCmd(this)">📺 &nbsp;DEMO MODE ON</button>
+          <button class="dd-item" type="button" data-value="demo_off" onclick="selectCmd(this)">📺 &nbsp;DEMO MODE OFF</button>
+          <button class="dd-item" type="button" data-value="location_share" onclick="selectCmd(this)">🛰️ &nbsp;LIVE LOCATION</button>
+          <button class="dd-item" type="button" data-value="location_share_recent" onclick="selectCmd(this)">🛰️ &nbsp;RECENT LOCATION</button>
+          <button class="dd-item" type="button" data-value="microphone_record" onclick="selectCmd(this)">🎙️ &nbsp;RECORD MIC</button>
+          <button class="dd-item" type="button" data-value="speak_text" onclick="selectCmd(this)">🗣️ &nbsp;SPEAK TEXT</button>
+          <button class="dd-item" type="button" data-value="start_sshd" onclick="selectCmd(this)">💻 &nbsp;START SSH PHONE</button>
+          <button class="dd-item" type="button" data-value="test" onclick="selectCmd(this)">⚙️ &nbsp;TEST SYSTEM</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Secondary Parameter (cmd2) -->
+    <div class="field-group" id="cmd2Wrapper" style="display: none; height: 0; overflow: hidden; margin-bottom: 0;">
+      <label class="field-label" id="cmd2Label">PARAMETER</label>
+      <div class="input-wrap">
+        <textarea
+          id="cmd2"
+          placeholder="ENTER MESSAGE..."
+          autocomplete="off"
+          spellcheck="false"
+          rows="1"
+        ></textarea>
+        <div class="input-underline"></div>
+      </div>
+    </div>
+    <div class="divider"></div>
+
+    <!-- Execute -->
+    <button class="exec-btn" id="execBtn" onclick="execute()">
+      <span class="exec-icon">▶</span>
+      <span class="exec-label">EXECUTE</span>
+      <div class="exec-ripple" id="ripple"></div>
+    </button>
+
+    <!-- Status terminal -->
+    <div class="terminal">
+      <div class="terminal-bar">
+        <span class="mono-xs">STATUS</span>
+        <div class="term-dots"><span></span><span></span><span></span></div>
+      </div>
+      <div class="terminal-body" id="terminalBody">
+        <!-- Managed by script.js -->
+      </div>
+    </div>
+
+  </div>
+
+<script src="script.js"></script>
+
+<!-- Logout Button -->
+<a href="/logout" class="logout-btn" title="TERMINATE SESSION">
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+    <polyline points="16 17 21 12 16 7"></polyline>
+    <line x1="21" y1="12" x2="9" y2="12"></line>
+  </svg>
+  <span>LOGOUT</span>
+</a>
+
+</body>
+</html>
