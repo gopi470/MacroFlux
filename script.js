@@ -38,6 +38,38 @@ function tick() {
 tick();
 setInterval(tick, 1000);
 
+/* ── Real-Time Listener (Dweet.io) ─────────────────────────── */
+let lastDweetTime = null;
+let pollInterval = null;
+
+function startListening(key) {
+  if (pollInterval) clearInterval(pollInterval);
+  
+  // Simple ID for easy MacroDroid setup
+  const mailboxId = "muffin-" + key.trim();
+  setStatus(`LISTENING FOR RESPONSE...`, "ok");
+
+  pollInterval = setInterval(async () => {
+    try {
+      const resp = await fetch(`https://dweet.io/get/latest/dweet/for/${mailboxId}`);
+      const data = await resp.json();
+      
+      if (data.this === "succeeded" && data.with.length > 0) {
+        const dweet = data.with[0];
+        const link = dweet.content.link;
+        const time = dweet.created;
+
+        if (link && time !== lastDweetTime) {
+          lastDweetTime = time;
+          displayLocation(link);
+        }
+      }
+    } catch (e) {
+      console.error("Polling error:", e);
+    }
+  }, 3000);
+}
+
 /* ── Status helper ──────────────────────────────────────────── */
 function setStatus(msg, state) {
   const body = document.getElementById("terminalBody");
@@ -148,6 +180,9 @@ function execute() {
   }
 
   setStatus(`EXECUTING: ${selectedCmd.toUpperCase()} ...`, "busy");
+
+  // Start listening for the response now that we have a key
+  startListening(key);
 
   setTimeout(() => {
     const url = `https://api.muffinjuice.xyz/control?cmd=${selectedCmd}&key=${key}`;

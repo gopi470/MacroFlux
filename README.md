@@ -153,10 +153,11 @@ Click "Send" to execute the action on the device.
 ## Live Location Flow
 
 1. **Trigger**: Select `LIVE LOCATION` and click `EXECUTE`.
-2. **Macro Action**: The phone receives the webhook and captures current GPS coordinates.
-3. **Report**: The macro sends a GET request to:
-   `https://ui.muffinjuice.xyz/?link=[gmaps_link]`
-4. **Display**: The UI parses the `link` parameter and displays a styled "[ OPEN SATELLITE VIEW ]" button in the status terminal.
+2. **Listener**: The UI starts polling `dweet.io/get/latest/dweet/for/muffin-[key]` every 3 seconds.
+3. **Macro Action**: The phone receives the webhook and captures GPS coordinates.
+4. **Report**: The macro sends a GET request to the dweet mailbox:
+   `https://dweet.io/dweet/for/muffin-[key]?link=[gmaps_link]`
+5. **Display**: The UI detects the new "dweet" and displays the styled "[ OPEN SATELLITE VIEW ]" button on the PC screen in real-time.
 
 ---
 
