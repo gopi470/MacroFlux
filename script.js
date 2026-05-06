@@ -47,21 +47,56 @@ function handleIncomingLocation() {
   }, 600);
 }
 
-function displayLocation(link) {
-  setStatus("LOCATION RECEIVED", "ok");
+/* ── Terminal Management ───────────────────────────────────── */
+function saveLog(entry) {
+  let history = JSON.parse(localStorage.getItem("remote_terminal_history") || "[]");
+  history.push(entry);
+  if (history.length > 50) history.shift();
+  localStorage.setItem("remote_terminal_history", JSON.stringify(history));
+}
+
+function loadHistory() {
+  const history = JSON.parse(localStorage.getItem("remote_terminal_history") || "[]");
+  history.forEach(item => {
+    if (item.type === "location") renderLocation(item.link);
+    else renderStatus(item.msg, item.state);
+  });
+}
+
+function renderStatus(msg, state) {
   const body = document.getElementById("terminalBody");
   const line = document.createElement("div");
   line.className = "t-line";
+  line.innerHTML = `<span class="t-prompt">›</span><span class="t-text ${state || ""}">${msg}</span>`;
+  body.appendChild(line);
+  body.scrollTop = body.scrollHeight;
+  
+  const dot = document.getElementById("dot");
+  if (dot) dot.className = "status-dot " + (state === "busy" ? "busy" : state === "err" ? "error" : "");
+}
 
+function renderLocation(link) {
+  const body = document.getElementById("terminalBody");
+  const line = document.createElement("div");
+  line.className = "t-line";
   line.innerHTML = `
     <span class="t-prompt">›</span>
     <span class="t-text ok">
       MAP DATA ACQUIRED<br>
       <a href="${link}" target="_blank" class="map-link">[ OPEN SATELLITE VIEW ]</a>
     </span>`;
-
   body.appendChild(line);
   body.scrollTop = body.scrollHeight;
+}
+
+function setStatus(msg, state) {
+  renderStatus(msg, state);
+  saveLog({ type: "status", msg, state });
+}
+
+function displayLocation(link) {
+  renderLocation(link);
+  saveLog({ type: "location", link });
 }
 
 function checkInitialLogin() {
@@ -69,8 +104,16 @@ function checkInitialLogin() {
   if (params.get("login") === "success") {
     setStatus("AUTHENTICATION SUCCESS", "ok");
     window.history.replaceState({}, "", "/home");
+  } else {
+    // If not a fresh login, just load what we had
+    loadHistory();
   }
-  setStatus("IDLE — AWAITING INPUT");
+
+  // Always show current status if empty
+  const body = document.getElementById("terminalBody");
+  if (body.children.length === 0) {
+    setStatus("IDLE — AWAITING INPUT");
+  }
 }
 
 handleIncomingLocation();
@@ -84,31 +127,6 @@ function tick() {
 }
 tick();
 setInterval(tick, 1000);
-
-/* ── Status helper ──────────────────────────────────────────── */
-function setStatus(msg, state) {
-  const body = document.getElementById("terminalBody");
-  const dot = document.getElementById("dot");
-
-  // Create new line element
-  const line = document.createElement("div");
-  line.className = "t-line";
-
-  const span = document.createElement("span");
-  span.className = "t-text " + (state || "");
-  span.textContent = msg;
-
-  line.innerHTML = `<span class="t-prompt">›</span>`;
-  line.appendChild(span);
-
-  body.appendChild(line);
-
-  // Auto-scroll to bottom
-  body.scrollTop = body.scrollHeight;
-
-  // Update status dot
-  dot.className = "status-dot " + (state === "busy" ? "busy" : state === "err" ? "error" : "");
-}
 
 /* ── Ripple helper ──────────────────────────────────────────── */
 const execBtn = document.getElementById("execBtn");
@@ -285,8 +303,15 @@ document.addEventListener("click", function (e) {
 });
 
 /* ── Execute ────────────────────────────────────────────────── */
+function haptic() {
+  if (window.navigator && window.navigator.vibrate) {
+    window.navigator.vibrate(15);
+  }
+}
+
 function execute() {
   if (execBtn.disabled) return; // 🛡️ hard safety
+  haptic();
 
   const key = document.getElementById("key").value.trim();
   const cmd2 = document.getElementById("cmd2").value.trim();
@@ -302,6 +327,10 @@ function execute() {
     shake(document.getElementById("ddTrigger"));
     return;
   }
+
+  // Visual feedback: Spinner
+  execBtn.classList.add("loading");
+  setTimeout(() => execBtn.classList.remove("loading"), 1000);
 
   // If cmd2 is required but empty
   if (selectedCmd === "speak_text" && !cmd2) {

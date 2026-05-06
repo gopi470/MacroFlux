@@ -128,12 +128,20 @@
     function tick() {
       document.getElementById("clock").textContent = new Date().toTimeString().slice(0, 8);
     }
+    
+    function haptic() {
+      if (window.navigator && window.navigator.vibrate) {
+        window.navigator.vibrate(15);
+      }
+    }
+
     tick();
     setInterval(tick, 1000);
 
     // Login Logic
     document.getElementById('loginForm').onsubmit = async (e) => {
       e.preventDefault();
+      haptic();
       const inputEl = document.getElementById('accessKey');
       const key = inputEl.value.trim();
       const btn = document.getElementById('loginBtn');
