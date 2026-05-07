@@ -193,6 +193,87 @@ body {
 }
 .panel-title .accent { color: var(--teal); }
 
+/* Hardware Status Bar */
+.hw-status-bar {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  margin-top: 4px;
+  margin-bottom: 8px;
+  padding: 10px;
+  background: rgba(0, 220, 160, 0.03);
+  border: 1px solid rgba(0, 220, 160, 0.1);
+  border-radius: var(--r);
+  animation: fadeUp 0.4s 0.1s both;
+}
+.hw-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+}
+.hw-label {
+  font-size: 8px;
+  color: var(--text-label);
+  letter-spacing: 1px;
+}
+.hw-val {
+  font-size: 13px;
+  font-family: var(--mono);
+  font-weight: 700;
+  color: var(--teal);
+}
+
+.hw-val-wrap {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.charge-icon {
+  color: var(--amber);
+  opacity: 0;
+  transition: opacity 0.3s var(--ease);
+  filter: drop-shadow(0 0 5px var(--amber));
+}
+
+#battContainer.charging .charge-icon {
+  opacity: 1;
+}
+
+#battContainer.charging .hw-val {
+  color: var(--amber);
+  animation: battPulse 1.5s ease-in-out infinite;
+}
+
+@keyframes battPulse {
+  0%, 100% { opacity: 1; text-shadow: 0 0 10px var(--amber); }
+  50% { opacity: 0.7; text-shadow: 0 0 2px var(--amber); }
+}
+
+/* Signal Bars */
+.sig-bars {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 12px;
+  margin-top: 2px;
+}
+.sig-bars .bar {
+  width: 3px;
+  background: rgba(0, 220, 160, 0.15);
+  border-radius: 1px;
+}
+.sig-bars .bar:nth-child(1) { height: 25%; }
+.sig-bars .bar:nth-child(2) { height: 50%; }
+.sig-bars .bar:nth-child(3) { height: 75%; }
+.sig-bars .bar:nth-child(4) { height: 100%; }
+
+.sig-bars .bar.fill {
+  background: var(--teal);
+  box-shadow: 0 0 5px var(--teal-glow);
+}
+
 .mono-xs {
   font-family: var(--mono);
   font-size: 10px; letter-spacing: 0.12em;
@@ -296,7 +377,8 @@ input:focus ~ .input-underline { width: 100%; }
 .dropdown.open { z-index: 200; }
 .container.dropdown-open .divider,
 .container.dropdown-open .exec-btn,
-.container.dropdown-open .terminal {
+.container.dropdown-open .terminal,
+.container.dropdown-open #cmd2Wrapper {
   opacity: 0;
   pointer-events: none;
   visibility: hidden;

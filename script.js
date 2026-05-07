@@ -3,35 +3,61 @@ let lastReceivedLink = "";
 let lastReportTime = 0;
 let isWaitingForFreshData = false;
 let referenceTime = 0;
+let lastLocationTime = Date.now();
 
-async function pollLocation() {
-  const key = document.getElementById("key").value.trim();
-  if (!key) return; 
+function updateSignalBars(dbm) {
+  const bars = document.querySelectorAll("#sigVal .bar");
+  const val = parseInt(dbm);
+  let count = 0;
 
-  try {
-    const resp = await fetch(`/poll?key=${key}&t=` + Date.now());
-    if (!resp.ok) return; 
-    
-    const data = await resp.json();
+  if (isNaN(val)) count = 0;
+  else if (val >= -75) count = 4;
+  else if (val >= -85) count = 3;
+  else if (val >= -95) count = 2;
+  else if (val >= -105) count = 1;
+  else count = 0;
 
-    if (data.link) {
-      lastReceivedLink = data.link;
-      const newReportTime = data.time || 0;
-
-      // If we are waiting for a new report, check if the timestamp has INCREASED
-      if (isWaitingForFreshData && newReportTime > referenceTime) {
-        displayLocation(data.link);
-        isWaitingForFreshData = false; // stop waiting
-      }
-      
-      lastReportTime = newReportTime;
-    }
-  } catch (e) {}
+  bars.forEach((b, i) => {
+    b.classList.toggle("fill", i < count);
+  });
 }
 
-function startPolling() {
-  // Start polling every 2.5 seconds
-  setInterval(pollLocation, 2500);
+async function startPolling() {
+  setInterval(async () => {
+    try {
+      const res = await fetch("/poll");
+      if (!res.ok) return;
+      const data = await res.json();
+      
+      // Update Hardware readout
+      if (data.status) {
+        const s = data.status;
+        if (s.battery_level) document.getElementById("battVal").textContent = s.battery_level + "%";
+        
+        // Handle Charging state
+        const battCont = document.getElementById("battContainer");
+        if (s.battery_status && s.battery_status.toLowerCase() === "on") {
+          battCont.classList.add("charging");
+        } else {
+          battCont.classList.remove("charging");
+        }
+
+        if (s.signal_strength) updateSignalBars(s.signal_strength);
+        if (s.battery_temperature) document.getElementById("tempVal").textContent = s.battery_temperature + "°C";
+        if (s.phone_uptime) document.getElementById("uptimeVal").textContent = s.phone_uptime;
+      }
+
+      // Check for fresh location link
+      if (data.location && data.location.link) {
+        if (data.location.updated > lastLocationTime) {
+          lastLocationTime = data.location.updated;
+          displayLocation(data.location.link);
+        }
+      }
+    } catch (e) {
+      console.error("Poll error:", e);
+    }
+  }, 3500);
 }
 
 function handleIncomingLocation() {
@@ -171,7 +197,7 @@ function openDropdown() {
   const search = document.getElementById("ddSearch");
   search.value = "";
   filterCommands("");
-  setTimeout(() => search.focus(), 100);
+  // Removed auto-focus to prevent keyboard popup on mobile
 
   // Reset focus
   focusedIndex = -1;

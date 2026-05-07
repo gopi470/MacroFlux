@@ -36,6 +36,36 @@
       </div>
     </div>
 
+    <!-- Hardware Status Bar -->
+    <div class="hw-status-bar">
+      <div class="hw-item">
+        <span class="hw-label">BATT</span>
+        <div class="hw-val-wrap" id="battContainer">
+          <span class="hw-val" id="battVal">--%</span>
+          <svg class="charge-icon" id="chargeIcon" viewBox="0 0 24 24" width="10" height="10" fill="currentColor">
+            <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"></path>
+          </svg>
+        </div>
+      </div>
+      <div class="hw-item">
+        <span class="hw-label">SIG</span>
+        <div class="sig-bars" id="sigVal">
+          <span class="bar"></span>
+          <span class="bar"></span>
+          <span class="bar"></span>
+          <span class="bar"></span>
+        </div>
+      </div>
+      <div class="hw-item">
+        <span class="hw-label">TEMP</span>
+        <span class="hw-val" id="tempVal">--°C</span>
+      </div>
+      <div class="hw-item">
+        <span class="hw-label">UPTIME</span>
+        <span class="hw-val" id="uptimeVal">--</span>
+      </div>
+    </div>
+
     <div class="divider"></div>
 
     <!-- Macros Key -->
@@ -68,29 +98,40 @@
           <div class="dd-search-wrap">
             <input type="text" id="ddSearch" placeholder="SEARCH COMMANDS..." autocomplete="off">
           </div>
-          <div class="dd-group-label">DEVICE</div>
+          
+          <div class="dd-group-label">SYSTEM & POWER</div>
+          <button class="dd-item" type="button" data-value="cancel_all_prev_macros" onclick="selectCmd(this)">🛑 &nbsp;CANCEL ALL MACROS</button>
+          <button class="dd-item" type="button" data-value="batterysaver_on" onclick="selectCmd(this)">🔋 &nbsp;BATTERY SAVER ON</button>
+          <button class="dd-item" type="button" data-value="batterysaver_off" onclick="selectCmd(this)">🔋 &nbsp;BATTERY SAVER OFF</button>
+          <button class="dd-item" type="button" data-value="darktheme_on" onclick="selectCmd(this)">🌙 &nbsp;DARK THEME ON</button>
+          <button class="dd-item" type="button" data-value="darktheme_off" onclick="selectCmd(this)">☀️ &nbsp;DARK THEME OFF</button>
+          <button class="dd-item" type="button" data-value="test" onclick="selectCmd(this)">⚙️ &nbsp;TEST SYSTEM</button>
+
+          <div class="dd-group-label">DEVICE CONTROL</div>
           <button class="dd-item" type="button" data-value="lock"  onclick="selectCmd(this)">🔒 &nbsp;LOCK</button>
           <button class="dd-item" type="button" data-value="aeroplane_on" onclick="selectCmd(this)">✈️ &nbsp;AEROPLANE ON</button>
           <button class="dd-item" type="button" data-value="aeroplane_off" onclick="selectCmd(this)">✈️ &nbsp;AEROPLANE OFF</button>
           <button class="dd-item" type="button" data-value="location_on" onclick="selectCmd(this)">📍 &nbsp;LOCATION ON</button>
           <button class="dd-item" type="button" data-value="location_off" onclick="selectCmd(this)">📍 &nbsp;LOCATION OFF</button>
-          <button class="dd-item" type="button" data-value="vibrate_on" onclick="selectCmd(this)">📳 &nbsp;VIBRATE MODE ON</button>
-          <button class="dd-item" type="button" data-value="vibrate_off" onclick="selectCmd(this)">📳 &nbsp;VIBRATE MODE OFF</button>
-          <button class="dd-item" type="button" data-value="vibrate_starwars" onclick="selectCmd(this)">🌌 &nbsp;VIBRATE STARWARS</button>
           <button class="dd-item" type="button" data-value="wifi_on" onclick="selectCmd(this)">📶 &nbsp;WIFI ON</button>
           <button class="dd-item" type="button" data-value="wifi_off" onclick="selectCmd(this)">📶 &nbsp;WIFI OFF</button>
           <button class="dd-item" type="button" data-value="bluetooth_on" onclick="selectCmd(this)">🔵 &nbsp;BLUETOOTH ON</button>
           <button class="dd-item" type="button" data-value="bluetooth_off" onclick="selectCmd(this)">🔵 &nbsp;BLUETOOTH OFF</button>
           <button class="dd-item" type="button" data-value="autorotate_on" onclick="selectCmd(this)">🔄 &nbsp;AUTOROTATE ON</button>
           <button class="dd-item" type="button" data-value="autorotate_off" onclick="selectCmd(this)">🔄 &nbsp;AUTOROTATE OFF</button>
-          <button class="dd-item" type="button" data-value="demo_on" onclick="selectCmd(this)">📺 &nbsp;DEMO MODE ON</button>
-          <button class="dd-item" type="button" data-value="demo_off" onclick="selectCmd(this)">📺 &nbsp;DEMO MODE OFF</button>
+          
+          <div class="dd-group-label">MEDIA & SURVEILLANCE</div>
           <button class="dd-item" type="button" data-value="location_share" onclick="selectCmd(this)">🛰️ &nbsp;LIVE LOCATION</button>
           <button class="dd-item" type="button" data-value="location_share_recent" onclick="selectCmd(this)">🛰️ &nbsp;RECENT LOCATION</button>
+          <button class="dd-item" type="button" data-value="videorecording_on" onclick="selectCmd(this)">📹 &nbsp;RECORD VIDEO</button>
           <button class="dd-item" type="button" data-value="microphone_record" onclick="selectCmd(this)">🎙️ &nbsp;RECORD MIC</button>
           <button class="dd-item" type="button" data-value="speak_text" onclick="selectCmd(this)">🗣️ &nbsp;SPEAK TEXT</button>
+          <button class="dd-item" type="button" data-value="vibrate_on" onclick="selectCmd(this)">📳 &nbsp;VIBRATE MODE ON</button>
+          <button class="dd-item" type="button" data-value="vibrate_off" onclick="selectCmd(this)">📳 &nbsp;VIBRATE MODE OFF</button>
+          <button class="dd-item" type="button" data-value="vibrate_starwars" onclick="selectCmd(this)">🌌 &nbsp;VIBRATE STARWARS</button>
+          <button class="dd-item" type="button" data-value="demo_on" onclick="selectCmd(this)">📺 &nbsp;DEMO MODE ON</button>
+          <button class="dd-item" type="button" data-value="demo_off" onclick="selectCmd(this)">📺 &nbsp;DEMO MODE OFF</button>
           <button class="dd-item" type="button" data-value="start_sshd" onclick="selectCmd(this)">💻 &nbsp;START SSH PHONE</button>
-          <button class="dd-item" type="button" data-value="test" onclick="selectCmd(this)">⚙️ &nbsp;TEST SYSTEM</button>
         </div>
       </div>
     </div>
