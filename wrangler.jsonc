@@ -14,5 +14,12 @@
   ],
   "assets": {
     "directory": "."
-  }
+  },
+  "routes": [
+    {
+      "pattern": "ui.muffinjuice.xyz",
+      "zone_name": "muffinjuice.xyz",
+      "custom_domain": true
+    }
+  ]
 }

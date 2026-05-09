@@ -95,16 +95,45 @@ export default {
       const cmd = url.searchParams.get("cmd");
       const key = url.searchParams.get("key"); // This is the MACROS KEY
       const cmd2 = url.searchParams.get("cmd2");
-
-      // WE NO LONGER CHECK FOR "ABC" HERE. 
-      // We pass the key directly to MacroDroid as requested.
       
       const macroId = env.MACRO_ID || "PASTE_YOUR_ID_FOR_LOCAL_TESTING";
       let target = `https://trigger.macrodroid.com/${macroId}/control?cmd=${cmd}&key=${key}`;
       if (cmd2) target += `&cmd2=${encodeURIComponent(cmd2)}`;
       
-      // PROXY the request so the browser doesn't deal with CORS
       return await fetch(target);
+    }
+
+    // ── File Vault Storage (/upload) ────────────────────────
+    if (url.pathname === "/upload" && request.method === "POST") {
+      const { searchParams } = url;
+      if (searchParams.get("key") !== (env.REPORT_KEY || "REPORT_SECRET")) {
+        return new Response("UNAUTHORIZED", { status: 401 });
+      }
+
+      const type = searchParams.get("type") || "image";
+      const fileId = `${type}_${Date.now()}`;
+      const blob = await request.arrayBuffer();
+      
+      // Store raw binary data in KV
+      await env.LOCATION_KV.put(`vault_${fileId}`, blob, {
+        metadata: { contentType: type === "audio" ? "audio/mpeg" : "image/jpeg" }
+      });
+
+      return new Response(`/vault/${fileId}`);
+    }
+
+    // ── File Vault Retrieval (/vault) ───────────────────────
+    if (url.pathname.startsWith("/vault/")) {
+      if (!isLoggedIn) return new Response("UNAUTHORIZED", { status: 401 });
+
+      const fileId = url.pathname.replace("/vault/", "");
+      const { value, metadata } = await env.LOCATION_KV.getWithMetadata(`vault_${fileId}`, { type: "arrayBuffer" });
+
+      if (!value) return new Response("FILE NOT FOUND", { status: 404 });
+
+      return new Response(value, {
+        headers: { "Content-Type": metadata.contentType || "application/octet-stream" }
+      });
     }
 
     // Default: Serve Assets
