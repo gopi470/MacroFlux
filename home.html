@@ -2,10 +2,11 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Remote Control Panel</title>
+  <title>Control Panel</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@500;700&display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -14,6 +15,31 @@
   <div class="bg-vignette"></div>
   <div class="scanline"></div>
   
+  <!-- Top Left Navigation Menu -->
+  <div class="top-left-menu" id="topLeftMenu">
+    <button class="nav-btn" onclick="document.getElementById('navDropdown').classList.toggle('open')" title="SYSTEM MENU">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="3" y1="12" x2="21" y2="12"></line>
+        <line x1="3" y1="6" x2="21" y2="6"></line>
+        <line x1="3" y1="18" x2="21" y2="18"></line>
+      </svg>
+    </button>
+    <div class="nav-dropdown" id="navDropdown">
+      <a href="/requests" target="_blank" class="nav-drop-item">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 6px;"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>
+        HTTP LOGS
+      </a>
+      <a href="/statuslogs" target="_blank" class="nav-drop-item">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 6px;"><path d="M22 12h-4l-3 9L9 3l-3 9H2"></path></svg>
+        STATUS HISTORY
+      </a>
+      <a href="/vault/list" target="_blank" class="nav-drop-item">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 6px;"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
+        VAULT
+      </a>
+    </div>
+  </div>
+
   <!-- Corner Reload Button -->
   <button class="reload-btn" onclick="location.reload()" title="RELOAD SYSTEM">
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -34,16 +60,29 @@
     </div>
   </div>
 
+  <!-- Confirmation Modal -->
+  <div id="confirmModal" class="modal">
+    <div class="modal-content confirm">
+      <div class="modal-header confirm">
+        <span class="mono-xs" style="color:var(--red)">SYSTEM CONFIRMATION</span>
+      </div>
+      <div class="modal-body confirm">
+        <p id="confirmMessage" style="color:var(--text); font-size:12px; margin-bottom:20px;"></p>
+        <div style="display:flex; gap:10px;">
+          <button id="confirmBtn" class="confirm-btn yes">CLEAR LOGS</button>
+          <button onclick="closeConfirm()" class="confirm-btn no">ABORT</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <div class="container" id="mainContainer">
     <div class="scan-pulse"></div>
 
     <div class="panel-header">
       <div class="header-side">
-        <div class="status-dot" id="dot" style="margin-top: 1px;"></div>
-        <div class="header-text-stack">
-          <span class="mono-xs">SYS ONLINE</span>
-          <span id="lastSeen" class="mono-xs last-seen-label">UPDATED: --s AGO</span>
-        </div>
+        <div class="status-dot" id="dot"></div>
+        <span id="lastSeen" class="mono-xs last-seen-label">UPDATED: --s AGO</span>
       </div>
       <h1 class="panel-title">CTRL PANEL</h1>
       <div class="header-side right">
@@ -192,13 +231,17 @@
           </button>
 
           <div class="dd-group-label">MEDIA & SURVEILLANCE</div>
+          <button class="dd-item" type="button" data-value="photo_click" onclick="selectCmd(this)">
+            <svg class="dd-icon amber" viewBox="0 0 24 24"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+            TAKE PHOTO
+          </button>
           <button class="dd-item" type="button" data-value="videorecording_on" onclick="selectCmd(this)">
-            <svg class="dd-icon amber" viewBox="0 0 24 24"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
+            <svg class="dd-icon amber" viewBox="0 0 24 24"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/><circle cx="8" cy="12" r="2"/></svg>
             RECORD VIDEO
           </button>
           <button class="dd-item" type="button" data-value="microphone_record" onclick="selectCmd(this)">
             <svg class="dd-icon amber" viewBox="0 0 24 24"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
-            RECORD MIC
+            RECORD AUDIO
           </button>
           <button class="dd-item" type="button" data-value="speak_text" onclick="selectCmd(this)">
             <svg class="dd-icon" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 12c0 2.21-1.79 4-4 4M18 8c2.21 0 4 1.79 4 4"/></svg>
@@ -263,7 +306,7 @@
       <div class="terminal-bar">
         <span class="mono-xs">STATUS</span>
         <div class="term-dots">
-          <span></span>
+          <button id="copyLogsBtn" title="COPY LAST 10 LOGS" onclick="copyLogs()"></button>
           <span></span>
           <button id="clearLogsBtn" title="CLEAR LOGS" onclick="clearLogs()"></button>
         </div>
