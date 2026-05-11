@@ -43,3 +43,15 @@ CREATE TABLE IF NOT EXISTS status_logs (
   location TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_status_timestamp ON status_logs(timestamp DESC);
+
+CREATE TABLE IF NOT EXISTS command_schedules (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  command     TEXT NOT NULL,
+  params      TEXT,
+  target_time INTEGER NOT NULL,
+  status      TEXT DEFAULT 'PENDING',
+  secret_key  TEXT,
+  log_output  TEXT,
+  created_at  INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_schedule_target ON command_schedules(target_time ASC);

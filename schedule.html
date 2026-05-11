@@ -2,12 +2,40 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Control Panel</title>
+  <title>Command Scheduler</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@500;700&display=swap" rel="stylesheet">
   <link rel="icon" type="image/svg+xml" href="favicon.svg">
   <link rel="stylesheet" href="style.css">
+  <style>
+    /* Specific Scheduler Styles */
+    .schedule-input { 
+      background: rgba(0,220,160,0.05); 
+      border: 1px solid rgba(0,220,160,0.2); 
+      color: #00dca0; 
+      padding: 12px; 
+      border-radius: 4px; 
+      font-family: inherit; 
+      width: 100%; 
+      margin-top: 10px; 
+      outline: none; 
+      transition: all 0.2s;
+      color-scheme: dark; /* Forces browser picker to dark mode */
+    }
+    .schedule-input:focus { border-color: #00dca0; background: rgba(0,220,160,0.1); }
+    
+    /* Tactical Calendar Styling */
+    input[type="datetime-local"]::-webkit-calendar-picker-indicator { 
+      filter: invert(48%) sepia(79%) saturate(2476%) hue-rotate(130deg) brightness(118%) contrast(119%);
+      cursor: pointer;
+      opacity: 0.6;
+      transition: opacity 0.2s;
+    }
+    input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
+      opacity: 1;
+    }
+  </style>
 </head>
 <body>
   <div class="noise"></div>
@@ -15,7 +43,6 @@
   <div class="bg-vignette"></div>
   <div class="scanline"></div>
   
-  <!-- Top Left Navigation Menu -->
   <div class="top-left-menu" id="topLeftMenu">
     <button class="nav-btn" onclick="document.getElementById('navDropdown').classList.toggle('open')" title="SYSTEM MENU">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -25,30 +52,13 @@
       </svg>
     </button>
     <div class="nav-dropdown" id="navDropdown">
-      <a href="/requests" target="_blank" class="nav-drop-item">
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 6px;"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>
-        HTTP LOGS
-      </a>
-      <a href="/statuslogs" target="_blank" class="nav-drop-item">
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 6px;"><path d="M22 12h-4l-3 9L9 3l-3 9H2"></path></svg>
-        STATUS HISTORY
-      </a>
-      <a href="/schedule" class="nav-drop-item">
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 6px;"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
-        SCHEDULE COMMANDS
-      </a>
-      <a href="/schedule/logs" target="_blank" class="nav-drop-item">
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 6px;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
-        SCHEDULE LOGS
-      </a>
-      <a href="/vault/list" target="_blank" class="nav-drop-item">
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 6px;"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
-        VAULT
-      </a>
+      <a href="/home" class="nav-drop-item">CTRL PANEL (LIVE)</a>
+      <a href="/requests" target="_blank" class="nav-drop-item">HTTP LOGS</a>
+      <a href="/statuslogs" target="_blank" class="nav-drop-item">STATUS HISTORY</a>
+      <a href="/schedule/logs" target="_blank" class="nav-drop-item">SCHEDULE LOGS</a>
     </div>
   </div>
 
-  <!-- Corner Reload Button -->
   <button class="reload-btn" onclick="location.reload()" title="RELOAD SYSTEM">
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
       <path d="M23 4v6h-6"></path>
@@ -89,67 +99,24 @@
 
     <div class="panel-header">
       <div class="header-side">
-        <div class="status-dot" id="dot"></div>
-        <span id="lastSeen" class="mono-xs last-seen-label">UPDATED: --s AGO</span>
+        <div class="status-dot green" id="dot"></div>
       </div>
-      <h1 class="panel-title">CTRL PANEL</h1>
+      <h1 class="panel-title">SCHEDULER</h1>
       <div class="header-side right">
         <span class="mono-xs" id="clock">--:--:--</span>
       </div>
     </div>
 
-    <!-- Hardware Status Bar -->
-    <div class="hw-status-bar">
-      <div class="hw-item">
-        <span class="hw-label">BATT</span>
-        <div class="hw-val-wrap" id="battContainer">
-          <span class="hw-val" id="battVal">--%</span>
-          <svg class="charge-icon" id="chargeIcon" viewBox="0 0 24 24" width="10" height="10" fill="currentColor">
-            <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"></path>
-          </svg>
-        </div>
-      </div>
-      <div class="hw-item">
-        <span class="hw-label">SIG</span>
-        <div style="display:flex; align-items:center; gap:6px;">
-          <div class="sig-bars" id="sigVal">
-            <span class="bar"></span>
-            <span class="bar"></span>
-            <span class="bar"></span>
-            <span class="bar"></span>
-          </div>
-          <span id="pingVal" class="mono-xs" style="opacity:0.4; font-size:7px; letter-spacing:0; margin-top:2px;">--ms</span>
-        </div>
-      </div>
-      <div class="hw-item">
-        <span class="hw-label">TEMP</span>
-        <span class="hw-val" id="tempVal">--°C</span>
-      </div>
-      <div class="hw-item">
-        <span class="hw-label">UPTIME</span>
-        <span class="hw-val" id="uptimeVal">--</span>
-      </div>
-    </div>
-
     <div class="divider"></div>
 
-    <!-- Macros Key -->
     <div class="field-group">
       <label class="field-label" for="key">MACROS KEY</label>
       <div class="input-wrap">
-        <input
-          type="text"
-          id="key"
-          class="stealth-input"
-          placeholder="ENTER KEY..."
-          autocomplete="off"
-          spellcheck="false"
-        >
+        <input type="text" id="key" class="stealth-input" placeholder="ENTER KEY..." autocomplete="off" spellcheck="false">
         <div class="input-underline"></div>
       </div>
     </div>
 
-    <!-- Command Select (custom) -->
     <div class="field-group">
       <label class="field-label">COMMAND</label>
       <div class="dropdown" id="dropdown">
@@ -161,7 +128,7 @@
         </button>
         <div class="dd-menu" id="ddMenu">
           <div class="dd-search-wrap">
-            <input type="text" id="ddSearch" placeholder="SEARCH COMMANDS..." autocomplete="off">
+            <input type="text" id="ddSearch" placeholder="SEARCH SCHEDULE..." autocomplete="off">
           </div>
           
           <div class="dd-group-label">SYSTEM & POWER</div>
@@ -283,60 +250,108 @@
       </div>
     </div>
 
-    <!-- Secondary Parameter (cmd2) -->
-    <div class="field-group" id="cmd2Wrapper" style="display: none; height: 0; overflow: hidden; margin-bottom: 0;">
-      <label class="field-label" id="cmd2Label">PARAMETER</label>
+    <div class="field-group" id="timeWrapper">
+      <label class="field-label">EXECUTION TIME</label>
       <div class="input-wrap">
-        <textarea
-          id="cmd2"
-          placeholder="ENTER MESSAGE..."
-          autocomplete="off"
-          spellcheck="false"
-          rows="1"
-        ></textarea>
+        <input type="datetime-local" id="scheduleTime" class="schedule-input" style="border:none; margin-top:0; padding-left:0; background:transparent;">
         <div class="input-underline"></div>
       </div>
     </div>
+
+    <div class="field-group" id="cmd2Wrapper" style="display: none; height: 0; overflow: hidden; margin-bottom: 0;">
+      <label class="field-label" id="cmd2Label">PARAMETER</label>
+      <div class="input-wrap">
+        <textarea id="cmd2" placeholder="ENTER MESSAGE..." autocomplete="off" spellcheck="false" rows="1"></textarea>
+        <div class="input-underline"></div>
+      </div>
+    </div>
+
     <div class="divider"></div>
 
-    <!-- Execute -->
-    <button class="exec-btn" id="execBtn" onclick="execute()">
+    <button class="exec-btn" id="execBtn" onclick="submitSchedule()">
       <div class="exec-icon-wrap">
         <span class="exec-icon">▶</span>
         <span class="spinner"></span>
       </div>
-      <span class="exec-label">EXECUTE</span>
+      <span class="exec-label">SCHEDULE COMMAND</span>
       <div class="exec-ripple" id="ripple"></div>
     </button>
 
-    <!-- Status terminal -->
     <div class="terminal">
       <div class="terminal-bar">
         <span class="mono-xs">STATUS</span>
         <div class="term-dots">
-          <button id="copyLogsBtn" title="COPY LAST 10 LOGS" onclick="copyLogs()"></button>
           <span></span>
           <button id="clearLogsBtn" title="CLEAR LOGS" onclick="clearLogs()"></button>
         </div>
       </div>
-      <div class="terminal-body" id="terminalBody">
-        <!-- Managed by script.js -->
-      </div>
+      <div class="terminal-body" id="terminalBody"></div>
     </div>
-
   </div>
 
-<script src="script.js"></script>
+  <script src="script.js"></script>
+  <script>
+    /* Override execute with submitSchedule */
+    async function submitSchedule() {
+      if (document.getElementById('execBtn').disabled) return;
+      
+      const key = document.getElementById("key").value.trim();
+      const timeStr = document.getElementById('scheduleTime').value;
+      const cmd2 = document.getElementById('cmd2').value.trim();
+      const btn = document.getElementById('execBtn');
 
-<!-- Logout Button -->
-<a href="/logout" class="logout-btn" title="TERMINATE SESSION AND CLEAR LOGS" onclick="setStatus('TERMINAL LOGS CLEARED', 'busy'); localStorage.removeItem('remote_terminal_history')">
-  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
-    <polyline points="16 17 21 12 16 7"></polyline>
-    <line x1="21" y1="12" x2="9" y2="12"></line>
-  </svg>
-  <span>LOGOUT</span>
-</a>
+      if (!key) {
+        setStatus("MACROS KEY REQUIRED", "err");
+        shake(document.getElementById("key"));
+        return;
+      }
 
+      if (!selectedCmd) {
+        setStatus("SELECT A COMMAND FIRST", "err");
+        shake(document.getElementById("ddTrigger"));
+        return;
+      }
+
+      if (!timeStr) {
+        setStatus("TARGET TIME REQUIRED", "err");
+        shake(document.getElementById("scheduleTime"));
+        return;
+      }
+
+      const targetMs = new Date(timeStr).getTime();
+      if (targetMs <= Date.now()) {
+        setStatus("TIME MUST BE IN FUTURE", "err");
+        shake(document.getElementById("scheduleTime"));
+        return;
+      }
+
+      btn.classList.add('loading');
+      setStatus(`QUEUING ${selectedCmdDisplay.toUpperCase()}...`, "busy");
+
+      try {
+        const resp = await fetch(`/schedule/create?cmd=${selectedCmd}&time=${targetMs}&key=${encodeURIComponent(key)}&cmd2=${encodeURIComponent(cmd2)}`, { method: 'POST' });
+        if (resp.ok) {
+          setStatus("SUCCESS: COMMAND SCHEDULED", "ok");
+          setStatus(`TARGET: ${new Date(targetMs).toLocaleString()}`);
+        } else {
+          setStatus("FAIL: SERVER REJECTION", "err");
+        }
+      } catch (e) {
+        setStatus(`ERROR: ${e.message}`, "err");
+      } finally {
+        setTimeout(() => btn.classList.remove('loading'), 1000);
+      }
+    }
+
+    // Hide status bar elements if they accidentally exist in clone
+    document.querySelectorAll('.hw-status-bar, .hw-item').forEach(el => el.style.display = 'none');
+    
+    // Initial status
+    setTimeout(() => {
+      if (document.getElementById('terminalBody').children.length === 0) {
+        setStatus("IDLE — AWAITING SCHEDULING INPUT");
+      }
+    }, 100);
+  </script>
 </body>
 </html>

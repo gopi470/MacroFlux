@@ -108,32 +108,40 @@ async function startPolling() {
         if (s.battery_level) {
           const level = parseInt(s.battery_level);
           const battValEl = document.getElementById("battVal");
-          battValEl.textContent = level + "%";
+          if (battValEl) battValEl.textContent = level + "%";
           
           // Handle Critical Level
           if (level < 15 && level > 0) {
-            battValEl.classList.add("critical");
+            if (battValEl) battValEl.classList.add("critical");
             if (!window.hasShownLowPowerWarning) {
               setStatus("CRITICAL: LOW POWER DETECTED", "err");
               window.hasShownLowPowerWarning = true;
             }
           } else {
-            battValEl.classList.remove("critical");
+            if (battValEl) battValEl.classList.remove("critical");
             window.hasShownLowPowerWarning = false;
           }
         }
         
         // Handle Charging state
         const battCont = document.getElementById("battContainer");
-        if (s.battery_status && s.battery_status.toLowerCase() === "on") {
-          battCont.classList.add("charging");
-        } else {
-          battCont.classList.remove("charging");
+        if (battCont) {
+          if (s.battery_status && s.battery_status.toLowerCase() === "on") {
+            battCont.classList.add("charging");
+          } else {
+            battCont.classList.remove("charging");
+          }
         }
 
         if (s.signal_strength) updateSignalBars(s.signal_strength);
-        if (s.battery_temperature) document.getElementById("tempVal").textContent = s.battery_temperature + "°C";
-        if (s.phone_uptime) document.getElementById("uptimeVal").textContent = s.phone_uptime;
+        if (s.battery_temperature) {
+          const tempEl = document.getElementById("tempVal");
+          if (tempEl) tempEl.textContent = s.battery_temperature + "°C";
+        }
+        if (s.phone_uptime) {
+          const uptimeEl = document.getElementById("uptimeVal");
+          if (uptimeEl) uptimeEl.textContent = s.phone_uptime;
+        }
       }
 
       // Check for fresh location/media link
@@ -271,15 +279,7 @@ window.addEventListener("keydown", (e) => {
   if (e.key === "Escape") closeModal();
 });
 
-function clearLogs() {
-  const body = document.getElementById("terminalBody");
-  if (body) {
-    body.innerHTML = "";
-    terminalHistory = [];
-    localStorage.removeItem("remote_terminal_history");
-    setStatus("TERMINAL LOGS CLEARED", "busy");
-  }
-}
+
 
 async function processTerminalQueue() {
   if (isTerminalTyping || terminalQueue.length === 0) return;
@@ -448,6 +448,7 @@ function checkInitialLogin() {
 /* ── Clock ──────────────────────────────────────────────────── */
 const clockEl = document.getElementById("clock");
 function tick() {
+  if (!clockEl) return;
   const now = new Date();
   let hours = now.getHours();
   const ampm = hours >= 12 ? 'PM' : 'AM';
@@ -461,8 +462,8 @@ setInterval(tick, 1000);
 
 /* ── Ripple helper ──────────────────────────────────────────── */
 const execBtn = document.getElementById("execBtn");
-
-execBtn.addEventListener("click", function (e) {
+if (execBtn) {
+  execBtn.addEventListener("click", function (e) {
   if (execBtn.disabled) return; // 🛡️ prevent ripple when disabled
 
   const rip = document.getElementById("ripple");
@@ -472,7 +473,8 @@ execBtn.addEventListener("click", function (e) {
   rip.classList.remove("go");
   void rip.offsetWidth;
   rip.classList.add("go");
-});
+  });
+}
 
 /* ── Dropdown ───────────────────────────────────────────────── */
 let selectedCmd = "";
@@ -480,7 +482,7 @@ let selectedCmdDisplay = "";
 
 /* 🔧 Helper to control button */
 function setExecDisabled(state) {
-  execBtn.disabled = state;
+  if (execBtn) execBtn.disabled = state;
 }
 
 let focusedIndex = -1;

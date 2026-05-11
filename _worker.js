@@ -1,3 +1,93 @@
+const SHARED_NAV_STYLE = `
+  :root {
+    --teal: #00dca0;
+    --teal-dim: rgba(0, 220, 160, 0.16);
+    --border: rgba(0, 220, 160, 0.2);
+    --border-hi: rgba(0, 220, 160, 0.4);
+    --panel: rgba(5, 26, 20, 0.95);
+    --r: 4px;
+    --mono: 'Share Tech Mono', monospace;
+    --ui: 'Rajdhani', sans-serif;
+    --ease: cubic-bezier(0.23, 1, 0.32, 1);
+  }
+  .top-left-menu { position: fixed; top: 20px; left: 20px; z-index: 2000; }
+  .nav-btn {
+    width: 42px; height: 42px; background: rgba(0, 220, 160, 0.05);
+    border: 1px solid var(--border); border-radius: var(--r);
+    color: var(--teal); display: flex; align-items: center; justify-content: center;
+    cursor: pointer; transition: all 0.3s var(--ease); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
+  }
+  .nav-btn:hover { background: var(--teal-dim); border-color: var(--teal); box-shadow: 0 0 15px rgba(0, 220, 160, 0.2); }
+  .nav-btn svg { transition: transform 0.4s var(--ease); }
+  .nav-btn:hover svg { transform: rotate(90deg) scale(1.1); }
+  
+  .nav-dropdown {
+    position: absolute; top: calc(100% + 10px); left: 0;
+    background: var(--panel); backdrop-filter: blur(20px) saturate(1.5); -webkit-backdrop-filter: blur(20px) saturate(1.5);
+    border: 1px solid var(--border-hi); border-radius: var(--r);
+    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.9);
+    display: flex; flex-direction: column; min-width: 200px;
+    opacity: 0; pointer-events: none; transform: translateY(-10px);
+    transition: all 0.25s var(--ease); overflow: hidden;
+  }
+  .nav-dropdown.open { opacity: 1; pointer-events: auto; transform: translateY(0); }
+  .nav-drop-item {
+    padding: 14px 18px; color: rgba(0, 220, 160, 0.7);
+    font-family: var(--mono); font-size: 11px; letter-spacing: 0.15em;
+    text-decoration: none; border-bottom: 1px solid rgba(0, 220, 160, 0.1);
+    transition: all 0.2s var(--ease); display: flex; align-items: center; border-left: 2px solid transparent;
+  }
+  .nav-drop-item:last-child { border-bottom: none; }
+  .nav-drop-item:hover { background: rgba(0, 220, 160, 0.08); color: var(--teal); border-left-color: var(--teal); }
+  .nav-drop-item svg { opacity: 0.6; transition: all 0.2s var(--ease); margin-right: 12px; flex-shrink: 0; }
+  .nav-drop-item:hover svg { opacity: 1; filter: drop-shadow(0 0 5px var(--teal)); }
+`;
+
+const SHARED_NAV_HTML = `
+  <div class="top-left-menu">
+    <button class="nav-btn" onclick="document.getElementById('navDropdown').classList.toggle('open')" title="SYSTEM MENU">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line>
+      </svg>
+    </button>
+    <div class="nav-dropdown" id="navDropdown">
+      <a href="/home" class="nav-drop-item">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
+        DASHBOARD
+      </a>
+      <a href="/schedule" class="nav-drop-item">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+        SCHEDULER
+      </a>
+      <a href="/requests" class="nav-drop-item">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>
+        HTTP LOGS
+      </a>
+      <a href="/statuslogs" class="nav-drop-item">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"></path></svg>
+        STATUS HISTORY
+      </a>
+      <a href="/schedule/logs" class="nav-drop-item">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+        SCHEDULE LOGS
+      </a>
+      <a href="/logout" class="nav-drop-item" style="color:#ef4444; border-top:1px solid rgba(239,68,68,0.2)">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+        LOGOUT
+      </a>
+    </div>
+  </div>
+  <script>
+    document.addEventListener('click', (e) => {
+      const drop = document.getElementById('navDropdown');
+      const menu = document.querySelector('.top-left-menu');
+      if (drop && menu && !menu.contains(e.target)) {
+        drop.classList.remove('open');
+      }
+    });
+  </script>
+`;
+
 export default {
   async fetch(request, env, ctx) {
     try {
@@ -87,6 +177,11 @@ export default {
       const cf = request.cf || {};
       const location = cf.country ? `${cf.city || "Unknown"}, ${cf.region || "Unknown"}, ${cf.country}` : "Global Intelligence Grid";
 
+      // Redirect to home if already logged in and visiting root or login page
+      if ((url.pathname === "/" || url.pathname === "/login") && isLoggedIn) {
+        return Response.redirect(url.origin + "/home", 302);
+      }
+
     // 1. Handle Login Request
     if (url.pathname === "/login") {
       const key = url.searchParams.get("key");
@@ -118,10 +213,22 @@ export default {
     // 3. Handle Home/Dashboard
     if (url.pathname === "/home") {
       if (!isLoggedIn) return renderUnauthorized();
-      
-      // Fetch home.html from assets
-      const home = await env.ASSETS.fetch(new Request(url.origin + "/home.html"));
-      return home;
+      const response = await env.ASSETS.fetch(new Request(url.origin + "/home.html"));
+      return new HTMLRewriter()
+        .on(".top-left-menu", {
+          element(el) { el.replace(SHARED_NAV_HTML, { html: true }); }
+        })
+        .transform(response);
+    }
+
+    if (url.pathname === "/schedule") {
+      if (!isLoggedIn) return renderUnauthorized();
+      const response = await env.ASSETS.fetch(new Request(url.origin + "/schedule.html"));
+      return new HTMLRewriter()
+        .on(".top-left-menu", {
+          element(el) { el.replace(SHARED_NAV_HTML, { html: true }); }
+        })
+        .transform(response);
     }
 
     // Helper for Tactical API Responses
@@ -218,7 +325,9 @@ export default {
       // Persist to D1 for history
       try {
         const battery = parseInt(hardwareData.battery_level || "0");
-        const charging = (hardwareData.battery_status || "").toLowerCase().includes("charging") ? 1 : 0;
+        const battStatus = (hardwareData.battery_status || "").toLowerCase().trim();
+        const charging = (battStatus === "on" || battStatus.includes("charging")) ? 1 : 0;
+
         const signal = parseInt(hardwareData.signal_strength || "0");
         const rawTemp = hardwareData.battery_temperature || "0";
         const temp = rawTemp.includes("°") ? rawTemp : rawTemp + "°C";
@@ -232,7 +341,7 @@ export default {
       }
 
       await env.LOCATION_KV.put("status", JSON.stringify(hardwareData));
-      return renderTactical("OK_STATUS", 200);
+      return renderTactical("OK STATUS", 200);
     }
 
     // ── Update Location Link (/report) ──────────────────────
@@ -245,9 +354,9 @@ export default {
       const link = searchParams.get("link");
       if (link) {
         await env.LOCATION_KV.put("location", JSON.stringify({ link, updated: Date.now() }));
-        return renderTactical("OK_LOCATION", 200);
+        return renderTactical("OK LOCATION", 200);
       }
-      return renderTactical("MISSING_LINK", 400);
+      return renderTactical("MISSING LINK", 400);
     }
 
     if (url.pathname === "/poll") {
@@ -302,7 +411,7 @@ export default {
     // ── File Vault Storage (/upload) ────────────────────────
     if (url.pathname === "/upload") {
       if (request.method !== "POST") {
-        return renderTactical("UPLOAD_ENDPOINT_ACTIVE (POST REQUIRED)", 405);
+        return renderTactical("UPLOAD ENDPOINT ACTIVE (POST REQUIRED)", 405);
       }
       try {
         const { searchParams } = url;
@@ -319,7 +428,7 @@ export default {
         const blob = await request.arrayBuffer();
 
         if (!blob || blob.byteLength === 0) {
-          return renderTactical("EMPTY_PAYLOAD", 400);
+          return renderTactical("EMPTY PAYLOAD", 400);
         }
 
         // Map types to proper mime-types
@@ -345,16 +454,16 @@ export default {
 
         return renderTactical(vaultLink, 200);
       } catch (err) {
-        return renderTactical(`UPLOAD_CRASH: ${err.message}`, 500);
+        return renderTactical(`UPLOAD CRASH: ${err.message}`, 500);
       }
     }
 
     // ── File Vault Delete (/vault/delete) ───────────────────
     if (url.pathname === "/vault/delete") {
       try {
-        if (!isLoggedIn) return new Response("UNAUTHORIZED", { status: 401 });
+        if (!isLoggedIn) return renderUnauthorized();
         const fileId = url.searchParams.get("id");
-        if (!fileId) return new Response("MISSING_ID", { status: 400 });
+        if (!fileId) return new Response("MISSING ID", { status: 400 });
         
         await Promise.all([
           env.LOCATION_KV.delete(`vault_${fileId}`),
@@ -363,14 +472,49 @@ export default {
         
         return new Response("DELETED", { status: 200 });
       } catch (err) {
-        return new Response(`DELETE_CRASH: ${err.message}`, { status: 500 });
+        return new Response(`DELETE CRASH: ${err.message}`, { status: 500 });
+      }
+    }
+
+    if (url.pathname === "/schedule/create") {
+      if (!isLoggedIn) return renderUnauthorized();
+      
+      const cmd = url.searchParams.get("cmd");
+      const cmd2 = url.searchParams.get("cmd2") || "";
+      const key = url.searchParams.get("key") || "";
+      const targetTime = parseInt(url.searchParams.get("time"));
+      
+      if (!cmd || !targetTime) return renderTactical("INVALID PARAMS", 400);
+      if (!key) return renderTactical("MACROS KEY REQUIRED", 400);
+
+      try {
+        await env.DB.prepare(
+          "INSERT INTO command_schedules (command, params, secret_key, target_time, created_at) VALUES (?, ?, ?, ?, ?)"
+        ).bind(cmd, cmd2, key, targetTime, Date.now()).run();
+        return renderTactical("SCHEDULED", 200);
+      } catch (e) {
+        return renderTactical(`DB ERROR: ${e.message}`, 500);
+      }
+    }
+
+    // ── Schedule Cancellation (/schedule/cancel) ────────────
+    if (url.pathname === "/schedule/cancel") {
+      if (!isLoggedIn) return renderUnauthorized();
+      const id = url.searchParams.get("id");
+      if (!id) return renderTactical("MISSING ID", 400);
+      
+      try {
+        await env.DB.prepare("UPDATE command_schedules SET status = 'CANCELLED' WHERE id = ?").bind(id).run();
+        return renderTactical("CANCELLED", 200);
+      } catch (e) {
+        return renderTactical(`DB ERROR: ${e.message}`, 500);
       }
     }
 
     // ── File Vault Retrieval (/vault/:id) ──────────────────
     if (url.pathname.startsWith("/vault/") && !["/vault/list", "/vault/auth", "/vault/delete", "/vault/logout"].includes(url.pathname)) {
       try {
-        if (!isLoggedIn) return new Response("UNAUTHORIZED", { status: 401 });
+        if (!isLoggedIn) return renderUnauthorized();
 
         const vaultPass = (env.VAULT_PASS || env.VALULT_PASS || "").trim();
         const cookies = request.headers.get("Cookie") || "";
@@ -383,7 +527,7 @@ export default {
         const fileId = url.pathname.replace("/vault/", "");
         const { value, metadata } = await env.LOCATION_KV.getWithMetadata(`vault_${fileId}`, { type: "arrayBuffer" });
 
-        if (!value) return new Response("FILE_NOT_FOUND", { status: 404 });
+        if (!value) return new Response("FILE NOT FOUND", { status: 404 });
 
         return new Response(value, {
           headers: { 
@@ -392,13 +536,13 @@ export default {
           }
         });
       } catch (err) {
-        return new Response(`VAULT_CRASH: ${err.message}`, { status: 500 });
+        return new Response(`VAULT CRASH: ${err.message}`, { status: 500 });
       }
     }
 
     // ── Vault Authentication Gateway (/vault/auth) ──────────
     if (url.pathname === "/vault/auth") {
-      if (!isLoggedIn) return Response.redirect(url.origin + "/", 302);
+      if (!isLoggedIn) return renderUnauthorized();
 
       const vaultPass = (env.VAULT_PASS || env.VALULT_PASS || "").trim();
       const cookies = request.headers.get("Cookie") || "";
@@ -417,7 +561,7 @@ export default {
           }
           return new Response("INVALID", { status: 403 });
         } catch (err) {
-          return new Response(`AUTH_ERROR: ${err.message}`, { status: 500 });
+          return new Response(`AUTH ERROR: ${err.message}`, { status: 500 });
         }
       }
 
@@ -591,10 +735,11 @@ export default {
     .c-sel.open .opts { display: block; }
     .c-sel .opts div { padding: 10px 12px; font-size: 11px; font-weight: bold; cursor: pointer; border-bottom: 1px solid rgba(0,220,160,0.2); color: #00dca0; }
     .c-sel .opts div:last-child { border-bottom: none; }
-    .c-sel .opts div:hover { background: rgba(0,220,160,0.15); color: #00dca0; }
+    ${SHARED_NAV_STYLE}
   </style>
 </head>
 <body>
+  ${SHARED_NAV_HTML}
   <div class="header">
     <div style="display:flex; align-items:center; gap:10px;">
       <h2>[ VAULT INDEX ]</h2>
@@ -746,12 +891,12 @@ export default {
     if (url.pathname === "/intel") {
       if (!isLoggedIn) return renderUnauthorized();
       const ip = url.searchParams.get("ip");
-      if (!ip) return new Response("MISSING_IP", { status: 400 });
+      if (!ip) return new Response("MISSING IP", { status: 400 });
 
       try {
         const cached = await env.DB.prepare("SELECT * FROM geo_cache WHERE ip = ?").bind(ip).first();
         if (cached) {
-          return new Response(JSON.stringify({ ...cached, country_name: cached.country, latitude: cached.latitude, longitude: cached.longitude, source: "D1_CACHE" }), {
+          return new Response(JSON.stringify({ ...cached, country_name: cached.country, latitude: cached.latitude, longitude: cached.longitude, source: "D1 CACHE" }), {
             headers: { "Content-Type": "application/json" }
           });
         }
@@ -765,7 +910,7 @@ export default {
           const resp = await fetch(`https://ipapi.co/${ip}/json/`, { headers: { "User-Agent": "Cloudflare-Worker" } });
           if (resp.ok && resp.headers.get("content-type")?.includes("application/json")) {
             const d = await resp.json();
-            if (!d.error) data = { ...d, source: "IPAPI_CO" };
+            if (!d.error) data = { ...d, source: "IPAPI CO" };
             else lastError = d.reason || "IPAPI Rate Limit";
           } else {
             lastError = `IPAPI_${resp.status}`;
@@ -787,7 +932,7 @@ export default {
                   country_name: d.country,
                   latitude: d.lat,
                   longitude: d.lon,
-                  source: "IP_API_COM"
+                  source: "IP API COM"
                 };
               } else lastError = d.message || "IP-API Error";
             }
@@ -798,7 +943,7 @@ export default {
           await env.DB.prepare("INSERT INTO geo_cache (ip, org, city, region, country, latitude, longitude, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?, ?)")
             .bind(ip, data.org || "Unknown", data.city || "Unknown", data.region || "Unknown", data.country_name || "Unknown", data.latitude || 0, data.longitude || 0, Date.now())
             .run();
-          return new Response(JSON.stringify({ ...data, source: data.source || "REMOTE_PROVIDER" }), {
+          return new Response(JSON.stringify({ ...data, source: data.source || "REMOTE PROVIDER" }), {
             headers: { "Content-Type": "application/json" }
           });
         }
@@ -829,7 +974,7 @@ export default {
           const data = await env.LOCATION_KV.get(key.name, { type: "json" });
           if (data) {
             await env.DB.prepare("INSERT INTO logs (timestamp, method, path, status, ip, source, noisy, location) VALUES (?, ?, ?, ?, ?, ?, ?, ?)")
-              .bind(data.time, data.method, data.path, data.status, data.ip, data.source || "LEGACY", data.noisy ? 1 : 0, data.location || "KV_DATA")
+              .bind(data.time, data.method, data.path, data.status, data.ip, data.source || "LEGACY", data.noisy ? 1 : 0, data.location || "KV DATA")
               .run();
             await env.LOCATION_KV.delete(key.name);
             logCount++;
@@ -859,7 +1004,7 @@ export default {
         
         const q = url.searchParams.get("q") || "";
         const offset = parseInt(url.searchParams.get("offset") || "0");
-        const limit = 500;
+        const limit = parseInt(url.searchParams.get("limit") || "50");
 
         // Fetch logs from D1 with optional Deep Search
         let dbQuery = "SELECT * FROM logs";
@@ -886,8 +1031,8 @@ export default {
         let lastDay = "";
         for (const r of results) {
           const date = new Date(r.timestamp);
-          const dayStr = date.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
-          const timeStr = date.toLocaleString('en-US', { timeZone: 'Asia/Kolkata', month: 'short', day: 'numeric', hour: 'numeric', minute: 'numeric', second: 'numeric', hour12: true });
+          const dayStr = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Kolkata', day: 'numeric', month: 'long', year: 'numeric' }).format(date);
+          const timeStr = date.toLocaleString('en-US', { timeZone: 'Asia/Kolkata', hour: 'numeric', minute: 'numeric', second: 'numeric', hour12: true });
 
           if (dayStr !== lastDay) {
             const colspan = 6;
@@ -911,14 +1056,14 @@ export default {
             else if (r.path === "/") pathDisplay += ' <span style="' + redirectStyle + '"> -> /home</span>';
           }
 
-          const locationLabel = (r.location || "GLOBAL").toUpperCase();
+          const locationLabel = (r.location || "GLOBAL").toUpperCase().replace(/_/g, ' ');
           
-          tableRows += `<tr id="row_${r.id}" class="${isAlert ? 'row-alert' : ''}" data-noisy="${noisy}" data-method="${r.method}">
+          tableRows += `<tr id="row_${r.id}" class="${isAlert ? 'row-alert' : ''}" data-noisy="${noisy}" data-method="${r.method}" data-ts="${r.timestamp}">
             <td>${timeStr}</td>
             <td>${r.method}</td>
             <td style="color:#fff">${pathDisplay}</td>
             <td>${statusCol}</td>
-            <td><span style="color:#f59e0b">${r.source}</span></td>
+            <td><span style="color:#f59e0b">${(r.source || "").replace(/_/g, ' ')}</span></td>
             <td>
               <div style="font-size:9px; color:rgba(0,220,160,0.45); font-weight:bold; margin-bottom:2px;">${locationLabel}</div>
               <span class="ip-link" onclick="showIntel('${r.ip}', event)">${r.ip}</span>
@@ -938,6 +1083,7 @@ export default {
   <meta charset="UTF-8">
   <title>Request Logs</title>
   <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -950,6 +1096,7 @@ export default {
     tr:hover td { background: rgba(0,220,160,0.03); }
     .row-alert { background: rgba(255,62,62,0.1) !important; }
     .status-alert { color: #ff3e3e !important; font-weight: bold; }
+    ${SHARED_NAV_STYLE}
     .date-sep { background: rgba(0,220,160,0.05); }
     .date-sep td { color: rgba(0,220,160,0.6); font-weight: bold; text-align: center; letter-spacing: 4px; font-size: 12px; padding: 8px 0; border-top: 1px solid rgba(0,220,160,0.15); border-bottom: 1px solid rgba(0,220,160,0.15); text-transform: uppercase; }
     .c-sel { position: relative; display: inline-block; margin-right: 5px; }
@@ -973,10 +1120,10 @@ export default {
     .ip-link:hover { color: #fff; text-decoration-color: #00dca0; }
     .modal-intel { position: fixed; inset: 0; background: rgba(2,6,8,0.95); display: none; align-items: center; justify-content: center; z-index: 1000; padding: 20px; }
     .intel-content { background: #050505; border: 1px solid #00dca0; padding: 25px; border-radius: 4px; width: 100%; max-width: 340px; box-shadow: none; }
-    .intel-header { display: flex; justify-content: space-between; border-bottom: 1px solid rgba(0,220,160,0.2); padding-bottom: 10px; margin-bottom: 15px; }
-    .intel-body div { margin-bottom: 15px; }
-    .intel-label { color: #00dca0; opacity: 0.6; font-size: 9px; letter-spacing: 2px; display: block; margin-bottom: 4px; font-weight: bold; }
-    .intel-val { color: #fff; font-weight: bold; font-size: 13px; display: block; letter-spacing: 0.5px; user-select: text; -webkit-user-select: text; word-break: break-all; line-height: 1.4; }
+    .intel-header { display: flex; justify-content: space-between; border-bottom: 1px solid rgba(0,220,160,0.3); padding-bottom: 12px; margin-bottom: 20px; }
+    .intel-body div { margin-bottom: 18px; }
+    .intel-label { color: #00dca0; opacity: 0.9; font-size: 10px; letter-spacing: 2px; display: block; margin-bottom: 5px; font-weight: bold; font-family: 'Share Tech Mono', monospace; }
+    .intel-val { color: #fff; font-weight: bold; font-size: 14px; display: block; letter-spacing: 0.5px; user-select: text; -webkit-user-select: text; word-break: break-all; line-height: 1.5; font-family: 'Share Tech Mono', monospace; }
     .intel-close { background: transparent; border: none; color: rgba(0,220,160,0.5); cursor: pointer; font-size: 20px; line-height: 1; }
     .intel-close:hover { color: #00dca0; }
     .new-row td { animation: highlight-new 2s ease-out; }
@@ -984,9 +1131,11 @@ export default {
       0% { background: rgba(0,220,160,0.3); }
       100% { background: transparent; }
     }
+    ${SHARED_NAV_STYLE}
   </style>
 </head>
 <body>
+  ${SHARED_NAV_HTML}
   <div class="header">
     <div style="display:flex; align-items:center; gap:10px;">
       <h2>[ HTTP REQUEST HISTORY ]</h2>
@@ -1054,8 +1203,8 @@ export default {
     let curSort = 'NEWEST';
     let curShow = 'DEFAULT';
     let curOffset = 0;
-    const PAGE_LIMIT = 500;
-    const TOTAL_CAPACITY = ${totalLogs};
+    const PAGE_LIMIT = 50;
+    let TOTAL_CAPACITY = ${totalLogs};
 
     async function loadMore() {
       const btn = document.getElementById('loadMoreBtn');
@@ -1102,6 +1251,11 @@ export default {
     async function deepSearch() {
       const q = document.getElementById('searchInput').value.trim();
       const btn = document.getElementById('refreshBtn');
+      
+      // Update URL to keep refreshLogs in sync
+      const newUrl = window.location.pathname + (q ? "?q=" + encodeURIComponent(q) : "");
+      window.history.replaceState(null, "", newUrl);
+
       btn.classList.add('refreshing');
       btn.innerText = 'SEARCHING...';
 
@@ -1155,13 +1309,13 @@ export default {
         
         if (d.error) throw new Error(d.reason || 'Rate Limited');
 
-        const sourceTag = d.source === "D1_CACHE" ? 
-          '<span style="font-size:7px; color:#00dca0; opacity:0.8; margin-left:10px;">[ INSTANT_CACHE ]</span>' : 
-          '<span style="font-size:7px; color:#f59e0b; opacity:0.8; margin-left:10px;">[ PROXIED_FETCH ]</span>';
+        const sourceTag = d.source === "D1 CACHE" ? 
+          '<span style="font-size:9px; color:#00dca0; opacity:0.9; margin-left:12px; vertical-align:middle;">[ INSTANT CACHE ]</span>' : 
+          '<span style="font-size:9px; color:#f59e0b; opacity:0.9; margin-left:12px; vertical-align:middle;">[ PROXIED FETCH ]</span>';
 
         body.innerHTML = '<div><span class="intel-label">IP ADDRESS</span><span class="intel-val">' + d.ip + sourceTag + '</span></div>' +
           '<div><span class="intel-label">ORGANIZATION / ISP</span><span class="intel-val">' + d.org + '</span></div>' +
-          '<div><span class="intel-label">LOCATION</span><span class="intel-val">' + d.city + ', ' + d.region + ', ' + d.country_name + '</span></div>' +
+          '<div><span class="intel-label">LOCATION</span><span class="intel-val">' + (d.city || "").replace(/_/g, ' ') + ', ' + (d.region || "").replace(/_/g, ' ') + ', ' + (d.country_name || "").replace(/_/g, ' ') + '</span></div>' +
           '<div style="margin-top:15px; border-top:1px solid rgba(0,220,160,0.1); padding-top:15px;">' +
             '<a href="https://www.google.com/maps?q=' + d.latitude + ',' + d.longitude + '" target="_blank" style="color:#00dca0; text-decoration:none; font-size:10px; border:1px solid #00dca0; padding:5px 10px; border-radius:3px; display:inline-block;">VIEW ON SATELLITE MAP</a>' +
           '</div>';
@@ -1186,7 +1340,7 @@ export default {
       }
       
       try {
-        const fetchUrl = isAuto ? window.location.pathname + '?nosave=1' : window.location.href;
+        const fetchUrl = isAuto ? window.location.pathname + '?nosave=1&limit=10' : window.location.href;
         const resp = await fetch(fetchUrl);
         if (!resp.ok) throw new Error('FAIL');
         const text = await resp.text();
@@ -1197,15 +1351,31 @@ export default {
         const newCap = doc.getElementById('capText');
         
         if (newTbody && newCap) {
-          document.querySelector('tbody').innerHTML = newTbody.innerHTML;
-          cap.innerText = newCap.innerText;
+          const tbody = document.querySelector('tbody');
           
-          // Highlight new rows
-          document.querySelectorAll('tbody tr').forEach(r => {
-            if (r.id && !oldIds.includes(r.id)) {
-              r.classList.add('new-row');
+          if (isAuto) {
+            // MERGE LOGIC: Prepend only truly new rows to avoid wiping archive data
+            const existingIds = Array.from(tbody.querySelectorAll('tr[id]')).map(r => r.id);
+            const newRows = Array.from(newTbody.querySelectorAll('tr[id]')).filter(r => !existingIds.includes(r.id));
+            
+            if (newRows.length > 0) {
+              newRows.forEach(r => {
+                r.classList.add('new-row');
+                tbody.appendChild(r);
+                // Remove highlight class after animation completes to prevent re-flicker on DOM re-sort
+                r.addEventListener('animationend', () => r.classList.remove('new-row'), { once: true });
+              });
             }
-          });
+          } else {
+            // Manual refresh resets everything
+            tbody.innerHTML = newTbody.innerHTML;
+            curOffset = 0;
+            document.getElementById('loadMoreWrap').style.display = (TOTAL_CAPACITY > PAGE_LIMIT) ? 'flex' : 'none';
+          }
+          
+          cap.innerText = newCap.innerText;
+          const capMatch = newCap.innerText.match(/CAPACITY: (\d+)/);
+          if (capMatch) TOTAL_CAPACITY = parseInt(capMatch[1]);
           
           applyFilters();
           updateSyncTime();
@@ -1258,17 +1428,14 @@ export default {
 
     function applyFilters() {
       const tbody = document.querySelector('tbody');
-      const rows = Array.from(tbody.querySelectorAll('tr'));
       const searchTerm = document.getElementById('searchInput').value.toLowerCase();
       
-      rows.sort((a, b) => {
-        const timeA = new Date(a.children[0].innerText).getTime();
-        const timeB = new Date(b.children[0].innerText).getTime();
-        return curSort === 'NEWEST' ? timeB - timeA : timeA - timeB;
-      });
+      // 1. Collect only data rows (strip existing separators)
+      const rows = Array.from(tbody.querySelectorAll('tr:not(.date-sep)'));
+      tbody.querySelectorAll('tr.date-sep').forEach(s => s.remove());
 
-      tbody.innerHTML = '';
-      rows.forEach(r => {
+      // 2. Filter rows
+      const filteredRows = rows.filter(r => {
         const method = r.dataset.method;
         const isNoisy = r.dataset.noisy === 'true';
         const rowText = r.innerText.toLowerCase();
@@ -1279,11 +1446,32 @@ export default {
         if (curShow === 'ALL') showMatch = true;
 
         const searchMatch = !searchTerm || rowText.includes(searchTerm);
+        const filterMatch = (curFilter === 'ALL' || method === curFilter);
 
-        if (showMatch && searchMatch && (curFilter === 'ALL' || method === curFilter)) {
-          r.style.display = '';
-        } else {
-          r.style.display = 'none';
+        return showMatch && searchMatch && filterMatch;
+      });
+
+      // 3. Sort using raw Unix timestamp stored in data-ts (avoids year-guessing bugs)
+      filteredRows.sort((a, b) => {
+        const tsA = parseInt(a.dataset.ts) || 0;
+        const tsB = parseInt(b.dataset.ts) || 0;
+        return curSort === 'NEWEST' ? tsB - tsA : tsA - tsB;
+      });
+
+      // 4. Re-render with dynamically generated day banners
+      tbody.innerHTML = '';
+      let lastDay = '';
+      const fmt = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Kolkata', day: 'numeric', month: 'long', year: 'numeric' });
+      filteredRows.forEach(r => {
+        const ts = parseInt(r.dataset.ts) || 0;
+        const dayStr = fmt.format(new Date(ts)).toUpperCase();
+
+        if (dayStr !== lastDay) {
+          const sep = document.createElement('tr');
+          sep.className = 'date-sep';
+          sep.innerHTML = '<td colspan="6">' + dayStr + '</td>';
+          tbody.appendChild(sep);
+          lastDay = dayStr;
         }
         tbody.appendChild(r);
       });
@@ -1302,7 +1490,7 @@ export default {
         const q = url.searchParams.get("q") || "";
         const order = url.searchParams.get("order") === "ASC" ? "ASC" : "DESC";
         const offset = parseInt(url.searchParams.get("offset") || "0");
-        const limit = 500;
+        const limit = parseInt(url.searchParams.get("limit") || "50");
 
         let dbQuery = "SELECT * FROM status_logs";
         let countQuery = "SELECT COUNT(*) as count FROM status_logs";
@@ -1329,7 +1517,7 @@ export default {
           // Robust timestamp handling (seconds vs ms)
           const ts = (r.timestamp < 10000000000) ? r.timestamp * 1000 : r.timestamp;
           const date = new Date(ts);
-          const dayStr = date.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+          const dayStr = date.toLocaleDateString('en-GB', { timeZone: 'Asia/Kolkata', day: 'numeric', month: 'long', year: 'numeric' });
           const timeStr = date.toLocaleString('en-US', { timeZone: 'Asia/Kolkata', hour: 'numeric', minute: 'numeric', second: 'numeric', hour12: true });
           
           if (dayStr !== lastDay) {
@@ -1340,12 +1528,12 @@ export default {
           const battColor = r.battery < 20 ? '#f87171' : (r.battery < 50 ? '#fbbf24' : '#00dca0');
           const chargingIcon = r.charging ? '⚡' : '';
           
-          tableRows += `<tr>
+          tableRows += `<tr data-ts="${ts}">
             <td>${timeStr}</td>
             <td style="font-weight:bold; color:${battColor}">${r.battery}% ${chargingIcon}</td>
             <td style="color:#60a5fa;">${r.signal} dBm</td>
-            <td style="color:#fb923c;">${r.temperature}</td>
-            <td style="color:#a855f7; font-size:11px;">${r.uptime}</td>
+            <td style="color:#fb923c;">${(r.temperature || "").replace(/_/g, ' ')}</td>
+            <td style="color:#a855f7; font-size:11px;">${(r.uptime || "").replace(/_/g, ' ')}</td>
           </tr>`;
         }
 
@@ -1367,8 +1555,8 @@ export default {
     h2 { letter-spacing: 5px; font-size: 16px; }
     .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #00dca0; padding-bottom: 12px; margin-bottom: 20px; flex-wrap: wrap; gap: 10px; }
     table { width: 100%; border-collapse: collapse; }
-    th { text-align: left; padding: 8px 12px; font-size: 10px; letter-spacing: 2px; color: rgba(0,220,160,0.85); border-bottom: 1px solid rgba(0,220,160,0.15); }
-    td { padding: 10px 12px; border-bottom: 1px solid rgba(0,220,160,0.07); }
+    th { text-align: center; padding: 8px 12px; font-size: 10px; letter-spacing: 2px; color: rgba(0,220,160,0.85); border-bottom: 1px solid rgba(0,220,160,0.15); }
+    td { text-align: center; padding: 10px 12px; border-bottom: 1px solid rgba(0,220,160,0.07); }
     tr:hover td { background: rgba(0,220,160,0.03); }
     .date-sep { background: rgba(0,220,160,0.05); }
     .date-sep td { color: rgba(0,220,160,0.6); font-weight: bold; text-align: center; letter-spacing: 4px; font-size: 12px; padding: 8px 0; border-top: 1px solid rgba(0,220,160,0.15); border-bottom: 1px solid rgba(0,220,160,0.15); text-transform: uppercase; }
@@ -1384,10 +1572,10 @@ export default {
     #intelModal { position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(2,6,8,0.95); display: none; align-items: center; justify-content: center; z-index: 1000; padding: 20px; }
     .modal-content { background: #050505; border: 1px solid #00dca0; width: 100%; max-width: 340px; border-radius: 4px; box-shadow: none; animation: modalIn 0.2s ease-out; }
     @keyframes modalIn { from { opacity: 0; transform: translateY(5px); } }
-    .modal-header { padding: 15px 20px; border-bottom: 1px solid rgba(0,220,160,0.2); display: flex; justify-content: space-between; align-items: center; }
+    .modal-header { padding: 15px 20px; border-bottom: 1px solid rgba(0,220,160,0.3); display: flex; justify-content: space-between; align-items: center; }
     .modal-body { padding: 25px; }
-    .intel-label { display: block; font-size: 9px; color: #00dca0; opacity: 0.6; letter-spacing: 2px; margin-bottom: 4px; font-weight: bold; }
-    .intel-val { display: block; color: #fff; margin-bottom: 15px; font-size: 13px; font-weight: bold; word-break: break-all; line-height: 1.4; }
+    .intel-label { display: block; font-size: 10px; color: #00dca0; opacity: 0.9; letter-spacing: 2px; margin-bottom: 5px; font-weight: bold; font-family: 'Share Tech Mono', monospace; }
+    .intel-val { display: block; color: #fff; margin-bottom: 15px; font-size: 14px; font-weight: bold; word-break: break-all; line-height: 1.5; font-family: 'Share Tech Mono', monospace; }
     .c-sel { position: relative; display: inline-block; margin-right: 5px; }
     .c-sel button { background: rgba(0,220,160,0.15); color: #00dca0; border: 1px solid rgba(0,220,160,0.5); padding: 5px 12px; border-radius: 3px; font-size: 11px; font-weight: bold; font-family: inherit; cursor: pointer; outline: none; }
     .c-sel .opts { display: none; position: absolute; top: calc(100% + 5px); left: 0; background: #06080a; border: 1px solid rgba(0,220,160,0.6); min-width: 120px; z-index: 100; box-shadow: 0 4px 12px rgba(0,0,0,0.8); border-radius: 3px; overflow: hidden; }
@@ -1402,9 +1590,11 @@ export default {
       table { font-size: 11px; }
       td, th { padding: 8px 5px; }
     }
+    ${SHARED_NAV_STYLE}
   </style>
 </head>
 <body>
+  ${SHARED_NAV_HTML}
   <div class="header">
     <div style="display:flex; align-items:center; gap:10px;">
       <h2>[ HARDWARE STATUS HISTORY ]</h2>
@@ -1422,8 +1612,8 @@ export default {
       <button id="refreshBtn" class="btn-refresh" onclick="location.reload()">REFRESH</button>
     </div>
     <div style="text-align:right;">
-      <div style="font-size:10px; color:rgba(0,220,160,0.5); letter-spacing:1px; margin-bottom:3px;">STORAGE_D1_SQL</div>
-      <div id="capText" style="font-size:9px; letter-spacing:2px;">TOTAL_RECORDS: ${totalLogs}</div>
+      <div style="font-size:10px; color:rgba(0,220,160,0.5); letter-spacing:1px; margin-bottom:3px;">STORAGE D1 SQL</div>
+      <div id="capText" style="font-size:9px; letter-spacing:2px;">TOTAL RECORDS: ${totalLogs}</div>
     </div>
   </div>
 
@@ -1447,7 +1637,7 @@ export default {
   <div id="intelModal" onclick="hideIntel()">
     <div class="modal-content" onclick="event.stopPropagation()">
       <div class="modal-header">
-        <span style="font-size:10px; letter-spacing:2px; color:rgba(0,220,160,0.6);">GEOGRAPHIC_INTEL</span>
+        <span style="font-size:10px; letter-spacing:2px; color:rgba(0,220,160,0.6);">GEOGRAPHIC INTEL</span>
         <button onclick="hideIntel()" style="background:none; border:none; color:#ef4444; cursor:pointer; font-size:18px;">&times;</button>
       </div>
       <div id="intelBody" class="modal-body"></div>
@@ -1456,7 +1646,7 @@ export default {
 
   <script>
     let curOffset = ${offset};
-    const PAGE_LIMIT = ${limit};
+    const PAGE_LIMIT = 50;
     const TOTAL_CAPACITY = ${totalLogs};
     let currentOrder = "${order}";
 
@@ -1479,17 +1669,24 @@ export default {
       deepSearch();
     }
 
-    // Live Polling Logic
+    // Live Polling Logic — only refresh if user hasn't loaded extra history
     setInterval(() => {
       const q = document.getElementById('searchInput').value.trim();
-      if (q || currentOrder === "ASC") return; // Don't auto-refresh while searching or viewing oldest
+      if (q || currentOrder === "ASC" || curOffset > 0) return;
       
-      fetch("/statuslogs?q=&order=DESC&partial=true")
+      fetch("/statuslogs?q=&order=DESC&partial=true&limit=10")
         .then(r => r.text())
         .then(html => {
           if (html.trim()) {
             const tbody = document.querySelector('tbody');
-            tbody.innerHTML = html;
+            // Only replace if the first row's timestamp has changed (new data arrived)
+            const firstExisting = tbody.querySelector('tr[data-ts]');
+            const tmp = document.createElement('tbody');
+            tmp.innerHTML = html;
+            const firstNew = tmp.querySelector('tr[data-ts]');
+            if (!firstExisting || !firstNew || firstNew.dataset.ts !== firstExisting.dataset.ts) {
+              tbody.innerHTML = html;
+            }
           }
         });
     }, 5000);
@@ -1581,9 +1778,13 @@ export default {
         
         if (d.error) throw new Error(d.reason || "Error");
 
-        body.innerHTML = '<div><span class="intel-label">IP ADDRESS</span><span class="intel-val">' + d.ip + '</span></div>' +
+        const sourceTag = d.source === "D1 CACHE" ? 
+          '<span style="font-size:9px; color:#00dca0; opacity:0.9; margin-left:12px; vertical-align:middle;">[ INSTANT CACHE ]</span>' : 
+          '<span style="font-size:9px; color:#f59e0b; opacity:0.9; margin-left:12px; vertical-align:middle;">[ PROXIED FETCH ]</span>';
+
+        body.innerHTML = '<div><span class="intel-label">IP ADDRESS</span><span class="intel-val">' + d.ip + sourceTag + '</span></div>' +
           '<div><span class="intel-label">ISP</span><span class="intel-val">' + d.org + '</span></div>' +
-          '<div><span class="intel-label">LOCATION</span><span class="intel-val">' + d.city + ', ' + d.country_name + '</span></div>' +
+          '<div><span class="intel-label">LOCATION</span><span class="intel-val">' + (d.city || "").replace(/_/g, ' ') + ', ' + (d.country_name || "").replace(/_/g, ' ') + '</span></div>' +
           '<div style="margin-top:15px; border-top:1px solid rgba(0,220,160,0.1); padding-top:15px;">' +
             '<a href="https://www.google.com/maps?q=' + d.latitude + ',' + d.longitude + '" target="_blank" style="color:#00dca0; text-decoration:none; font-size:10px; border:1px solid #00dca0; padding:5px 10px; border-radius:3px; display:inline-block;">VIEW ON SATELLITE MAP</a>' +
           '</div>';
@@ -1598,15 +1799,301 @@ export default {
       }
 
 
-      // Default: Serve Assets
-      return env.ASSETS.fetch(request);
-    };
+    // ── Command Schedule Logs (/schedule/logs) ────────────
+    if (url.pathname === "/schedule/logs") {
+      if (!isLoggedIn) return renderUnauthorized();
+      
+      const q = url.searchParams.get("q") || "";
+      const sort = url.searchParams.get("sort") || "created_at";
+      const order = url.searchParams.get("order") || "DESC";
+      const offset = parseInt(url.searchParams.get("offset") || "0");
+      const limit = parseInt(url.searchParams.get("limit") || "50");
 
-      const response = await handleRequest();
+      let dbQuery = "SELECT * FROM command_schedules";
+      let countQuery = "SELECT COUNT(*) as count FROM command_schedules";
+      let queryParams = [];
+      let countParams = [];
+
+      if (q) {
+        const likeTerm = `%${q}%`;
+        dbQuery += " WHERE (command LIKE ? OR params LIKE ? OR status LIKE ?)";
+        countQuery += " WHERE (command LIKE ? OR params LIKE ? OR status LIKE ?)";
+        queryParams = [likeTerm, likeTerm, likeTerm];
+        countParams = [likeTerm, likeTerm, likeTerm];
+      }
+      
+      dbQuery += ` ORDER BY ${sort} ${order} LIMIT ? OFFSET ?`;
+      queryParams.push(limit, offset);
+      
+      const [dbResult, countResult] = await Promise.all([
+        env.DB.prepare(dbQuery).bind(...queryParams).all(),
+        env.DB.prepare(countQuery).bind(...(q ? queryParams.slice(0, 3) : [])).first()
+      ]);
+
+      const totalSchedules = countResult?.count || 0;
+      const schedulesList = dbResult.results;
+
+      let tableRows = "";
+      let lastDay = "";
+      for (const r of schedulesList) {
+        const createdDate = new Date(r.created_at);
+        const dayStr = createdDate.toLocaleDateString('en-GB', { timeZone: 'Asia/Kolkata', day: 'numeric', month: 'long', year: 'numeric' });
+        const createdStr = createdDate.toLocaleString('en-US', { timeZone: 'Asia/Kolkata', hour: 'numeric', minute: 'numeric', hour12: true });
+
+        if (dayStr !== lastDay && sort === 'created_at') {
+          tableRows += `<tr class="date-sep"><td colspan="6">${dayStr}</td></tr>`;
+          lastDay = dayStr;
+        }
+
+        const targetDate = new Date(r.target_time);
+        const timeStr = targetDate.toLocaleString('en-US', { timeZone: 'Asia/Kolkata', month: 'short', day: 'numeric', hour: 'numeric', minute: 'numeric', second: 'numeric', hour12: true });
+
+        let statusStyle = "";
+        if (r.status === 'PENDING') statusStyle = "color: #f59e0b";
+        else if (r.status === 'EXECUTED') statusStyle = "color: #00dca0";
+        else if (r.status === 'CANCELLED') statusStyle = "color: #94a3b8";
+        else statusStyle = "color: #ef4444";
+
+        let triggerStatus = "";
+        if (r.status === 'EXECUTED') triggerStatus = '<span style="color:#00dca0; opacity:0.8">[ SENT ]</span>';
+        else if (r.status === 'PENDING') triggerStatus = '<span style="color:#f59e0b; opacity:0.6">[ WAITING ]</span>';
+        else if (r.status === 'CANCELLED') triggerStatus = '<span style="color:#94a3b8; opacity:0.8">[ ABORTED ]</span>';
+        else triggerStatus = '<span style="color:#ef4444">[ FAIL ]</span>';
+
+        let actionBtn = "";
+        if (r.status === 'PENDING') {
+          actionBtn = `<button class="btn-refresh" style="padding: 2px 8px; font-size: 9px; background: #ef4444; border:none; color: #fff; width: 65px;" onclick="cancelSchedule(${r.id}, this)">CANCEL</button>`;
+        } else if (r.log_output) {
+          actionBtn = `<button class="log-btn" style="width: 65px;" onclick="showLog(\`${r.log_output.replace(/`/g, '\\`').replace(/\${/g, '\\${')}\`, '${r.command.toUpperCase().replace(/_/g, ' ')}', '${(r.params || "—").replace(/'/g, "\\'").replace(/_/g, " ")}', '${timeStr}', '${r.status}')">VIEW LOG</button>`;
+        } else {
+          actionBtn = `<button class="log-btn" style="width: 65px;" disabled>—</button>`;
+        }
+
+        tableRows += `<tr id="sched_${r.id}">
+          <td style="color:rgba(0,220,160,0.6)">${createdStr}</td>
+          <td style="font-weight:bold; color:#00ffc8">${r.command.replace(/_/g, ' ').toUpperCase()}</td>
+          <td>${r.params || "—"}</td>
+          <td style="color:#00dca0; font-weight:bold; font-size:14px;">${timeStr}</td>
+          <td style="${statusStyle}; font-weight:bold; text-align:right">${r.status}</td>
+          <td style="text-align:right; padding-right:12px">${actionBtn}</td>
+        </tr>`;
+      }
+
+      if (url.searchParams.get("partial") === "true") {
+        return new Response(tableRows, { headers: { "Content-Type": "text/html" } });
+      }
+
+      const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"><title>Schedule Logs</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: #06080a; color: #00dca0; font-family: 'Courier New', monospace; padding: 24px; font-size: 13px; }
+    .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #00dca0; padding-bottom: 12px; margin-bottom: 20px; flex-wrap: wrap; gap: 10px; }
+    table { width: 100%; border-collapse: collapse; }
+    th { text-align: left; padding: 8px 12px; font-size: 10px; letter-spacing: 2px; color: rgba(0,220,160,0.85); border-bottom: 1px solid rgba(0,220,160,0.15); }
+    td { padding: 10px 12px; border-bottom: 1px solid rgba(0,220,160,0.07); }
+    .btn-refresh { background: rgba(0,220,160,0.4); color: #fff; border: 1px solid #00dca0; padding: 5px 15px; border-radius: 3px; font-size: 11px; font-weight: bold; cursor: pointer; transition: all 0.2s; font-family: inherit; }
+    .btn-refresh:hover { background: rgba(0,220,160,0.4); opacity: 0.8; }
+    #searchInput { background: rgba(0,220,160,0.05); color: #00dca0; border: 1px solid rgba(0,220,160,0.3); padding: 5px 12px 5px 30px; border-radius: 3px; font-size: 11px; font-family: inherit; width: 220px; outline: none; }
+    .search-wrap { position: relative; display: flex; align-items: center; }
+    .search-icon { position: absolute; left: 10px; width: 12px; height: 12px; color: #00dca0; opacity: 0.7; pointer-events: none; }
+    .date-sep { background: rgba(0,220,160,0.03); }
+    .date-sep td { padding: 8px 12px; font-size: 11px; letter-spacing: 2px; color: #00dca0; opacity: 0.8; border-bottom: 1px solid rgba(0,220,160,0.1); font-weight: bold; border-top: 1px solid rgba(0,220,160,0.15); text-align: center; text-transform: uppercase; }
+    .c-sel { position: relative; display: inline-block; }
+    .c-sel button { background: rgba(0,220,160,0.15); color: #00dca0; border: 1px solid rgba(0,220,160,0.5); padding: 5px 12px; border-radius: 3px; font-size: 11px; font-weight: bold; font-family: inherit; cursor: pointer; outline: none; }
+    .c-sel .opts { display: none; position: absolute; top: calc(100% + 5px); right: 0; background: #06080a; border: 1px solid rgba(0,220,160,0.6); min-width: 140px; z-index: 100; box-shadow: 0 4px 12px rgba(0,0,0,0.8); border-radius: 3px; overflow: hidden; }
+    .c-sel.open .opts { display: block; }
+    .c-sel .opts div { padding: 10px 12px; font-size: 11px; font-weight: bold; cursor: pointer; border-bottom: 1px solid rgba(0,220,160,0.2); color: #00dca0; }
+    .c-sel .opts div:last-child { border-bottom: none; }
+    .c-sel .opts div:hover { background: rgba(0,220,160,0.15); }
+
+    /* Modal Styles */
+    .modal { display: none; position: fixed; z-index: 200; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.85); backdrop-filter: blur(5px); align-items: center; justify-content: center; }
+    .modal.open { display: flex; }
+    .modal-content { background: #06080a; border: 1px solid #00dca0; width: 80%; max-width: 600px; padding: 20px; border-radius: 4px; box-shadow: none; animation: fadeUp 0.3s ease-out; }
+    .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; border-bottom: 1px solid rgba(0,220,160,0.2); padding-bottom: 10px; }
+    .modal-title { font-size: 14px; letter-spacing: 2px; font-weight: bold; color: #00dca0; }
+    .modal-close { background: none; border: none; color: #00dca0; font-size: 20px; cursor: pointer; opacity: 0.7; }
+    .modal-close:hover { opacity: 1; }
+    .modal-body { font-size: 12px; line-height: 1.6; max-height: 400px; overflow-y: auto; white-space: pre-wrap; word-break: break-all; color: rgba(0,220,160,0.9); }
+    @keyframes fadeUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    .log-btn { background: rgba(0,220,160,0.1); border: 1px solid rgba(0,220,160,0.4); color: #00dca0; padding: 2px 8px; border-radius: 2px; font-size: 9px; cursor: pointer; font-family: inherit; transition: 0.2s; }
+    .log-btn:hover { background: rgba(0,220,160,0.3); border-color: #00dca0; }
+    .log-btn:disabled { opacity: 0.3; cursor: not-allowed; border-color: rgba(0,220,160,0.1); }
+    ${SHARED_NAV_STYLE}
+  </style>
+</head>
+<body>
+  ${SHARED_NAV_HTML}
+  <div class="header">
+    <div style="display:flex; align-items:center; gap:10px;">
+      <h2 style="font-size:16px; letter-spacing:5px;">[ SCHEDULE LOGS ]</h2>
+      <div class="search-wrap">
+        <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+        <input type="text" id="searchInput" placeholder="Search Schedule..." onkeyup="if(event.key==='Enter') window.location.href='/schedule/logs?q='+this.value+'&sort=${sort}&order=${order}'" value="${q}">
+      </div>
+    </div>
+    <div style="display:flex; gap:10px; align-items:center;">
+      <div class="c-sel" id="sortSel">
+        <button onclick="toggleSel('sortSel', event)">SORT: ${sort === 'created_at' ? 'CREATE TIME' : 'TARGET TIME'} ▾</button>
+        <div class="opts">
+          <div onclick="window.location.href='/schedule/logs?q=${q}&sort=created_at&order=${order}'">CREATE TIME</div>
+          <div onclick="window.location.href='/schedule/logs?q=${q}&sort=target_time&order=${order}'">TARGET TIME</div>
+        </div>
+      </div>
+      <div class="c-sel" id="orderSel">
+        <button onclick="toggleSel('orderSel', event)">ORDER: ${order} ▾</button>
+        <div class="opts">
+          <div onclick="window.location.href='/schedule/logs?q=${q}&sort=${sort}&order=DESC'">DESCENDING</div>
+          <div onclick="window.location.href='/schedule/logs?q=${q}&sort=${sort}&order=ASC'">ASCENDING</div>
+        </div>
+      </div>
+      <span style="font-size:10px; opacity:0.9; font-weight:bold; letter-spacing:1px;">TOTAL: ${totalSchedules}</span>
+      <button class="btn-refresh" onclick="location.reload()">REFRESH</button>
+    </div>
+  </div>
+  <table>
+    <thead>
+      <tr>
+        <th style="padding-left:12px">CREATED</th>
+        <th>COMMAND</th>
+        <th>PARAMS</th>
+        <th>TARGET TIME</th>
+        <th style="text-align:right">STATUS</th>
+        <th style="text-align:right; padding-right:12px">ACTIONS / LOGS</th>
+      </tr>
+    </thead>
+    <tbody>${tableRows}</tbody>
+  </table>
+  <script>
+    function toggleSel(id, e) {
+      e.stopPropagation();
+      document.querySelectorAll('.c-sel').forEach(el => {
+        if(el.id !== id) el.classList.remove('open');
+      });
+      document.getElementById(id).classList.toggle('open');
+    }
+    document.addEventListener('click', () => {
+      document.querySelectorAll('.c-sel').forEach(el => el.classList.remove('open'));
+    });
+
+    let cancelTimers = {};
+    async function cancelSchedule(id, btn) {
+      if (btn.innerText !== 'SURE?') {
+        const oldText = btn.innerText;
+        btn.innerText = 'SURE?';
+        cancelTimers[id] = setTimeout(() => {
+          btn.innerText = oldText;
+        }, 3000);
+        return;
+      }
+      clearTimeout(cancelTimers[id]);
+      btn.innerText = '...';
+      try {
+        const resp = await fetch('/schedule/cancel?id=' + id, { method: 'POST' });
+        if (resp.ok) location.reload();
+        else alert('FAILED TO CANCEL');
+      } catch (e) { alert('ERROR: ' + e.message); }
+    }
+    
+    function showLog(text, cmd, params, time, status) {
+      document.getElementById('logModalTitle').textContent = 'EVENT DETAILS: ' + cmd;
+      var h = '<div style="background:rgba(0,220,160,0.03); border:1px solid rgba(0,220,160,0.1); padding:10px; margin-bottom:15px; border-radius:4px;">' +
+              '<div style="display:flex; justify-content:space-between; margin-bottom:5px; opacity:0.6; font-size:10px;"><span>TARGET COMMAND:</span> <span style="color:#00ffc8; font-weight:bold">' + cmd + '</span></div>' +
+              '<div style="display:flex; justify-content:space-between; margin-bottom:5px; opacity:0.6; font-size:10px;"><span>PARAMETERS:</span> <span style="color:#00dca0">' + params + '</span></div>' +
+              '<div style="display:flex; justify-content:space-between; margin-bottom:5px; opacity:0.6; font-size:10px;"><span>TARGET TIME:</span> <span style="color:#00dca0">' + time + '</span></div>' +
+              '<div style="display:flex; justify-content:space-between; opacity:0.6; font-size:10px;"><span>EXEC STATUS:</span> <span style="font-weight:bold">' + status + '</span></div>' +
+              '</div>' +
+              '<div style="font-size:10px; opacity:0.5; margin-bottom:8px; letter-spacing:1px;">RAW TERMINAL OUTPUT:</div>' +
+              '<div style="background:rgba(0,0,0,0.3); padding:12px; border:1px solid rgba(0,220,160,0.1); border-radius:2px; color:rgba(0,220,160,0.8); font-family:monospace; white-space:pre-wrap;">' + text + '</div>';
+      document.getElementById('logModalBody').innerHTML = h;
+      document.getElementById('logModal').classList.add('open');
+    }
+    function closeLog() { document.getElementById('logModal').classList.remove('open'); }
+    window.onclick = function(e) { if(e.target.id === 'logModal') closeLog(); }
+  </script>
+
+  <div id="logModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <span class="modal-title" id="logModalTitle">EXECUTION LOG</span>
+        <button class="modal-close" onclick="closeLog()">&times;</button>
+      </div>
+      <div class="modal-body" id="logModalBody"></div>
+    </div>
+  </div>
+</body></html>`;
+      return new Response(html, { headers: { "Content-Type": "text/html; charset=UTF-8" } });
+    }
+
+    // Default: Serve Assets
+    return env.ASSETS.fetch(request);
+  };
+
+
+    const response = await handleRequest();
       ctx.waitUntil(logRequest(response.status));
+
+      // Universal Favicon Injection — applies to ALL HTML responses
+      const ct = response.headers.get("content-type") || "";
+      if (ct.includes("text/html")) {
+        const original = await response.text();
+        const faviconTag = '<link rel="icon" type="image/svg+xml" href="/favicon.svg">';
+        const injected = original.includes('rel="icon"')
+          ? original
+          : original.replace(/<head([^>]*)>/i, `<head$1>\n  ${faviconTag}`);
+        return new Response(injected, {
+          status: response.status,
+          headers: { "Content-Type": "text/html; charset=UTF-8" }
+        });
+      }
+
       return response;
     } catch (globalErr) {
-      return new Response(`GLOBAL_WORKER_CRASH: ${globalErr.message}\nStack: ${globalErr.stack}`, { status: 500 });
+      return new Response(`GLOBAL WORKER CRASH: ${globalErr.message}`, { status: 500 });
+    }
+  },
+
+  // ── Scheduled Cron Handler ────────────────────────────────
+  async scheduled(event, env, ctx) {
+    const macroId = env.MACRO_ID;
+    if (!macroId) return;
+
+    try {
+      // Find pending commands where target_time has arrived
+      const { results } = await env.DB.prepare(
+        "SELECT * FROM command_schedules WHERE status = 'PENDING' AND target_time <= ?"
+      ).bind(Date.now()).all();
+
+      for (const item of results) {
+        try {
+          const keyToUse = item.secret_key || env.MACRO_KEY || env.REPORT_KEY || "REPORT_SECRET";
+          // Construct target URL to match manual control exactly
+          let target = `https://trigger.macrodroid.com/${macroId}/control?cmd=${item.command}&key=${keyToUse}`;
+          if (item.params) target += `&cmd2=${encodeURIComponent(item.params)}`;
+          
+          const resp = await fetch(target, {
+            headers: { "User-Agent": "Tactical-Scheduler/1.0 (Cloudflare-Worker)" }
+          });
+
+          const logText = await resp.text();
+          
+          if (resp.ok) {
+            await env.DB.prepare("UPDATE command_schedules SET status = 'EXECUTED', log_output = ? WHERE id = ?").bind(logText, item.id).run();
+          } else {
+            console.error(`Trigger Failed [${resp.status}]: ${logText}`);
+            await env.DB.prepare("UPDATE command_schedules SET status = 'FAILED', log_output = ? WHERE id = ?").bind(`[${resp.status}] ${logText}`, item.id).run();
+          }
+        } catch (execErr) {
+          console.error("Exec fail:", execErr);
+          await env.DB.prepare("UPDATE command_schedules SET status = 'FAILED', log_output = ? WHERE id = ?").bind(`ERROR: ${execErr.message}`, item.id).run();
+        }
+      }
+    } catch (dbErr) {
+      console.error("Cron DB Error:", dbErr);
     }
   }
 };

@@ -19,7 +19,7 @@ input, textarea, [contenteditable="true"], .stealth-input {
 
   --teal:        #00dca0;
   --teal-dim:    rgba(0, 220, 160, 0.16);
-  --teal-glow:   rgba(0, 220, 160, 0.30);
+  --teal-glow:   rgba(0, 220, 160, 0.15);
   --amber:       #f59e0b;
   --red:         #ef4444;
 
@@ -325,7 +325,7 @@ button.nav-btn:hover svg {
   font-family: var(--ui);
   font-weight: 700; font-size: 19px;
   letter-spacing: 0.18em; color: var(--text);
-  text-shadow: 0 0 18px var(--teal-glow);
+  text-shadow: 0 0 10px var(--teal-glow);
 }
 .panel-title .accent { color: var(--teal); }
 
@@ -530,6 +530,7 @@ input:focus ~ .input-underline { width: 100%; }
 .container.dropdown-open .divider,
 .container.dropdown-open .exec-btn,
 .container.dropdown-open .terminal,
+.container.dropdown-open #timeWrapper,
 .container.dropdown-open #cmd2Wrapper {
   opacity: 0;
   pointer-events: none;
@@ -728,7 +729,7 @@ select:focus ~ .select-arrow { transform: translateY(-50%) rotate(180deg); }
 
 .exec-btn:hover {
   background: rgba(0,220,160,0.22);
-  box-shadow: 0 0 12px rgba(0, 220, 160, 0.3), inset 0 0 8px rgba(0,220,160,0.06);
+  box-shadow: 0 0 8px rgba(0, 220, 160, 0.2), inset 0 0 6px rgba(0,220,160,0.04);
 }
 .exec-btn:active { transform: scale(0.98); }
 .exec-btn:disabled { opacity: 0.45; pointer-events: none; }
@@ -736,7 +737,7 @@ select:focus ~ .select-arrow { transform: translateY(-50%) rotate(180deg); }
 /* Ripple */
 .exec-ripple {
   position: absolute; border-radius: 50%;
-  background: rgba(0,220,160,0.22);
+  background: rgba(0,220,160,0.12);
   transform: scale(0); pointer-events: none;
 }
 .exec-ripple.go { animation: ripple .55s linear forwards; }

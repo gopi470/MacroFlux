@@ -28,5 +28,8 @@
       "database_name": "remote_control_ui",
       "database_id": "ff16c34b-2448-425b-a350-194284b70939"
     }
-  ]
+  ],
+  "triggers": {
+    "crons": ["* * * * *"]
+  }
 }
