@@ -1,144 +1,147 @@
 # Remote Phone Control UI
 
-> Real-time Android device control & monitoring via Cloudflare Workers + D1 + MacroDroid.
+> **Tactical Android Command & Control Interface**
+> Real-time device monitoring and automation powered by Cloudflare Workers, D1 SQL, and MacroDroid.
 
-**Live:** [https://ui.muffinjuice.xyz](https://ui.muffinjuice.xyz)
+**Live Instance:** [ui.muffinjuice.xyz](https://ui.muffinjuice.xyz)
 
 ---
 
-## Architecture
+## ⚡ System Overview
 
-```
-MacroDroid (Android)
-    │
-    ├── GET /status   → Hardware heartbeat (battery, signal, temp, uptime)
-    ├── GET /report   → Location link update
-    └── GET /control  → Trigger command via webhook
-           │
-    Cloudflare Worker (_worker.js)
-           │
-    ├── Cloudflare KV  (LOCATION_KV)   → Real-time status cache
-    └── Cloudflare D1  (remote_control_ui) → Persistent SQL logs
-           │
-    Web Dashboard (ui.muffinjuice.xyz)
-    ├── /home        → Command center (poll + execute)
-    ├── /requests    → HTTP request history log
-    └── /statuslogs  → Hardware status logs
+This project provides a professional-grade, cyberpunk-themed dashboard to remotely monitor and control an Android device. It acts as a bridge between **MacroDroid** (on-device automation) and a web-based **Command Center**.
+
+### 🏗️ Architecture
+```mermaid
+graph TD
+    A[MacroDroid / Android] -- "HTTP GET /status" --> B[Cloudflare Worker]
+    A -- "HTTP GET /report" --> B
+    B -- "Store Status" --> C[(Cloudflare KV)]
+    B -- "Write Logs" --> D[(Cloudflare D1 SQL)]
+    E[Web Dashboard] -- "Poll /status" --> B
+    E -- "Send Command" --> B
+    B -- "Trigger Webhook" --> A
 ```
 
 ---
 
-## Endpoints
+## 🔐 Authentication System
 
-| Endpoint | Auth | Description |
-|---|---|---|
-| `GET /` | — | Login page |
-| `GET /home` | Session cookie | Main dashboard |
-| `GET /requests` | Session cookie | HTTP request log (D1, day-grouped) |
-| `GET /statuslogs` | Session cookie | Hardware heartbeat history (D1, day-grouped, live-tail) |
-| `GET /status` | `REPORT_KEY` | Receive device heartbeat from MacroDroid |
-| `GET /report` | `REPORT_KEY` | Update live location link |
-| `GET /poll` | Session cookie | Real-time KV data fetch |
-| `GET /intel?ip=` | Session cookie | IP geolocation lookup (cached in D1) |
-| `GET /vault` | Session cookie | Encrypted file vault |
+The platform implements a multi-layered security model to ensure restricted access:
+
+- **Primary Gateway**: Protected by a global `ACCESS_KEY` secret. Valid authentication sets a `session=authorized` cookie with a 30-minute TTL.
+- **Unauthorized Handling**: Attempting to access restricted paths without a session triggers a "Tactical Unauthorized" page with a 7-second auto-redirect to login and IP/Geo logging of the intruder.
+- **Vault Security**: The file vault (`/vault`) requires a secondary `VAULT_PASS` secret. Successful auth sets a `vault_token=authorized` cookie (10-minute TTL).
+- **MacroDroid Auth**: Device-to-Server communication is secured via a `REPORT_KEY` query parameter, validated against worker secrets.
 
 ---
 
-## Database Schema (D1 — `remote_control_ui`)
+## 🚀 Endpoints & API Reference
 
-### `logs`
-Stores every HTTP request (with equalization to prevent `/poll` flooding).
-
-| Column | Type | Description |
+### User Interface (Authenticated)
+| Path | Method | Description |
 |---|---|---|
-| timestamp | INTEGER | Unix ms |
-| method | TEXT | GET / POST |
-| path | TEXT | Request path |
-| status | INTEGER | HTTP status code |
-| ip | TEXT | Caller IP |
-| source | TEXT | Browser / MacroDroid / API |
-| noisy | INTEGER | 1 = noisy endpoint |
-| location | TEXT | Geo from Cloudflare headers |
+| `/` | GET | Secure Login Gateway |
+| `/home` | GET | Main Dashboard (Command Center) |
+| `/schedule` | GET | Task Scheduler Interface |
+| `/requests` | GET | Audit Logs (HTTP request history) |
+| `/statuslogs` | GET | Hardware Health Analytics |
+| `/vault/list` | GET | Encrypted File Archive |
 
-### `status_logs`
-Stores every hardware heartbeat from the device.
-
-| Column | Type | Description |
+### System APIs
+| Path | Method | Auth | Description |
 |---|---|---|
-| timestamp | INTEGER | Unix ms |
-| battery | INTEGER | Battery % |
-| charging | INTEGER | 1 = charging |
-| signal | INTEGER | Signal strength (dBm) |
-| temperature | TEXT | Battery temperature (°C) |
-| uptime | TEXT | Device uptime |
-| ip | TEXT | Device IP |
-| location | TEXT | Geo location |
-
-### `geo_cache`
-Caches IP geolocation results to avoid rate-limiting external APIs.
-
-### `vault_files`
-Metadata for encrypted file vault uploads.
+| `/status` | GET | `REPORT_KEY` | Receive battery/temp/signal from device |
+| `/report` | GET | `REPORT_KEY` | Update live location maps link |
+| `/poll` | GET | Session | Real-time state fetch for dashboard |
+| `/control` | GET | Session | Immediate command trigger via MacroDroid |
+| `/upload` | POST | `REPORT_KEY` | Upload encrypted files (Images/Audio) to Vault |
+| `/intel` | GET | Session | IP Geolocation lookup (cached) |
 
 ---
 
-## Setup
+## 🛠️ Backend Infrastructure (Cloudflare Worker)
 
-### 1. Cloudflare KV
-Create a KV namespace named `LOCATION_KV` and add its ID to `wrangler.jsonc`.
+The backend is a monolithic **Cloudflare Worker** (`_worker.js`) handling 100% of the server-side logic:
 
-### 2. Cloudflare D1
-Create a D1 database named `remote_control_ui` and apply the schema:
+- **Dynamic Routing**: A custom request handler processes both API calls and HTML page rendering.
+- **HTML Injection**: Uses `HTMLRewriter` to dynamically inject a shared Cyberpunk navigation menu and styles into static assets (`home.html`, etc.).
+- **Cron Scheduler**: A `scheduled` event handler runs every minute, checking the D1 database for pending commands and triggering them automatically.
+- **Log Equalization**: An intelligent algorithm filters noisy requests (like `/poll`) from the history log while ensuring critical events are always recorded.
+- **IP Intelligence**: Multi-provider geo-lookup logic (ipapi.co with fallback to ip-api.com) with a D1 caching layer to stay within rate limits.
+
+---
+
+## 🎨 Frontend Design System
+
+The frontend is built for speed and aesthetics, adhering to a **"Tactical Cyberpunk"** design language:
+
+- **Core Tech**: Vanilla HTML5, CSS3, and JavaScript. No heavy frameworks.
+- **Theming**: Deep blacks (`#06080a`), tactical teals (`#00dca0`), and alert reds (`#ef4444`).
+- **Typography**: Uses `Share Tech Mono` for a terminal feel and `Rajdhani` for UI elements.
+- **Interactivity**: 
+    - **Live Polling**: Dashboards refresh data every 5 seconds with "New Row" highlight animations.
+    - **Glassmorphism**: Subtle backdrop blurs and semi-transparent panels.
+    - **Responsive**: Fully optimized for mobile (Android/iOS) and desktop browsers.
+
+---
+
+## 📊 Database Schema (D1 SQL)
+
+The project uses **Cloudflare D1** for high-performance, persistent data storage.
+
+### Tables:
+- **`logs`**: Every HTTP interaction is recorded (Timestamp, Method, Path, Status, IP, Source, Location).
+- **`status_logs`**: Historical hardware heartbeats (Battery %, Temp, Signal dBm, Uptime).
+- **`command_schedules`**: Queue for automated tasks (Command, Target Time, Status, Output Logs).
+- **`geo_cache`**: Persistent cache for IP geolocation to minimize external API calls.
+- **`vault_files`**: Metadata index for files stored in KV storage.
+
+---
+
+## 📦 Other Critical Systems
+
+- **Equalization Algorithm**: Prevents logging bloat by sampling high-frequency `/poll` requests (5% sample rate) while capturing 100% of security-relevant events.
+- **Vault Retrieval**: Serves binary data (Images/Video/Audio) from KV with correct MIME types and inline disposition.
+- **Migration Suite**: Built-in `/migrate` endpoint to move legacy KV logs into the D1 SQL database.
+- **Automated Cleanup**: The worker periodically purges old logs (keeping only the last 2000) to stay within D1 free-tier limits.
+
+---
+
+## ⚙️ Setup Instructions
+
+### 1. Requirements
+- Cloudflare Account
+- Wrangler CLI installed
+- MacroDroid on Android
+
+### 2. Provisioning
 ```bash
+# Create D1 Database
+npx wrangler d1 create remote_control_ui
+
+# Create KV Namespace
+npx wrangler kv:namespace create LOCATION_KV
+
+# Apply Schema
 npx wrangler d1 execute remote_control_ui --remote --file=schema.sql
 ```
 
-### 3. Worker Secrets
-Set the following secrets via the Cloudflare dashboard or CLI:
+### 3. Secrets Configuration
 ```bash
-npx wrangler secret put ACCESS_KEY    # Login key for the dashboard
-npx wrangler secret put REPORT_KEY    # Key for MacroDroid heartbeat requests
+npx wrangler secret put ACCESS_KEY    # Dashboard login
+npx wrangler secret put REPORT_KEY    # MacroDroid auth
+npx wrangler secret put VAULT_PASS     # File vault pass
+npx wrangler secret put MACRO_ID       # MacroDroid Webhook ID
 ```
 
-### 4. MacroDroid Configuration
-Configure MacroDroid HTTP actions to hit these endpoints:
-
-| Action | URL |
-|---|---|
-| Hardware Heartbeat | `https://ui.muffinjuice.xyz/status?key=YOUR_KEY&battery_level=%battery%&battery_status=%battery_state%&battery_temperature=%battery_temperature%&signal_strength=%signal_strength%&phone_uptime=%uptime%` |
-| Location Report | `https://ui.muffinjuice.xyz/report?key=YOUR_KEY&link={maps_link}` |
-| Command Trigger | `https://trigger.macrodroid.com/.../control?cmd={cmd}&key=YOUR_KEY` |
-
-### 5. Deploy
+### 4. Deployment
 ```bash
 npx wrangler deploy
 ```
 
 ---
 
-## Features
+## 📜 License
+Personal use and experimentation. Built with 🦾 by [MuffinJuice](https://github.com/gopi470).
 
-- 🛡️ **Security Gateway** — Session cookie auth with 7-second countdown redirect for unauthorized access
-- 📊 **HTTP Request History** (`/requests`) — Searchable, filterable, paginated log with day-based date separators and IP intelligence
-- 🔋 **Hardware Status Logs** (`/statuslogs`) — Live-tail (5s auto-refresh), sortable Newest/Oldest, day-grouped date banners, battery/signal/temperature/uptime tracking
-- 🌍 **IP Intelligence** — Multi-provider geo lookup (ipapi.co → ip-api.com fallback) cached in D1
-- 📁 **Vault** — Encrypted file storage
-- 🗂️ **Day-Grouped Logs** — Both `/requests` and `/statuslogs` show date separator banners when the day changes
-
----
-
-## Project Structure
-
-```
-.
-├── _worker.js      # Cloudflare Worker — all routing, security, rendering
-├── home.html       # Main dashboard (served as static asset)
-├── schema.sql      # D1 database schema
-└── wrangler.jsonc  # Deployment configuration
-```
-
----
-
-## License
-
-Provided as-is for personal use and experimentation.
