@@ -12,35 +12,34 @@ const SHARED_NAV_STYLE = `
   }
   .top-left-menu { position: fixed; top: 20px; left: 20px; z-index: 2000; }
   .nav-btn {
-    width: 42px; height: 42px; background: rgba(0, 220, 160, 0.05);
-    border: 1px solid var(--border); border-radius: var(--r);
+    width: 42px; height: 42px; background: rgba(0, 220, 160, 0.04);
+    border: 1px solid rgba(0, 220, 160, 0.15); border-radius: var(--r);
     color: var(--teal); display: flex; align-items: center; justify-content: center;
-    cursor: pointer; transition: all 0.3s var(--ease); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
+    cursor: pointer; transition: all 0.25s var(--ease); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
   }
-  .nav-btn:hover { background: var(--teal-dim); border-color: var(--teal); box-shadow: 0 0 15px rgba(0, 220, 160, 0.2); }
-  .nav-btn svg { transition: transform 0.4s var(--ease); }
-  .nav-btn:hover svg { transform: rotate(90deg) scale(1.1); }
+  .nav-btn:hover { background: rgba(0, 220, 160, 0.12); border-color: rgba(0, 220, 160, 0.4); box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4); }
+  .nav-btn svg { transition: transform 0.4s var(--ease); opacity: 0.8; }
+  .nav-btn:hover svg { transform: rotate(90deg) scale(1.05); opacity: 1; }
   
   .nav-dropdown {
-    position: absolute; top: calc(100% + 10px); left: 0;
-    background: var(--panel); backdrop-filter: blur(20px) saturate(1.5); -webkit-backdrop-filter: blur(20px) saturate(1.5);
-    border: 1px solid var(--border-hi); border-radius: var(--r);
-    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.9);
-    display: flex; flex-direction: column; min-width: 200px;
-    opacity: 0; pointer-events: none; transform: translateY(-10px);
-    transition: all 0.25s var(--ease); overflow: hidden;
+    position: absolute; top: calc(100% + 8px); left: 0;
+    background: #020c08; border: 1px solid rgba(0, 220, 160, 0.3); border-radius: var(--r);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.95);
+    display: flex; flex-direction: column; min-width: 220px;
+    opacity: 0; pointer-events: none; transform: translateY(-8px);
+    transition: all 0.2s var(--ease); overflow: hidden;
   }
   .nav-dropdown.open { opacity: 1; pointer-events: auto; transform: translateY(0); }
   .nav-drop-item {
-    padding: 14px 18px; color: rgba(0, 220, 160, 0.7);
+    padding: 14px 18px; color: rgba(0, 220, 160, 0.85);
     font-family: var(--mono); font-size: 11px; letter-spacing: 0.15em;
-    text-decoration: none; border-bottom: 1px solid rgba(0, 220, 160, 0.1);
+    text-decoration: none; border-bottom: 1px solid rgba(0, 220, 160, 0.06);
     transition: all 0.2s var(--ease); display: flex; align-items: center; border-left: 2px solid transparent;
   }
   .nav-drop-item:last-child { border-bottom: none; }
-  .nav-drop-item:hover { background: rgba(0, 220, 160, 0.08); color: var(--teal); border-left-color: var(--teal); }
+  .nav-drop-item:hover { background: rgba(0, 220, 160, 0.06); color: #fff; border-left-color: var(--teal); }
   .nav-drop-item svg { opacity: 0.6; transition: all 0.2s var(--ease); margin-right: 12px; flex-shrink: 0; }
-  .nav-drop-item:hover svg { opacity: 1; filter: drop-shadow(0 0 5px var(--teal)); }
+  .nav-drop-item:hover svg { opacity: 1; }
 `;
 
 const SHARED_NAV_HTML = `
@@ -65,11 +64,15 @@ const SHARED_NAV_HTML = `
       </a>
       <a href="/statuslogs" class="nav-drop-item">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"></path></svg>
-        STATUS HISTORY
+        STATUS LOGS
       </a>
       <a href="/schedule/logs" class="nav-drop-item">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
         SCHEDULE LOGS
+      </a>
+      <a href="/vault/list" class="nav-drop-item">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
+        VAULT
       </a>
       <a href="/logout" class="nav-drop-item" style="color:#ef4444; border-top:1px solid rgba(239,68,68,0.2)">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
@@ -85,6 +88,18 @@ const SHARED_NAV_HTML = `
         drop.classList.remove('open');
       }
     });
+
+    // Universal Backspace Navigation
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Backspace') {
+        const t = e.target;
+        const isEditable = t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable;
+        if (!isEditable) {
+          e.preventDefault();
+          window.history.back();
+        }
+      }
+    });
   </script>
 `;
 
@@ -98,7 +113,7 @@ export default {
       const logRequest = async (statusCode) => {
         try {
           if (url.searchParams.get("nosave") === "1") return;
-          if (url.pathname === "/statuslogs") return; // Never log status history page visits
+          if (url.pathname === "/statuslogs") return; // Never log status logs page visits
 
           
           const isNoisy = ["/poll", "/favicon.ico", "/requests"].includes(url.pathname);
@@ -301,6 +316,7 @@ export default {
 '        window.location.href = \'/\';' +
 '      }' +
 '    }, 1000);' +
+'    document.addEventListener("keydown", (e) => { if(e.key === "Backspace") window.history.back(); });' +
 '  </script>' +
 '</body></html>', { status: 401, headers: { "Content-Type": "text/html; charset=UTF-8" } });
     };
@@ -487,7 +503,20 @@ export default {
       if (!cmd || !targetTime) return renderTactical("INVALID PARAMS", 400);
       if (!key) return renderTactical("MACROS KEY REQUIRED", 400);
 
+      // Rule 1: Max 3 months from now
+      const maxFuture = Date.now() + (90 * 24 * 60 * 60 * 1000);
+      if (targetTime > maxFuture) return renderTactical("EXCEEDS 3-MONTH LIMIT", 400);
+      if (targetTime < Date.now()) return renderTactical("TIME MUST BE IN FUTURE", 400);
+
+      // Rule 2: No 2 triggers at the exact same minute
+      const targetMin = Math.floor(targetTime / 60000) * 60000;
       try {
+        const existing = await env.DB.prepare(
+          "SELECT id FROM command_schedules WHERE target_time >= ? AND target_time < ? AND status = 'PENDING'"
+        ).bind(targetMin, targetMin + 60000).first();
+        
+        if (existing) return renderTactical("TIME CONFLICT: TRIGGER ALREADY EXISTS", 409);
+
         await env.DB.prepare(
           "INSERT INTO command_schedules (command, params, secret_key, target_time, created_at) VALUES (?, ?, ?, ?, ?)"
         ).bind(cmd, cmd2, key, targetTime, Date.now()).run();
@@ -600,7 +629,7 @@ export default {
   <div class="auth-card">
     <a href="/home" class="close-btn" title="ABORT ACCESS">&times;</a>
     <h2>VAULT LOCKED</h2>
-    <p>VALUT KEY IS REQUIRED TO ACCESS VALUT</p>
+    <p>VAULT KEY IS REQUIRED TO ACCESS VAULT</p>
     <div class="input-group">
       <input type="text" id="vlt_input" name="vault_access_key_${Math.random().toString(36).substring(7)}" placeholder="ENTER ACCESS KEY..." onkeypress="if(event.key==='Enter') login()" autocomplete="off" data-lpignore="true">
     </div>
@@ -610,6 +639,7 @@ export default {
     <div id="errMsg" class="err">ACCESS KEY DENIED</div>
   </div>
   <script>
+    document.addEventListener('keydown', (e) => { if (e.key === 'Backspace' && e.target.tagName !== 'INPUT') window.history.back(); });
     async function login() {
       const p = document.getElementById('vlt_input').value;
       if (!p) return;
@@ -689,14 +719,14 @@ export default {
 
           let tableRows = rows.map(r => `
             <tr id="row_${r.id}">
-              <td>${r.id}</td>
+              <td>${r.id.replace(/_/g, ' ')}</td>
               <td>${r.receivedStr}</td>
               <td class="type-${r.typeStr.toLowerCase()}">${r.typeStr}</td>
               <td style="opacity:0.9; font-size:11px;">${r.contentType}</td>
               <td>${r.sizeMB} MB</td>
               <td>${r.duration}</td>
               <td style="display:flex; gap:6px; align-items:center;">
-                <a href="/vault/${r.id}" target="_blank">>> OPEN</a>
+                <a href="/vault/${r.id}">>> OPEN</a>
                 <button onclick="deleteVaultItem('${r.id}', this)" style="background:rgba(239,68,68,0.08); color:#f87171; border:1px solid rgba(239,68,68,0.3); padding:3px 8px; border-radius:3px; font-size:11px; cursor:pointer; font-family:inherit;">DELETE</button>
               </td>
             </tr>`).join("");
@@ -717,7 +747,9 @@ export default {
     * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; -webkit-user-select: none; }
     body { background: #06080a; color: #00dca0; font-family: 'Courier New', monospace; padding: 24px; font-size: 13px; }
     h2 { letter-spacing: 5px; font-size: 16px; }
-    .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #00dca0; padding-bottom: 12px; margin-bottom: 20px; }
+    .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #00dca0; padding-bottom: 12px; margin-bottom: 25px; padding-left: 75px; margin-top: -4px; }
+    .vault-logout { position: fixed; bottom: 20px; right: 20px; background: rgba(239,68,68,0.08); color: #f87171; border: 1px solid rgba(239,68,68,0.2); font-size: 10px; padding: 10px 20px; text-decoration: none; font-weight: bold; letter-spacing: 1px; z-index: 1000; transition: all 0.2s; }
+    .vault-logout:hover { background: rgba(239,68,68,0.15); border-color: #f87171; box-shadow: 0 0 15px rgba(239,68,68,0.1); }
     .count { opacity: 0.8; font-size: 11px; }
     table { width: 100%; border-collapse: collapse; }
     th { text-align: left; padding: 8px 12px; font-size: 10px; letter-spacing: 2px; color: rgba(0,220,160,0.85); border-bottom: 1px solid rgba(0,220,160,0.15); }
@@ -730,11 +762,14 @@ export default {
     a:hover { background: rgba(0,220,160,0.1); }
     .footer { margin-top: 20px; font-size: 10px; opacity: 0.6; }
     .c-sel { position: relative; display: inline-block; }
-    .c-sel button { background: rgba(0,220,160,0.15); color: #00dca0; border: 1px solid rgba(0,220,160,0.5); padding: 5px 12px; border-radius: 3px; font-size: 11px; font-weight: bold; font-family: inherit; cursor: pointer; outline: none; }
-    .c-sel .opts { display: none; position: absolute; top: calc(100% + 5px); left: 0; background: #06080a; border: 1px solid rgba(0,220,160,0.6); min-width: 120px; z-index: 100; box-shadow: 0 4px 12px rgba(0,0,0,0.8); border-radius: 3px; overflow: hidden; }
+    .c-sel button { background: rgba(0,220,160,0.03); color: #00dca0; border: 1px solid rgba(0,220,160,0.15); padding: 5px 14px; border-radius: 3px; font-size: 11px; font-weight: bold; font-family: inherit; cursor: pointer; outline: none; transition: all 0.2s; }
+    .c-sel button:hover { border-color: rgba(0,220,160,0.4); background: rgba(0,220,160,0.08); color: #fff; }
+    .c-sel .opts { display: none; position: absolute; top: calc(100% + 5px); left: 0; background: #020c08; border: 1px solid rgba(0,220,160,0.25); min-width: 140px; z-index: 100; box-shadow: 0 8px 30px rgba(0,0,0,0.9); border-radius: 3px; overflow: hidden; animation: fadeUp 0.2s ease-out; }
     .c-sel.open .opts { display: block; }
-    .c-sel .opts div { padding: 10px 12px; font-size: 11px; font-weight: bold; cursor: pointer; border-bottom: 1px solid rgba(0,220,160,0.2); color: #00dca0; }
+    .c-sel .opts div { padding: 10px 14px; font-size: 11px; font-weight: bold; cursor: pointer; border-bottom: 1px solid rgba(0,220,160,0.05); color: rgba(0,220,160,0.85); transition: all 0.2s; border-left: 2px solid transparent; }
     .c-sel .opts div:last-child { border-bottom: none; }
+    .c-sel .opts div:hover { background: rgba(0,220,160,0.06); color: #fff; border-left-color: #00dca0; }
+    @keyframes fadeUp { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
     ${SHARED_NAV_STYLE}
   </style>
 </head>
@@ -764,9 +799,9 @@ export default {
     <div style="text-align:right; display:flex; flex-direction:column; align-items:flex-end; gap:6px;">
       <div class="count" id="assetCount">${rows.length} ASSETS ON RECORD</div>
       <div style="font-size:11px; font-weight:bold; letter-spacing:1px; color:#00dca0;">CAPACITY: ${totalMB.toFixed(2)} MB / 1024 MB</div>
-      <a href="/vault/logout" style="background:rgba(239,68,68,0.1); color:#f87171; border:1px solid rgba(239,68,68,0.3); font-size:9px; padding:2px 10px; margin-top:4px; text-decoration:none;">LOGOUT FROM VAULT</a>
     </div>
   </div>
+  <a href="/vault/logout" class="vault-logout">LOGOUT FROM VAULT</a>
   <table>
     <thead>
       <tr>
@@ -1089,23 +1124,27 @@ export default {
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { background: #06080a; color: #00dca0; font-family: 'Courier New', monospace; padding: 24px; font-size: 13px; user-select: none; -webkit-user-select: none; }
     h2 { letter-spacing: 5px; font-size: 16px; }
-    .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #00dca0; padding-bottom: 12px; margin-bottom: 20px; flex-wrap: wrap; gap: 10px; }
+    .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #00dca0; padding-bottom: 12px; margin-bottom: 20px; flex-wrap: wrap; gap: 10px; padding-left: 60px; }
     table { width: 100%; border-collapse: collapse; }
     th { text-align: left; padding: 8px 12px; font-size: 10px; letter-spacing: 2px; color: rgba(0,220,160,0.85); border-bottom: 1px solid rgba(0,220,160,0.15); }
     td { padding: 10px 12px; border-bottom: 1px solid rgba(0,220,160,0.07); }
     tr:hover td { background: rgba(0,220,160,0.03); }
+    .c-sel { position: relative; display: inline-block; }
+    .c-sel button { background: rgba(0,220,160,0.03); color: #00dca0; border: 1px solid rgba(0,220,160,0.15); padding: 5px 14px; border-radius: 3px; font-size: 11px; font-weight: bold; font-family: inherit; cursor: pointer; outline: none; transition: all 0.2s; }
+    .c-sel button:hover { border-color: rgba(0,220,160,0.4); background: rgba(0,220,160,0.08); color: #fff; }
+    .c-sel .opts { display: none; position: absolute; top: calc(100% + 5px); left: 0; background: #020c08; border: 1px solid rgba(0,220,160,0.25); min-width: 140px; z-index: 100; box-shadow: 0 8px 30px rgba(0,0,0,0.9); border-radius: 3px; overflow: hidden; animation: fadeUp 0.2s ease-out; }
+    .c-sel.open .opts { display: block; }
+    .c-sel .opts div { padding: 10px 14px; font-size: 11px; font-weight: bold; cursor: pointer; border-bottom: 1px solid rgba(0,220,160,0.05); color: rgba(0,220,160,0.85); transition: all 0.2s; border-left: 2px solid transparent; }
+    .c-sel .opts div:last-child { border-bottom: none; }
+    .c-sel .opts div:hover { background: rgba(0,220,160,0.06); color: #fff; border-left-color: #00dca0; }
+    @keyframes fadeUp { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
     .row-alert { background: rgba(255,62,62,0.1) !important; }
     .status-alert { color: #ff3e3e !important; font-weight: bold; }
     ${SHARED_NAV_STYLE}
     .date-sep { background: rgba(0,220,160,0.05); }
     .date-sep td { color: rgba(0,220,160,0.6); font-weight: bold; text-align: center; letter-spacing: 4px; font-size: 12px; padding: 8px 0; border-top: 1px solid rgba(0,220,160,0.15); border-bottom: 1px solid rgba(0,220,160,0.15); text-transform: uppercase; }
-    .c-sel { position: relative; display: inline-block; margin-right: 5px; }
-    .c-sel button { background: rgba(0,220,160,0.15); color: #00dca0; border: 1px solid rgba(0,220,160,0.5); padding: 5px 12px; border-radius: 3px; font-size: 11px; font-weight: bold; font-family: inherit; cursor: pointer; outline: none; }
-    .c-sel .opts { display: none; position: absolute; top: calc(100% + 5px); left: 0; background: #06080a; border: 1px solid rgba(0,220,160,0.6); min-width: 120px; z-index: 100; box-shadow: 0 4px 12px rgba(0,0,0,0.8); border-radius: 3px; overflow: hidden; }
-    .c-sel.open .opts { display: block; }
-    .c-sel .opts div { padding: 10px 12px; font-size: 11px; font-weight: bold; cursor: pointer; border-bottom: 1px solid rgba(0,220,160,0.2); color: #00dca0; }
-    .btn-refresh { background: rgba(0,220,160,0.25); color: #00dca0; border: 1px solid #00dca0; padding: 5px 15px; border-radius: 3px; font-size: 11px; font-weight: bold; cursor: pointer; transition: all 0.2s; font-family: inherit; white-space: nowrap; }
-    .btn-refresh:hover { background: rgba(0,220,160,0.4); transform: scale(1.05); }
+    .btn-refresh { background: rgba(0,220,160,0.4); color: #fff; border: 1px solid #00dca0; padding: 5px 15px; border-radius: 3px; font-size: 11px; font-weight: bold; cursor: pointer; transition: all 0.2s; font-family: inherit; white-space: nowrap; }
+    .btn-refresh:hover { background: rgba(0,220,160,0.6); color: #000; transform: scale(1.05); opacity: 1; }
     .btn-refresh:active { transform: scale(0.95); }
     .refreshing { opacity: 0.5; pointer-events: none; }
     .search-wrap { position: relative; display: flex; align-items: center; margin: 0 15px; }
@@ -1118,14 +1157,16 @@ export default {
     .btn-load-more:disabled { opacity: 0.3; cursor: default; }
     .ip-link { cursor: pointer; text-decoration: underline; text-decoration-color: rgba(0,220,160,0.2); transition: all 0.2s; user-select: text; -webkit-user-select: text; }
     .ip-link:hover { color: #fff; text-decoration-color: #00dca0; }
-    .modal-intel { position: fixed; inset: 0; background: rgba(2,6,8,0.95); display: none; align-items: center; justify-content: center; z-index: 1000; padding: 20px; }
-    .intel-content { background: #050505; border: 1px solid #00dca0; padding: 25px; border-radius: 4px; width: 100%; max-width: 340px; box-shadow: none; }
-    .intel-header { display: flex; justify-content: space-between; border-bottom: 1px solid rgba(0,220,160,0.3); padding-bottom: 12px; margin-bottom: 20px; }
-    .intel-body div { margin-bottom: 18px; }
-    .intel-label { color: #00dca0; opacity: 0.9; font-size: 10px; letter-spacing: 2px; display: block; margin-bottom: 5px; font-weight: bold; font-family: 'Share Tech Mono', monospace; }
-    .intel-val { color: #fff; font-weight: bold; font-size: 14px; display: block; letter-spacing: 0.5px; user-select: text; -webkit-user-select: text; word-break: break-all; line-height: 1.5; font-family: 'Share Tech Mono', monospace; }
-    .intel-close { background: transparent; border: none; color: rgba(0,220,160,0.5); cursor: pointer; font-size: 20px; line-height: 1; }
-    .intel-close:hover { color: #00dca0; }
+    .modal-intel { position: fixed; inset: 0; background: rgba(2,6,8,0.9); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); display: none; align-items: center; justify-content: center; z-index: 2000; padding: 20px; }
+    .intel-content { background: #0a0e12; border: 1px solid var(--border-hi); padding: 0; border-radius: var(--r); width: 100%; max-width: 360px; box-shadow: 0 20px 50px rgba(0, 0, 0, 0.8), 0 0 20px rgba(0, 220, 160, 0.1); overflow: hidden; animation: fadeUp 0.3s var(--ease); }
+    .intel-header { display: flex; justify-content: space-between; align-items: center; background: rgba(0, 220, 160, 0.05); border-bottom: 1px solid rgba(0, 220, 160, 0.2); padding: 16px 20px; }
+    .intel-body { padding: 24px; }
+    .intel-body div { margin-bottom: 20px; }
+    .intel-body div:last-child { margin-bottom: 0; }
+    .intel-label { color: var(--teal); opacity: 0.6; font-size: 10px; letter-spacing: 2px; display: block; margin-bottom: 6px; font-weight: bold; font-family: var(--mono); text-transform: uppercase; }
+    .intel-val { color: #fff; font-weight: bold; font-size: 14px; display: block; letter-spacing: 0.5px; user-select: text; -webkit-user-select: text; word-break: break-all; line-height: 1.5; font-family: var(--mono); }
+    .intel-close { background: transparent; border: none; color: var(--teal); cursor: pointer; font-size: 24px; line-height: 1; opacity: 0.5; transition: all 0.2s; }
+    .intel-close:hover { opacity: 1; transform: rotate(90deg); }
     .new-row td { animation: highlight-new 2s ease-out; }
     @keyframes highlight-new {
       0% { background: rgba(0,220,160,0.3); }
@@ -1137,8 +1178,10 @@ export default {
 <body>
   ${SHARED_NAV_HTML}
   <div class="header">
-    <div style="display:flex; align-items:center; gap:10px;">
+    <div style="display:flex; align-items:center;">
       <h2>[ HTTP REQUEST HISTORY ]</h2>
+    </div>
+    <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
       <div class="search-wrap">
         <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
         <input type="text" id="searchInput" placeholder="Search Logs ..." onkeyup="handleSearch(event)">
@@ -1167,12 +1210,10 @@ export default {
         </div>
       </div>
       <button class="btn-refresh" id="refreshBtn" onclick="refreshLogs()">REFRESH</button>
-    </div>
-    <div style="display:flex; flex-direction:column; align-items:flex-end; gap:4px; text-align:right;">
-      <div id="capText" style="font-size: 11px; font-weight: bold; color: rgba(0,220,160,0.8); letter-spacing: 1px;">
-        CAPACITY: ${totalLogs} / 2000
+      <div style="display:flex; flex-direction:column; align-items:flex-end; gap:4px; text-align:right; margin-left:8px;">
+        <div id="capText" style="font-size: 11px; font-weight: bold; color: rgba(0,220,160,0.8); letter-spacing: 1px;">CAPACITY: ${totalLogs} / 2000</div>
+        <div id="syncText" style="font-size: 8px; color: rgba(0,220,160,0.7); letter-spacing: 1px; font-weight: bold;">LAST SYNC: NEVER</div>
       </div>
-      <div id="syncText" style="font-size: 8px; color: rgba(0,220,160,0.7); letter-spacing: 1px; font-weight: bold;">LAST SYNC: NEVER</div>
     </div>
   </div>
   <table>
@@ -1317,7 +1358,7 @@ export default {
           '<div><span class="intel-label">ORGANIZATION / ISP</span><span class="intel-val">' + d.org + '</span></div>' +
           '<div><span class="intel-label">LOCATION</span><span class="intel-val">' + (d.city || "").replace(/_/g, ' ') + ', ' + (d.region || "").replace(/_/g, ' ') + ', ' + (d.country_name || "").replace(/_/g, ' ') + '</span></div>' +
           '<div style="margin-top:15px; border-top:1px solid rgba(0,220,160,0.1); padding-top:15px;">' +
-            '<a href="https://www.google.com/maps?q=' + d.latitude + ',' + d.longitude + '" target="_blank" style="color:#00dca0; text-decoration:none; font-size:10px; border:1px solid #00dca0; padding:5px 10px; border-radius:3px; display:inline-block;">VIEW ON SATELLITE MAP</a>' +
+            '<a href="https://www.google.com/maps?q=' + d.latitude + ',' + d.longitude + '" style="color:#00dca0; text-decoration:none; font-size:10px; border:1px solid #00dca0; padding:5px 10px; border-radius:3px; display:inline-block;">VIEW ON SATELLITE MAP</a>' +
           '</div>';
       } catch(err) {
         body.innerHTML = '<div style="color:#f87171; text-align:center; padding:20px;">FAILED TO RETRIEVE INTEL: ' + err.message + '</div>';
@@ -1553,36 +1594,37 @@ export default {
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { background: #06080a; color: #00dca0; font-family: 'Courier New', monospace; padding: 24px; font-size: 13px; user-select: none; -webkit-user-select: none; }
     h2 { letter-spacing: 5px; font-size: 16px; }
-    .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #00dca0; padding-bottom: 12px; margin-bottom: 20px; flex-wrap: wrap; gap: 10px; }
+    .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #00dca0; padding-bottom: 12px; margin-bottom: 20px; flex-wrap: wrap; gap: 10px; padding-left: 60px; }
     table { width: 100%; border-collapse: collapse; }
     th { text-align: center; padding: 8px 12px; font-size: 10px; letter-spacing: 2px; color: rgba(0,220,160,0.85); border-bottom: 1px solid rgba(0,220,160,0.15); }
     td { text-align: center; padding: 10px 12px; border-bottom: 1px solid rgba(0,220,160,0.07); }
     tr:hover td { background: rgba(0,220,160,0.03); }
     .date-sep { background: rgba(0,220,160,0.05); }
     .date-sep td { color: rgba(0,220,160,0.6); font-weight: bold; text-align: center; letter-spacing: 4px; font-size: 12px; padding: 8px 0; border-top: 1px solid rgba(0,220,160,0.15); border-bottom: 1px solid rgba(0,220,160,0.15); text-transform: uppercase; }
-    .btn-refresh { background: rgba(0,220,160,0.25); color: #00dca0; border: 1px solid #00dca0; padding: 5px 15px; border-radius: 3px; font-size: 11px; font-weight: bold; cursor: pointer; transition: all 0.2s; font-family: inherit; white-space: nowrap; }
-    .btn-refresh:hover { background: rgba(0,220,160,0.4); transform: scale(1.05); }
+    .btn-refresh { background: rgba(0,220,160,0.4); color: #fff; border: 1px solid #00dca0; padding: 5px 15px; border-radius: 3px; font-size: 11px; font-weight: bold; cursor: pointer; transition: all 0.2s; font-family: inherit; white-space: nowrap; }
+    .btn-refresh:hover { background: rgba(0,220,160,0.6); color: #000; transform: scale(1.05); opacity: 1; }
     .btn-refresh:active { transform: scale(0.95); }
     .refreshing { opacity: 0.5; pointer-events: none; }
-    .search-wrap { position: relative; display: flex; align-items: center; margin: 0 15px; }
+    .search-wrap { position: relative; display: flex; align-items: center; margin: 0 60px 0 0; }
     .search-icon { position: absolute; left: 10px; width: 12px; height: 12px; color: #00dca0; opacity: 0.7; pointer-events: none; }
-    #searchInput { background: rgba(0,220,160,0.05); color: #00dca0; border: 1px solid rgba(0,220,160,0.3); padding: 5px 12px 5px 30px; border-radius: 3px; font-size: 11px; font-family: inherit; width: 220px; outline: none; transition: border 0.2s; user-select: text; -webkit-user-select: text; }
+    #searchInput { background: rgba(0,220,160,0.05); color: #00dca0; border: 1px solid rgba(0,220,160,0.3); padding: 5px 12px 5px 30px; border-radius: 3px; font-size: 11px; font-family: inherit; width: 320px; outline: none; transition: border 0.2s; user-select: text; -webkit-user-select: text; }
     #searchInput:focus { border-color: #00dca0; background: rgba(0,220,160,0.1); }
     .load-more-wrap { display: flex; justify-content: center; padding: 40px 0; border-top: 1px solid rgba(0,220,160,0.1); margin-top: 20px; }
-    #intelModal { position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(2,6,8,0.95); display: none; align-items: center; justify-content: center; z-index: 1000; padding: 20px; }
-    .modal-content { background: #050505; border: 1px solid #00dca0; width: 100%; max-width: 340px; border-radius: 4px; box-shadow: none; animation: modalIn 0.2s ease-out; }
-    @keyframes modalIn { from { opacity: 0; transform: translateY(5px); } }
-    .modal-header { padding: 15px 20px; border-bottom: 1px solid rgba(0,220,160,0.3); display: flex; justify-content: space-between; align-items: center; }
-    .modal-body { padding: 25px; }
-    .intel-label { display: block; font-size: 10px; color: #00dca0; opacity: 0.9; letter-spacing: 2px; margin-bottom: 5px; font-weight: bold; font-family: 'Share Tech Mono', monospace; }
-    .intel-val { display: block; color: #fff; margin-bottom: 15px; font-size: 14px; font-weight: bold; word-break: break-all; line-height: 1.5; font-family: 'Share Tech Mono', monospace; }
-    .c-sel { position: relative; display: inline-block; margin-right: 5px; }
-    .c-sel button { background: rgba(0,220,160,0.15); color: #00dca0; border: 1px solid rgba(0,220,160,0.5); padding: 5px 12px; border-radius: 3px; font-size: 11px; font-weight: bold; font-family: inherit; cursor: pointer; outline: none; }
-    .c-sel .opts { display: none; position: absolute; top: calc(100% + 5px); left: 0; background: #06080a; border: 1px solid rgba(0,220,160,0.6); min-width: 120px; z-index: 100; box-shadow: 0 4px 12px rgba(0,0,0,0.8); border-radius: 3px; overflow: hidden; }
+    #intelModal { position: fixed; inset: 0; background: rgba(2, 6, 8, 0.9); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); display: none; align-items: center; justify-content: center; z-index: 2000; padding: 20px; }
+    .modal-content { background: #0a0e12; border: 1px solid var(--border-hi); width: 100%; max-width: 360px; border-radius: var(--r); box-shadow: 0 20px 50px rgba(0, 0, 0, 0.8), 0 0 20px rgba(0, 220, 160, 0.1); overflow: hidden; animation: fadeUp 0.3s var(--ease); }
+    .modal-header { padding: 16px 20px; background: rgba(0, 220, 160, 0.05); border-bottom: 1px solid rgba(0, 220, 160, 0.2); display: flex; justify-content: space-between; align-items: center; }
+    .modal-body { padding: 24px; }
+    .intel-label { display: block; font-size: 10px; color: var(--teal); opacity: 0.6; letter-spacing: 2px; margin-bottom: 6px; font-weight: bold; font-family: var(--mono); text-transform: uppercase; }
+    .intel-val { display: block; color: #fff; margin-bottom: 20px; font-size: 14px; font-weight: bold; word-break: break-all; line-height: 1.5; font-family: var(--mono); }
+    .c-sel { position: relative; display: inline-block; }
+    .c-sel button { background: rgba(0,220,160,0.03); color: #00dca0; border: 1px solid rgba(0,220,160,0.15); padding: 5px 14px; border-radius: 3px; font-size: 11px; font-weight: bold; font-family: inherit; cursor: pointer; outline: none; transition: all 0.2s; }
+    .c-sel button:hover { border-color: rgba(0,220,160,0.4); background: rgba(0,220,160,0.08); color: #fff; }
+    .c-sel .opts { display: none; position: absolute; top: calc(100% + 5px); left: 0; background: #020c08; border: 1px solid rgba(0,220,160,0.25); min-width: 140px; z-index: 100; box-shadow: 0 8px 30px rgba(0,0,0,0.9); border-radius: 3px; overflow: hidden; animation: fadeUp 0.2s ease-out; }
     .c-sel.open .opts { display: block; }
-    .c-sel .opts div { padding: 10px 12px; font-size: 11px; font-weight: bold; cursor: pointer; border-bottom: 1px solid rgba(0,220,160,0.2); color: #00dca0; }
+    .c-sel .opts div { padding: 10px 14px; font-size: 11px; font-weight: bold; cursor: pointer; border-bottom: 1px solid rgba(0,220,160,0.05); color: rgba(0,220,160,0.85); transition: all 0.2s; border-left: 2px solid transparent; }
     .c-sel .opts div:last-child { border-bottom: none; }
-    .c-sel .opts div:hover { background: rgba(0,220,160,0.15); color: #00dca0; }
+    .c-sel .opts div:hover { background: rgba(0,220,160,0.06); color: #fff; border-left-color: #00dca0; }
+    @keyframes fadeUp { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
     @media (max-width: 768px) {
       .header { flex-direction: column; align-items: flex-start; }
       .search-wrap { margin: 10px 0; width: 100%; }
@@ -1596,8 +1638,10 @@ export default {
 <body>
   ${SHARED_NAV_HTML}
   <div class="header">
-    <div style="display:flex; align-items:center; gap:10px;">
-      <h2>[ HARDWARE STATUS HISTORY ]</h2>
+    <div style="display:flex; align-items:center;">
+      <h2>[ HARDWARE STATUS LOGS ]</h2>
+    </div>
+    <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
       <div class="search-wrap">
         <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
         <input type="text" id="searchInput" placeholder="Search Logs ..." onkeyup="handleSearch(event)">
@@ -1610,10 +1654,10 @@ export default {
         </div>
       </div>
       <button id="refreshBtn" class="btn-refresh" onclick="location.reload()">REFRESH</button>
-    </div>
-    <div style="text-align:right;">
-      <div style="font-size:10px; color:rgba(0,220,160,0.5); letter-spacing:1px; margin-bottom:3px;">STORAGE D1 SQL</div>
-      <div id="capText" style="font-size:9px; letter-spacing:2px;">TOTAL RECORDS: ${totalLogs}</div>
+      <div style="text-align:right; margin-left:35px;">
+        <div style="font-size:10px; color:rgba(0,220,160,0.5); letter-spacing:1px; margin-bottom:3px;">STORAGE D1 SQL</div>
+        <div id="capText" style="font-size:9px; letter-spacing:2px;">TOTAL RECORDS: ${totalLogs}</div>
+      </div>
     </div>
   </div>
 
@@ -1786,7 +1830,7 @@ export default {
           '<div><span class="intel-label">ISP</span><span class="intel-val">' + d.org + '</span></div>' +
           '<div><span class="intel-label">LOCATION</span><span class="intel-val">' + (d.city || "").replace(/_/g, ' ') + ', ' + (d.country_name || "").replace(/_/g, ' ') + '</span></div>' +
           '<div style="margin-top:15px; border-top:1px solid rgba(0,220,160,0.1); padding-top:15px;">' +
-            '<a href="https://www.google.com/maps?q=' + d.latitude + ',' + d.longitude + '" target="_blank" style="color:#00dca0; text-decoration:none; font-size:10px; border:1px solid #00dca0; padding:5px 10px; border-radius:3px; display:inline-block;">VIEW ON SATELLITE MAP</a>' +
+            '<a href="https://www.google.com/maps?q=' + d.latitude + ',' + d.longitude + '" style="color:#00dca0; text-decoration:none; font-size:10px; border:1px solid #00dca0; padding:5px 10px; border-radius:3px; display:inline-block;">VIEW ON SATELLITE MAP</a>' +
           '</div>';
       } catch(e) { 
         body.innerHTML = '<div style="color:#f87171; text-align:center; padding:10px;">FAILED: ' + e.message + '</div>'; 
@@ -1862,17 +1906,17 @@ export default {
 
         let actionBtn = "";
         if (r.status === 'PENDING') {
-          actionBtn = `<button class="btn-refresh" style="padding: 2px 8px; font-size: 9px; background: #ef4444; border:none; color: #fff; width: 65px;" onclick="cancelSchedule(${r.id}, this)">CANCEL</button>`;
+          actionBtn = `<button class="btn-refresh" style="padding: 2px 8px; font-size: 9px; background: #ef4444; border:none; color: #fff; min-width: 75px;" onclick="cancelSchedule(${r.id}, this)">CANCEL</button>`;
         } else if (r.log_output) {
-          actionBtn = `<button class="log-btn" style="width: 65px;" onclick="showLog(\`${r.log_output.replace(/`/g, '\\`').replace(/\${/g, '\\${')}\`, '${r.command.toUpperCase().replace(/_/g, ' ')}', '${(r.params || "—").replace(/'/g, "\\'").replace(/_/g, " ")}', '${timeStr}', '${r.status}')">VIEW LOG</button>`;
+          actionBtn = `<button class="log-btn" style="min-width: 75px;" onclick="showLog(\`${r.log_output.replace(/`/g, '\\`').replace(/\${/g, '\\${')}\`, '${r.command.toUpperCase().replace(/_/g, ' ')}', '${(r.params || "—").replace(/'/g, "\\'").replace(/_/g, " ")}', '${timeStr}', '${r.status}')">VIEW LOG</button>`;
         } else {
-          actionBtn = `<button class="log-btn" style="width: 65px;" disabled>—</button>`;
+          actionBtn = `<button class="log-btn" style="min-width: 75px;" disabled>—</button>`;
         }
 
         tableRows += `<tr id="sched_${r.id}">
           <td style="color:rgba(0,220,160,0.6)">${createdStr}</td>
           <td style="font-weight:bold; color:#00ffc8">${r.command.replace(/_/g, ' ').toUpperCase()}</td>
-          <td>${r.params || "—"}</td>
+          <td>${(r.params || "—").replace(/_/g, ' ')}</td>
           <td style="color:#00dca0; font-weight:bold; font-size:14px;">${timeStr}</td>
           <td style="${statusStyle}; font-weight:bold; text-align:right">${r.status}</td>
           <td style="text-align:right; padding-right:12px">${actionBtn}</td>
@@ -1891,52 +1935,54 @@ export default {
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { background: #06080a; color: #00dca0; font-family: 'Courier New', monospace; padding: 24px; font-size: 13px; }
-    .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #00dca0; padding-bottom: 12px; margin-bottom: 20px; flex-wrap: wrap; gap: 10px; }
+    .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #00dca0; padding-bottom: 12px; margin-bottom: 20px; flex-wrap: wrap; gap: 10px; padding-left: 60px; }
     table { width: 100%; border-collapse: collapse; }
     th { text-align: left; padding: 8px 12px; font-size: 10px; letter-spacing: 2px; color: rgba(0,220,160,0.85); border-bottom: 1px solid rgba(0,220,160,0.15); }
     td { padding: 10px 12px; border-bottom: 1px solid rgba(0,220,160,0.07); }
     .btn-refresh { background: rgba(0,220,160,0.4); color: #fff; border: 1px solid #00dca0; padding: 5px 15px; border-radius: 3px; font-size: 11px; font-weight: bold; cursor: pointer; transition: all 0.2s; font-family: inherit; }
-    .btn-refresh:hover { background: rgba(0,220,160,0.4); opacity: 0.8; }
+    .btn-refresh:hover { background: rgba(0,220,160,0.6); color: #000; opacity: 1; }
     #searchInput { background: rgba(0,220,160,0.05); color: #00dca0; border: 1px solid rgba(0,220,160,0.3); padding: 5px 12px 5px 30px; border-radius: 3px; font-size: 11px; font-family: inherit; width: 220px; outline: none; }
     .search-wrap { position: relative; display: flex; align-items: center; }
     .search-icon { position: absolute; left: 10px; width: 12px; height: 12px; color: #00dca0; opacity: 0.7; pointer-events: none; }
     .date-sep { background: rgba(0,220,160,0.03); }
     .date-sep td { padding: 8px 12px; font-size: 11px; letter-spacing: 2px; color: #00dca0; opacity: 0.8; border-bottom: 1px solid rgba(0,220,160,0.1); font-weight: bold; border-top: 1px solid rgba(0,220,160,0.15); text-align: center; text-transform: uppercase; }
     .c-sel { position: relative; display: inline-block; }
-    .c-sel button { background: rgba(0,220,160,0.15); color: #00dca0; border: 1px solid rgba(0,220,160,0.5); padding: 5px 12px; border-radius: 3px; font-size: 11px; font-weight: bold; font-family: inherit; cursor: pointer; outline: none; }
-    .c-sel .opts { display: none; position: absolute; top: calc(100% + 5px); right: 0; background: #06080a; border: 1px solid rgba(0,220,160,0.6); min-width: 140px; z-index: 100; box-shadow: 0 4px 12px rgba(0,0,0,0.8); border-radius: 3px; overflow: hidden; }
+    .c-sel button { background: rgba(0,220,160,0.03); color: rgba(0,220,160,0.8); border: 1px solid rgba(0,220,160,0.15); padding: 5px 14px; border-radius: 3px; font-size: 11px; font-weight: bold; font-family: inherit; cursor: pointer; outline: none; transition: all 0.2s; }
+    .c-sel button:hover { border-color: rgba(0,220,160,0.4); background: rgba(0,220,160,0.08); color: #00dca0; }
+    .c-sel .opts { display: none; position: absolute; top: calc(100% + 5px); right: 0; background: #020c08; border: 1px solid rgba(0,220,160,0.25); min-width: 140px; z-index: 100; box-shadow: 0 8px 30px rgba(0,0,0,0.9); border-radius: 3px; overflow: hidden; animation: fadeUp 0.2s ease-out; }
     .c-sel.open .opts { display: block; }
-    .c-sel .opts div { padding: 10px 12px; font-size: 11px; font-weight: bold; cursor: pointer; border-bottom: 1px solid rgba(0,220,160,0.2); color: #00dca0; }
+    .c-sel .opts div { padding: 10px 14px; font-size: 11px; font-weight: bold; cursor: pointer; border-bottom: 1px solid rgba(0,220,160,0.05); color: rgba(0,220,160,0.6); transition: all 0.2s; border-left: 2px solid transparent; }
     .c-sel .opts div:last-child { border-bottom: none; }
-    .c-sel .opts div:hover { background: rgba(0,220,160,0.15); }
+    .c-sel .opts div:hover { background: rgba(0,220,160,0.04); color: #00dca0; border-left-color: #00dca0; }
+    @keyframes fadeUp { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
 
     /* Modal Styles */
-    .modal { display: none; position: fixed; z-index: 200; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.85); backdrop-filter: blur(5px); align-items: center; justify-content: center; }
+    .modal { display: none; position: fixed; z-index: 2000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(2, 6, 8, 0.9); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); align-items: center; justify-content: center; }
     .modal.open { display: flex; }
-    .modal-content { background: #06080a; border: 1px solid #00dca0; width: 80%; max-width: 600px; padding: 20px; border-radius: 4px; box-shadow: none; animation: fadeUp 0.3s ease-out; }
-    .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; border-bottom: 1px solid rgba(0,220,160,0.2); padding-bottom: 10px; }
-    .modal-title { font-size: 14px; letter-spacing: 2px; font-weight: bold; color: #00dca0; }
-    .modal-close { background: none; border: none; color: #00dca0; font-size: 20px; cursor: pointer; opacity: 0.7; }
-    .modal-close:hover { opacity: 1; }
-    .modal-body { font-size: 12px; line-height: 1.6; max-height: 400px; overflow-y: auto; white-space: pre-wrap; word-break: break-all; color: rgba(0,220,160,0.9); }
-    @keyframes fadeUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-    .log-btn { background: rgba(0,220,160,0.1); border: 1px solid rgba(0,220,160,0.4); color: #00dca0; padding: 2px 8px; border-radius: 2px; font-size: 9px; cursor: pointer; font-family: inherit; transition: 0.2s; }
-    .log-btn:hover { background: rgba(0,220,160,0.3); border-color: #00dca0; }
-    .log-btn:disabled { opacity: 0.3; cursor: not-allowed; border-color: rgba(0,220,160,0.1); }
+    .modal-content { background: #0a0e12; border: 1px solid var(--border-hi); width: 90%; max-width: 600px; padding: 0; border-radius: var(--r); box-shadow: 0 20px 50px rgba(0, 0, 0, 0.8), 0 0 20px rgba(0, 220, 160, 0.1); animation: fadeUp 0.3s var(--ease); overflow: hidden; }
+    .modal-header { padding: 16px 20px; background: rgba(0, 220, 160, 0.05); border-bottom: 1px solid rgba(0, 220, 160, 0.2); display: flex; justify-content: space-between; align-items: center; }
+    .modal-title { font-family: var(--mono); font-size: 11px; letter-spacing: 3px; font-weight: bold; color: var(--teal); text-transform: uppercase; }
+    .modal-close { background: none; border: none; color: var(--teal); font-size: 24px; cursor: pointer; opacity: 0.5; transition: all 0.2s; display: flex; align-items: center; justify-content: center; }
+    .modal-close:hover { opacity: 1; transform: rotate(90deg); }
+    .modal-body { padding: 24px; font-size: 13px; line-height: 1.6; max-height: 75vh; overflow-y: auto; color: #cbd5e1; }
+    @keyframes fadeUp { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
+    .log-btn { background: rgba(0, 220, 160, 0.08); border: 1px solid rgba(0, 220, 160, 0.3); color: var(--teal); padding: 4px 10px; border-radius: 2px; font-size: 9px; cursor: pointer; font-family: var(--mono); transition: all 0.2s; letter-spacing: 1px; white-space: nowrap; }
+    .log-btn:hover { background: var(--teal-dim); border-color: var(--teal); box-shadow: 0 0 10px rgba(0, 220, 160, 0.2); }
+    .log-btn:disabled { opacity: 0.3; cursor: not-allowed; border-color: rgba(0, 220, 160, 0.1); }
     ${SHARED_NAV_STYLE}
   </style>
 </head>
 <body>
   ${SHARED_NAV_HTML}
   <div class="header">
-    <div style="display:flex; align-items:center; gap:10px;">
+    <div style="display:flex; align-items:center;">
       <h2 style="font-size:16px; letter-spacing:5px;">[ SCHEDULE LOGS ]</h2>
+    </div>
+    <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
       <div class="search-wrap">
         <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
         <input type="text" id="searchInput" placeholder="Search Schedule..." onkeyup="if(event.key==='Enter') window.location.href='/schedule/logs?q='+this.value+'&sort=${sort}&order=${order}'" value="${q}">
       </div>
-    </div>
-    <div style="display:flex; gap:10px; align-items:center;">
       <div class="c-sel" id="sortSel">
         <button onclick="toggleSel('sortSel', event)">SORT: ${sort === 'created_at' ? 'CREATE TIME' : 'TARGET TIME'} ▾</button>
         <div class="opts">
@@ -1951,8 +1997,8 @@ export default {
           <div onclick="window.location.href='/schedule/logs?q=${q}&sort=${sort}&order=ASC'">ASCENDING</div>
         </div>
       </div>
-      <span style="font-size:10px; opacity:0.9; font-weight:bold; letter-spacing:1px;">TOTAL: ${totalSchedules}</span>
       <button class="btn-refresh" onclick="location.reload()">REFRESH</button>
+      <span style="font-size:10px; opacity:0.9; font-weight:bold; letter-spacing:1px; margin-left:35px;">TOTAL: ${totalSchedules}</span>
     </div>
   </div>
   <table>
@@ -1963,7 +2009,7 @@ export default {
         <th>PARAMS</th>
         <th>TARGET TIME</th>
         <th style="text-align:right">STATUS</th>
-        <th style="text-align:right; padding-right:12px">ACTIONS / LOGS</th>
+        <th style="text-align:right; padding-right:12px">LOGS</th>
       </tr>
     </thead>
     <tbody>${tableRows}</tbody>
@@ -2001,14 +2047,15 @@ export default {
     
     function showLog(text, cmd, params, time, status) {
       document.getElementById('logModalTitle').textContent = 'EVENT DETAILS: ' + cmd;
-      var h = '<div style="background:rgba(0,220,160,0.03); border:1px solid rgba(0,220,160,0.1); padding:10px; margin-bottom:15px; border-radius:4px;">' +
-              '<div style="display:flex; justify-content:space-between; margin-bottom:5px; opacity:0.6; font-size:10px;"><span>TARGET COMMAND:</span> <span style="color:#00ffc8; font-weight:bold">' + cmd + '</span></div>' +
-              '<div style="display:flex; justify-content:space-between; margin-bottom:5px; opacity:0.6; font-size:10px;"><span>PARAMETERS:</span> <span style="color:#00dca0">' + params + '</span></div>' +
-              '<div style="display:flex; justify-content:space-between; margin-bottom:5px; opacity:0.6; font-size:10px;"><span>TARGET TIME:</span> <span style="color:#00dca0">' + time + '</span></div>' +
-              '<div style="display:flex; justify-content:space-between; opacity:0.6; font-size:10px;"><span>EXEC STATUS:</span> <span style="font-weight:bold">' + status + '</span></div>' +
+      const statusColor = status === 'EXECUTED' ? '#00dca0' : (status === 'PENDING' ? '#f59e0b' : '#ef4444');
+      var h = '<div style="background:rgba(0,220,160,0.03); border:1px solid rgba(0,220,160,0.1); padding:15px; margin-bottom:20px; border-radius:4px; font-family:var(--mono);">' +
+              '<div style="display:flex; justify-content:space-between; margin-bottom:8px;"><span style="opacity:0.5; font-size:10px; letter-spacing:1px;">COMMAND</span> <span style="color:#00ffc8; font-weight:bold; font-size:11px;">' + cmd + '</span></div>' +
+              '<div style="display:flex; justify-content:space-between; margin-bottom:8px;"><span style="opacity:0.5; font-size:10px; letter-spacing:1px;">PARAMS</span> <span style="color:#fff; font-size:11px;">' + params + '</span></div>' +
+              '<div style="display:flex; justify-content:space-between; margin-bottom:8px;"><span style="opacity:0.5; font-size:10px; letter-spacing:1px;">TARGET</span> <span style="color:#fff; font-size:11px;">' + time + '</span></div>' +
+              '<div style="display:flex; justify-content:space-between;"><span style="opacity:0.5; font-size:10px; letter-spacing:1px;">STATUS</span> <span style="font-weight:bold; color:' + statusColor + '; font-size:11px;">' + status + '</span></div>' +
               '</div>' +
-              '<div style="font-size:10px; opacity:0.5; margin-bottom:8px; letter-spacing:1px;">RAW TERMINAL OUTPUT:</div>' +
-              '<div style="background:rgba(0,0,0,0.3); padding:12px; border:1px solid rgba(0,220,160,0.1); border-radius:2px; color:rgba(0,220,160,0.8); font-family:monospace; white-space:pre-wrap;">' + text + '</div>';
+              '<div style="font-size:10px; color:var(--teal); font-weight:bold; margin-bottom:10px; letter-spacing:2px; display:flex; align-items:center; gap:10px;"><span style="flex:1; height:1px; background:rgba(0,220,160,0.15);"></span> RAW OUTPUT <span style="flex:1; height:1px; background:rgba(0,220,160,0.15);"></span></div>' +
+              '<div style="background:#000; padding:16px; border:1px solid rgba(0,220,160,0.2); border-radius:2px; color:#00ffc8; font-family:var(--mono); white-space:pre-wrap; font-size:12px; box-shadow: inset 0 0 20px rgba(0,0,0,0.5); border-left: 2px solid var(--teal);">' + text + '</div>';
       document.getElementById('logModalBody').innerHTML = h;
       document.getElementById('logModal').classList.add('open');
     }

@@ -380,7 +380,7 @@ function renderLocation(link, time, skipTyping = false) {
     }
 
     if (skipTyping) {
-      textEl.innerHTML = `${msg}<br><a href="${link}" target="_blank" class="map-link">${linkLabel}</a>`;
+      textEl.innerHTML = `${msg}<br><a href="${link}" class="map-link">${linkLabel}</a>`;
       body.scrollTop = body.scrollHeight;
       resolve();
     } else {
@@ -392,7 +392,7 @@ function renderLocation(link, time, skipTyping = false) {
         body.scrollTop = body.scrollHeight;
         if (i >= msg.length) {
           clearInterval(timer);
-          textEl.innerHTML += `<br><a href="${link}" target="_blank" class="map-link">${linkLabel}</a>`;
+          textEl.innerHTML += `<br><a href="${link}" class="map-link">${linkLabel}</a>`;
           body.scrollTop = body.scrollHeight;
           resolve();
         }

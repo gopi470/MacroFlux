@@ -550,11 +550,11 @@ input:focus ~ .input-underline { width: 100%; }
   transition: border-color .2s var(--ease), box-shadow .2s var(--ease);
   -webkit-tap-highlight-color: transparent;
 }
-.dd-trigger:hover { border-color: var(--border-hi); }
+.dd-trigger:hover { border-color: rgba(0,220,160,0.4); background: rgba(0,220,160,0.08); }
 .dd-trigger.open {
-  background: #051a14;
-  border-color: var(--teal);
-  box-shadow: 0 0 0 3px rgba(0,220,160,0.1);
+  background: #020c08;
+  border-color: rgba(0,220,160,0.5);
+  box-shadow: 0 4px 15px rgba(0,0,0,0.5);
   border-bottom-left-radius: 0;
   border-bottom-right-radius: 0;
 }
@@ -570,13 +570,14 @@ input:focus ~ .input-underline { width: 100%; }
 .dd-arrow {
   color: var(--teal); flex-shrink: 0;
   transition: transform .22s var(--ease);
+  opacity: 0.6;
 }
 
 .dd-menu {
   position: absolute; top: 100%; left: 0; right: 0;
-  background: #051a14;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8);
-  border: 1px solid var(--teal);
+  background: #020c08;
+  box-shadow: 0 15px 40px rgba(0, 0, 0, 0.95);
+  border: 1px solid rgba(0, 220, 160, 0.3);
   border-top: none;
   border-bottom-left-radius: var(--r);
   border-bottom-right-radius: var(--r);
@@ -644,11 +645,10 @@ input:focus ~ .input-underline { width: 100%; }
   width: 14px; height: 14px;
   fill: none; stroke: var(--teal);
   stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;
-  filter: drop-shadow(0 0 3px var(--teal));
   opacity: 0.8; flex-shrink: 0;
 }
-.dd-icon.amber { stroke: var(--amber); filter: drop-shadow(0 0 3px var(--amber)); }
-.dd-icon.red { stroke: var(--red); filter: drop-shadow(0 0 3px var(--red)); }
+.dd-icon.amber { stroke: var(--amber); }
+.dd-icon.red { stroke: var(--red); }
 .dd-icon.dim { opacity: 0.4; filter: none; }
 
 .dd-item:hover, .dd-item.focused {

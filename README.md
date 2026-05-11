@@ -23,7 +23,7 @@ MacroDroid (Android)
     Web Dashboard (ui.muffinjuice.xyz)
     ├── /home        → Command center (poll + execute)
     ├── /requests    → HTTP request history log
-    └── /statuslogs  → Hardware status history log
+    └── /statuslogs  → Hardware status logs
 ```
 
 ---
@@ -120,7 +120,7 @@ npx wrangler deploy
 
 - 🛡️ **Security Gateway** — Session cookie auth with 7-second countdown redirect for unauthorized access
 - 📊 **HTTP Request History** (`/requests`) — Searchable, filterable, paginated log with day-based date separators and IP intelligence
-- 🔋 **Hardware Status History** (`/statuslogs`) — Live-tail (5s auto-refresh), sortable Newest/Oldest, day-grouped date banners, battery/signal/temperature/uptime tracking
+- 🔋 **Hardware Status Logs** (`/statuslogs`) — Live-tail (5s auto-refresh), sortable Newest/Oldest, day-grouped date banners, battery/signal/temperature/uptime tracking
 - 🌍 **IP Intelligence** — Multi-provider geo lookup (ipapi.co → ip-api.com fallback) cached in D1
 - 📁 **Vault** — Encrypted file storage
 - 🗂️ **Day-Grouped Logs** — Both `/requests` and `/statuslogs` show date separator banners when the day changes

@@ -199,6 +199,13 @@
         if (grid) grid.style.transform = `translate(${x}px, ${y}px)`;
       });
     }
+
+    // Backspace Navigation
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Backspace' && e.target.tagName !== 'INPUT') {
+        window.history.back();
+      }
+    });
   </script>
 </body>
 </html>
