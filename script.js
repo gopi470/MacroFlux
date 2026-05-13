@@ -628,10 +628,15 @@ function selectCmd(el) {
   // Handle secondary input (cmd2)
   const cmd2Wrapper = document.getElementById("cmd2Wrapper");
   const cmd2Input = document.getElementById("cmd2");
-  if (selectedCmd === "speak_text") {
+  if (selectedCmd === "speak_text" || selectedCmd === "notification") {
     cmd2Wrapper.classList.add("visible");
-    document.getElementById("cmd2Label").textContent = "BROADCAST MESSAGE";
-    cmd2Input.placeholder = "ENTER TEXT TO BROADCAST...";
+    if (selectedCmd === "speak_text") {
+      document.getElementById("cmd2Label").textContent = "BROADCAST MESSAGE";
+      cmd2Input.placeholder = "ENTER TEXT TO BROADCAST...";
+    } else {
+      document.getElementById("cmd2Label").textContent = "NOTIFICATION TEXT";
+      cmd2Input.placeholder = "ENTER NOTIFICATION MESSAGE...";
+    }
   } else {
     cmd2Wrapper.classList.remove("visible");
   }
@@ -735,7 +740,7 @@ function execute() {
   }
 
   // If cmd2 is required but empty
-  if (selectedCmd === "speak_text" && !cmd2) {
+  if ((selectedCmd === "speak_text" || selectedCmd === "notification") && !cmd2) {
     setStatus("MESSAGE TEXT REQUIRED", "err");
     shake(document.getElementById("cmd2"));
     return;
