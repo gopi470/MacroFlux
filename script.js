@@ -6,6 +6,7 @@ let waitingForType = "location"; // "location" | "media"
 let referenceTime = 0;
 let lastLocationTime = parseInt(localStorage.getItem("remote_last_loc_time") || "0");
 let lastUpdateTimestamp = parseInt(localStorage.getItem("remote_last_seen") || "0");
+let lastPolledStatus = null; // Store latest hardware status globally
 let lastActivePollingCmd = "";
 let currentRequestId = 0;
 
@@ -142,6 +143,10 @@ async function startPolling() {
           const uptimeEl = document.getElementById("uptimeVal");
           if (uptimeEl) uptimeEl.textContent = s.phone_uptime;
         }
+
+        // Sync Sidebar Toggles
+        lastPolledStatus = s;
+        syncSidebarToggles(s);
       }
 
       // Check for fresh location/media link
@@ -748,7 +753,7 @@ function execute() {
 
   // If it's a surveillance or location command, start waiting for a FRESH report
   const isLocationCmd = ["location_share_recent", "location_share"].includes(selectedCmd);
-  const isMediaCmd = ["photo_click", "videorecording_on", "microphone_record"].includes(selectedCmd);
+  const isMediaCmd = ["photo_click", "photo_front", "videorecording_on", "microphone_record"].includes(selectedCmd);
   
   if (isLocationCmd || isMediaCmd) {
     const thisRequestId = ++currentRequestId;
@@ -768,7 +773,7 @@ function execute() {
     // Increased timeouts to allow for slower network uploads (Prevents premature "FAILED TO ACQUIRE")
     let timeoutMs = 60000; // Default: 60s
     if (selectedCmd === "location_share_recent") timeoutMs = 15000;
-    else if (selectedCmd === "photo_click") timeoutMs = 60000;         
+    else if (selectedCmd === "photo_click" || selectedCmd === "photo_front") timeoutMs = 60000;
     else if (selectedCmd === "microphone_record") timeoutMs = 120000;   
     else if (selectedCmd === "videorecording_on") timeoutMs = 150000;   
     
@@ -951,6 +956,263 @@ setInterval(() => {
     logout();
   }
 }, 60000); // Check every 60s
+
+/* ── System Sidebar Logic ──────────────────────────────────── */
+function toggleSidebar() {
+  const sidebar = document.getElementById("systemSidebar");
+  const handle = document.getElementById("sidebarHandle");
+  const isOpen = sidebar.classList.toggle("open");
+  handle.classList.toggle("open");
+  document.body.classList.toggle("sidebar-active");
+  
+  // If opening, immediately sync with last known status to prevent stale toggle states
+  if (isOpen && lastPolledStatus) {
+    syncSidebarToggles(lastPolledStatus);
+  }
+}
+
+async function toggleSystemSetting(setting, isEnabled) {
+  const key = document.getElementById("key").value.trim();
+  if (!key) {
+    setStatus("MACROS KEY REQUIRED", "err");
+    shake(document.getElementById("key"));
+    // Revert visual toggle state
+    const el = document.getElementById(`toggle_${setting}`);
+    if (el) el.checked = !isEnabled;
+    return;
+  }
+
+  let cmd = isEnabled ? `${setting}_on` : `${setting}_off`;
+  if (setting === 'airplane') cmd = isEnabled ? 'aeroplane_on' : 'aeroplane_off';
+  if (setting === 'night') cmd = isEnabled ? 'dark_mode_on' : 'dark_mode_off';
+  if (setting === 'mute') cmd = isEnabled ? 'vibrate_on' : 'vibrate_off';
+  if (setting === 'rotate') cmd = isEnabled ? 'autorotate_on' : 'autorotate_off';
+  if (setting === 'batterysaver') cmd = isEnabled ? 'batterysaver_on' : 'batterysaver_off';
+
+  const settingLabel = setting.toUpperCase().replace('_', ' ');
+  setStatus(`${settingLabel} ${isEnabled ? 'ENABLE' : 'DISABLE'} TRANSMITTED`, "busy");
+  
+  bumpLastSeen();
+
+  try {
+    const res = await fetch(`/control?cmd=${cmd}&key=${key}`);
+    const text = await res.text();
+    const isSuccess = text.toLowerCase().includes("ok") || text.toLowerCase().includes("success");
+    const time = getTimestamp();
+
+    if (isSuccess) {
+      setStatus(`${settingLabel} ${isEnabled ? 'ACTIVE' : 'INACTIVE'}`, "ok");
+      updateLastSuccess(cmd, time);
+    } else {
+      setStatus(`${settingLabel} FAILED`, "err", text, cmd);
+      // Revert on failure
+      const el = document.getElementById(`toggle_${setting}`);
+      if (el) el.checked = !isEnabled;
+    }
+  } catch (e) {
+    setStatus(`${settingLabel} NETWORK ERROR`, "err", e.message, cmd);
+    const el = document.getElementById(`toggle_${setting}`);
+    if (el) el.checked = !isEnabled;
+  }
+}
+
+function killAllSettings() {
+  const allSettings = ['wifi', 'bluetooth', 'airplane', 'dnd', 'rotate', 'batterysaver', 'night', 'mute'];
+  // Visually reset all toggles to the 'off' state locally
+  allSettings.forEach(s => {
+    const el = document.getElementById(`toggle_${s}`);
+    if (el) el.checked = false;
+  });
+  setStatus("SIDEBAR CONTROLS RESET", "ok");
+}
+
+async function triggerImmediate(cmd) {
+  const key = document.getElementById("key").value.trim();
+  if (!key) {
+    setStatus("MACROS KEY REQUIRED", "err");
+    shake(document.getElementById("key"));
+    return;
+  }
+
+  const displayNames = {
+    'lock': 'LOCK DEVICE',
+    'location_share': 'LIVE GPS SYNC',
+    'location_share_recent': 'RECENT GPS SYNC',
+    'photo_click': 'TAKE PHOTO',
+    'photo_front': 'FRONT PHOTO',
+    'videorecording_on': 'RECORD VIDEO',
+    'microphone_record': 'RECORD AUDIO',
+    'vibrate_starwars': 'STARWARS VIBE',
+    'cancel_all_prev_macros': 'TERMINATE ALL'
+  };
+  const pollingName = displayNames[cmd] || cmd.toUpperCase();
+
+  const isLocationCmd = ["location_share_recent", "location_share"].includes(cmd);
+  const isMediaCmd = ["photo_click", "photo_front", "videorecording_on", "microphone_record"].includes(cmd);
+
+  if (isLocationCmd || isMediaCmd) {
+    const thisRequestId = ++currentRequestId;
+    isWaitingForFreshData = true;
+    lastActivePollingCmd = pollingName;
+    waitingForType = isLocationCmd ? "location" : "media"; 
+    referenceTime = lastLocationTime; 
+
+    let durationLabel = "";
+    if (cmd === "photo_click" || cmd === "photo_front") durationLabel = " (up to 3m)";
+    else if (cmd === "microphone_record") durationLabel = " (30s)";
+    else if (cmd === "videorecording_on") durationLabel = " (15s)";
+
+    setStatus(`REQUESTING ${pollingName}${durationLabel} ...`, "busy");
+
+    let timeoutMs = 60000;
+    if (cmd === "location_share_recent") timeoutMs = 15000;
+    else if (cmd === "photo_click" || cmd === "photo_front") timeoutMs = 180000;
+    else if (cmd === "microphone_record") timeoutMs = 120000;
+    else if (cmd === "videorecording_on") timeoutMs = 150000;
+
+    setTimeout(() => {
+      if (isWaitingForFreshData && currentRequestId === thisRequestId) {
+        isWaitingForFreshData = false;
+        if (isLocationCmd) {
+          setStatus("COULD NOT GET LIVE LOCATION", "err");
+          if (lastReceivedLink) {
+            setStatus("PRINTING LAST KNOWN LOCATION", "busy");
+            setTimeout(() => displayLocation(lastReceivedLink), 500);
+          }
+        } else {
+          setStatus(`FAILED TO ACQUIRE ${pollingName}`, "err");
+        }
+      }
+    }, timeoutMs);
+  } else {
+    setStatus(`${pollingName} TRANSMITTED`, "busy");
+  }
+
+  bumpLastSeen();
+
+  try {
+    const res = await fetch(`/control?cmd=${encodeURIComponent(cmd)}&key=${key}`);
+    const text = await res.text();
+    const isSuccess = text.toLowerCase().includes("ok") || text.toLowerCase().includes("success");
+    const time = getTimestamp();
+
+    if (!isLocationCmd && !isMediaCmd) {
+      if (isSuccess) {
+        setStatus(`${pollingName} SUCCESS`, "ok");
+        updateLastSuccess(cmd, time);
+      } else {
+        setStatus(`${pollingName} FAILED`, "err", text, cmd);
+      }
+    }
+  } catch (e) {
+    if (!isLocationCmd && !isMediaCmd) {
+      setStatus(`${pollingName} NETWORK ERROR`, "err", e.message, cmd);
+    }
+  }
+}
+
+let currentCommsCmd = "";
+
+function prepComms(cmd, title) {
+  const panel = document.getElementById("commsPanel");
+  const titleEl = document.getElementById("commsTitle");
+  
+  // If same panel is already open, close it (toggle behavior)
+  if (panel.style.display === "flex" && titleEl.textContent === title) {
+    closeComms();
+    return;
+  }
+
+  currentCommsCmd = cmd;
+  titleEl.textContent = title;
+  panel.style.display = "flex";
+  document.getElementById("commsInput").focus();
+  // Scroll to bottom
+  const content = document.querySelector(".sidebar-content");
+  content.scrollTo({ top: content.scrollHeight, behavior: 'smooth' });
+}
+
+function closeComms() {
+  document.getElementById("commsPanel").style.display = "none";
+  document.getElementById("commsInput").value = "";
+}
+
+async function execComms() {
+  const text = document.getElementById("commsInput").value.trim();
+  if (!text) return;
+  
+  const key = document.getElementById("key").value.trim();
+  if (!key) {
+    setStatus("MACROS KEY REQUIRED", "err");
+    shake(document.getElementById("key"));
+    return;
+  }
+
+  const btn = document.getElementById("commsSendBtn");
+  btn.style.opacity = "0.5";
+  btn.disabled = true;
+  
+  const displayLabel = currentCommsCmd === 'speak_text' ? 'SPEECH' : 'NOTIFICATION';
+  setStatus(`${displayLabel} TRANSMITTED`, "busy");
+  
+  bumpLastSeen();
+
+  try {
+    const res = await fetch(`/control?cmd=${currentCommsCmd}&key=${key}&cmd2=${encodeURIComponent(text)}`);
+    const respText = await res.text();
+    btn.style.opacity = "1";
+    btn.disabled = false;
+    const isSuccess = respText.toLowerCase().includes("ok") || respText.toLowerCase().includes("success");
+    const time = getTimestamp();
+
+    if (isSuccess) {
+      setStatus(`${displayLabel} SUCCESS`, "ok");
+      updateLastSuccess(currentCommsCmd, time);
+      closeComms();
+    } else {
+      setStatus(`${displayLabel} FAILED`, "err", respText, currentCommsCmd);
+    }
+  } catch (e) {
+    btn.style.opacity = "1";
+    btn.disabled = false;
+    setStatus(`${displayLabel} NETWORK ERROR`, "err", e.message, currentCommsCmd);
+  }
+}
+
+// ── Sync Toggles with Polling ────────────────────────────────
+function syncSidebarToggles(status) {
+  if (!status) return;
+  
+  const mappings = {
+    'wifi': status.wifi_status,
+    'bluetooth': status.bluetooth_status,
+    'airplane': status.airplane_mode,
+    'dnd': status.dnd_status,
+    'rotate': status.autorotate_status,
+    'batterysaver': status.batterysaver_status || status.batterysaver_on,
+    'night': status.dark_mode,
+    'mute': status.vibrate_status || status.silent_mode,
+    'location': status.location_status
+  };
+
+  for (const [id, val] of Object.entries(mappings)) {
+    const el = document.getElementById(`toggle_${id}`);
+    if (el) {
+      let active = false;
+      if (id === 'location') {
+        active = (parseInt(val) > 0);
+      } else {
+        active = (val === "on" || val === "true" || val === true || val === 1 || val === "1");
+      }
+      
+      // Only update if not currently focused to avoid jitter while user interacts
+      if (document.activeElement !== el) {
+        el.checked = active;
+      }
+    }
+  }
+}
+
 
 // ── System Initialization ─────────────────────────────────────
 handleIncomingLocation();

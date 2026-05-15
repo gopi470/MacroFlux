@@ -103,12 +103,55 @@ const SHARED_NAV_HTML = `
   </script>
 `;
 
+// ── JWT Security Utilities (HS256) ──────────────────────────
+const jwtUtils = {
+  async base64urlEncode(data) {
+    const base64 = btoa(String.fromCharCode(...new Uint8Array(data)));
+    return base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  },
+  async base64urlDecode(str) {
+    const base64 = str.replace(/-/g, '+').replace(/_/g, '/');
+    const bin = atob(base64);
+    return new Uint8Array([...bin].map(c => c.charCodeAt(0)));
+  },
+  async sign(payload, secret) {
+    const header = { alg: "HS256", typ: "JWT" };
+    const encodedHeader = btoa(JSON.stringify(header)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    const encodedPayload = btoa(JSON.stringify(payload)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    const tokenData = `${encodedHeader}.${encodedPayload}`;
+    const enc = new TextEncoder();
+    const key = await crypto.subtle.importKey("raw", enc.encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+    const signature = await crypto.subtle.sign("HMAC", key, enc.encode(tokenData));
+    const encodedSignature = await this.base64urlEncode(signature);
+    return `${tokenData}.${encodedSignature}`;
+  },
+  async verify(token, secret) {
+    try {
+      const parts = token.split('.');
+      if (parts.length !== 3) return null;
+      const [header, payload, signature] = parts;
+      const tokenData = `${header}.${payload}`;
+      const enc = new TextEncoder();
+      const key = await crypto.subtle.importKey("raw", enc.encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["verify"]);
+      const sigBuffer = await this.base64urlDecode(signature);
+      const isValid = await crypto.subtle.verify("HMAC", key, sigBuffer, enc.encode(tokenData));
+      if (!isValid) return null;
+      const decodedPayload = JSON.parse(atob(payload.replace(/-/g, '+').replace(/_/g, '/')));
+      if (decodedPayload.exp && (Date.now() / 1000) > decodedPayload.exp) return null;
+      return decodedPayload;
+    } catch (e) { return null; }
+  }
+};
+
 export default {
   async fetch(request, env, ctx) {
     try {
       const url = new URL(request.url);
       const cookie = request.headers.get("Cookie") || "";
-      const isLoggedIn = cookie.includes("session=authorized");
+      const jwtSecret = env.JWT_SECRET || env.ACCESS_KEY || "remote_fallback_key_2024";
+      const sessionCookie = cookie.split('; ').find(row => row.startsWith('session='))?.split('=')[1];
+      const decodedToken = sessionCookie ? await jwtUtils.verify(sessionCookie, jwtSecret) : null;
+      const isLoggedIn = !!decodedToken;
   
       const logRequest = async (statusCode) => {
         try {
@@ -203,11 +246,18 @@ export default {
       const secretKey = env.ACCESS_KEY || "123"; // Fallback to 123 until secret is set
       
       if (key === secretKey) {
+        // Issue a 24-hour JWT
+        const token = await jwtUtils.sign({ 
+          sub: "admin", 
+          iat: Math.floor(Date.now() / 1000),
+          exp: Math.floor(Date.now() / 1000) + (3600 * 24) 
+        }, jwtSecret);
+
         return new Response(null, {
           status: 302,
           headers: {
             "Location": "/home?login=success",
-            "Set-Cookie": "session=authorized; Path=/; HttpOnly; SameSite=Lax; Max-Age=1800"
+            "Set-Cookie": `session=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=86400; Secure`
           }
         });
       }
@@ -321,7 +371,6 @@ export default {
 '</body></html>', { status: 401, headers: { "Content-Type": "text/html; charset=UTF-8" } });
     };
 
-    // 4. API Endpoints
     // ── Update Hardware Status (/status) ──────────────────
     if (url.pathname === "/status") {
       const { searchParams } = url;
@@ -329,29 +378,52 @@ export default {
         return renderTactical("UNAUTHORIZED", 401);
       }
 
-      const hardwareData = {
-        battery_level: searchParams.get("battery_level"),
-        battery_status: searchParams.get("battery_status"),
-        battery_temperature: searchParams.get("battery_temperature"),
-        signal_strength: searchParams.get("signal_strength"),
-        phone_uptime: searchParams.get("phone_uptime"),
-        updated: Date.now()
-      };
+      // Dynamically capture all 13+ parameters
+      const hardwareData = { updated: Date.now() };
+      for (const [k, v] of searchParams.entries()) {
+        if (k !== "key") hardwareData[k] = v;
+      }
       
       // Persist to D1 for history
       try {
         const battery = parseInt(hardwareData.battery_level || "0");
         const battStatus = (hardwareData.battery_status || "").toLowerCase().trim();
-        const charging = (battStatus === "on" || battStatus.includes("charging")) ? 1 : 0;
+        // Handle both "on"/"off" and "1"/"0"
+        const charging = (battStatus === "on" || battStatus.includes("charging") || hardwareData.battery_status === "1") ? 1 : 0;
 
         const signal = parseInt(hardwareData.signal_strength || "0");
         const rawTemp = hardwareData.battery_temperature || "0";
-        const temp = rawTemp.includes("°") ? rawTemp : rawTemp + "°C";
+        const temp = rawTemp.includes("°") ? rawTemp : (rawTemp === "0" ? "0°C" : rawTemp + "°C");
         const uptime = hardwareData.phone_uptime || "Unknown";
         
-        await env.DB.prepare(
-          "INSERT INTO status_logs (timestamp, battery, charging, signal, temperature, uptime, ip, location) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
-        ).bind(Date.now(), battery, charging, signal, temp, uptime, ip, location).run();
+        // Pack all 13 parameters + others into extra_data for the popup
+        const extraData = JSON.stringify({
+          torch: hardwareData.glyphtorch_status,
+          alarm: hardwareData.alaram_volume,
+          media: hardwareData.media_volume,
+          ringer: hardwareData.ringer_volume,
+          notif: hardwareData.notification_volume,
+          location: hardwareData.location_status,
+          wifi: hardwareData.wifi_status,
+          bluetooth: hardwareData.bluetooth_status,
+          batt_status: hardwareData.battery_status
+        });
+
+        try {
+          await env.DB.prepare(
+            "INSERT INTO status_logs (timestamp, battery, charging, signal, temperature, uptime, ip, location, extra_data) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
+          ).bind(Date.now(), battery, charging, signal, temp, uptime, ip, location, extraData).run();
+        } catch (dbErr) {
+          if (dbErr.message.includes("extra_data")) {
+            // Auto-Migration: Add column if missing
+            await env.DB.prepare("ALTER TABLE status_logs ADD COLUMN extra_data TEXT").run();
+            await env.DB.prepare(
+              "INSERT INTO status_logs (timestamp, battery, charging, signal, temperature, uptime, ip, location, extra_data) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
+            ).bind(Date.now(), battery, charging, signal, temp, uptime, ip, location, extraData).run();
+          } else {
+            throw dbErr;
+          }
+        }
       } catch (e) {
         console.error("D1 Hardware Log Error:", e);
       }
@@ -422,6 +494,35 @@ export default {
       if (cmd2) target += `&cmd2=${encodeURIComponent(cmd2)}`;
       
       return await fetch(target);
+    }
+
+    if (url.pathname === "/api/macros/execute") {
+      if (!isLoggedIn) return renderUnauthorized();
+      if (request.method !== "POST") return new Response("POST REQUIRED", { status: 405 });
+      
+      try {
+        const { commands, key } = await request.json();
+        if (!commands || !key) return new Response("MISSING PARAMS", { status: 400 });
+        
+        const macroId = env.MACRO_ID || "PASTE_YOUR_ID_FOR_LOCAL_TESTING";
+        const results = [];
+        
+        for (const cmd of commands) {
+          // Add a small delay between internal fetches to avoid rate limits/congestion
+          await new Promise(r => setTimeout(r, 200));
+          const target = `https://trigger.macrodroid.com/${macroId}/control?cmd=${encodeURIComponent(cmd)}&key=${key}`;
+          const res = await fetch(target);
+          results.push({ cmd, ok: res.ok });
+        }
+        
+        return new Response(JSON.stringify({ success: true, results }), {
+          headers: { "Content-Type": "application/json" }
+        });
+      } catch (err) {
+        return new Response(JSON.stringify({ success: false, error: err.message }), {
+          status: 500, headers: { "Content-Type": "application/json" }
+        });
+      }
     }
 
     // ── File Vault Storage (/upload) ────────────────────────
@@ -631,7 +732,7 @@ export default {
     <h2>VAULT LOCKED</h2>
     <p>VAULT KEY IS REQUIRED TO ACCESS VAULT</p>
     <div class="input-group">
-      <input type="text" id="vlt_input" name="vault_access_key_${Math.random().toString(36).substring(7)}" placeholder="ENTER ACCESS KEY..." onkeypress="if(event.key==='Enter') login()" autocomplete="off" data-lpignore="true">
+      <input type="password" id="vlt_input" name="vault_access_key_${Math.random().toString(36).substring(7)}" placeholder="ENTER ACCESS KEY..." onkeypress="if(event.key==='Enter') login()" autocomplete="off" data-lpignore="true">
     </div>
     <div class="btn-wrap">
       <button onclick="login()">AUTHORIZE</button>
@@ -748,7 +849,7 @@ export default {
     body { background: #06080a; color: #00dca0; font-family: 'Courier New', monospace; padding: 24px; font-size: 13px; }
     h2 { letter-spacing: 5px; font-size: 16px; }
     .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #00dca0; padding-bottom: 12px; margin-bottom: 25px; padding-left: 75px; margin-top: -4px; }
-    .vault-logout { position: fixed; bottom: 20px; right: 20px; background: rgba(239,68,68,0.08); color: #f87171; border: 1px solid rgba(239,68,68,0.2); font-size: 10px; padding: 10px 20px; text-decoration: none; font-weight: bold; letter-spacing: 1px; z-index: 1000; transition: all 0.2s; }
+    .vault-logout { display: inline-block; background: rgba(239,68,68,0.08); color: #f87171; border: 1px solid rgba(239,68,68,0.2); font-size: 10px; padding: 7px 16px; text-decoration: none; font-weight: bold; letter-spacing: 1px; border-radius: 3px; transition: all 0.2s; }
     .vault-logout:hover { background: rgba(239,68,68,0.15); border-color: #f87171; box-shadow: 0 0 15px rgba(239,68,68,0.1); }
     .count { opacity: 0.8; font-size: 11px; }
     table { width: 100%; border-collapse: collapse; }
@@ -798,10 +899,12 @@ export default {
     </div>
     <div style="text-align:right; display:flex; flex-direction:column; align-items:flex-end; gap:6px;">
       <div class="count" id="assetCount">${rows.length} ASSETS ON RECORD</div>
-      <div style="font-size:11px; font-weight:bold; letter-spacing:1px; color:#00dca0;">CAPACITY: ${totalMB.toFixed(2)} MB / 1024 MB</div>
+      <div style="display:flex; align-items:center; gap:15px;">
+        <a href="/vault/logout" class="vault-logout" style="padding: 4px 12px; font-size: 9px;">LOGOUT FROM VAULT</a>
+        <div style="font-size:11px; font-weight:bold; letter-spacing:1px; color:#00dca0;">CAPACITY: ${totalMB.toFixed(2)} MB / 1024 MB</div>
+      </div>
     </div>
   </div>
-  <a href="/vault/logout" class="vault-logout">LOGOUT FROM VAULT</a>
   <table>
     <thead>
       <tr>
@@ -1371,6 +1474,53 @@ export default {
     }
 
     async function refreshLogs(isAuto = false) {
+      // ... existing code ...
+    }
+
+    function showExtra(b64, e) {
+      if (e) e.stopPropagation();
+      const data = JSON.parse(atob(b64));
+      const modal = document.getElementById('intelModal');
+      const body = document.getElementById('intelBody');
+      const header = modal.querySelector('.intel-header span');
+      header.innerText = 'HARDWARE PRESCRIPTION';
+      modal.style.display = 'flex';
+
+      let html = '<div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">';
+      
+      const formatVal = (v, type) => {
+        if (type === 'bool') return v === "1" ? '<span style="color:#00dca0">ACTIVE</span>' : '<span style="color:#ef4444">INACTIVE</span>';
+        if (type === 'vol') return '<div style="width:100%; background:rgba(255,255,255,0.05); height:4px; margin-top:6px; border-radius:2px;"><div style="width:' + v + '%; background:#00dca0; height:100%; border-radius:2px;"></div></div><span style="font-size:9px; opacity:0.7">' + v + '%</span>';
+        if (type === 'loc') {
+            const locVal = parseInt(v);
+            return locVal > 0 ? '<span style="color:#00dca0">ENABLED (LVL ' + locVal + ')</span>' : '<span style="color:#ef4444">DISABLED</span>';
+        }
+        return v || 'N/A';
+      };
+
+      const rows = [
+        { label: 'GLYPH TORCH', val: data.torch, type: 'bool' },
+        { label: 'WIFI STATE', val: data.wifi, type: 'bool' },
+        { label: 'BLUETOOTH', val: data.bluetooth, type: 'bool' },
+        { label: 'LOCATION', val: data.location, type: 'loc' },
+        { label: 'MEDIA VOL', val: data.media, type: 'vol' },
+        { label: 'ALARM VOL', val: data.alarm, type: 'vol' },
+        { label: 'RINGER VOL', val: data.ringer, type: 'vol' },
+        { label: 'NOTIF VOL', val: data.notif, type: 'vol' }
+      ];
+
+      rows.forEach(r => {
+        html += '<div style="padding:10px; background:rgba(0,220,160,0.02); border:1px solid rgba(0,220,160,0.05); border-radius:4px;">' +
+          '<div class="intel-label" style="margin-bottom:5px;">' + r.label + '</div>' +
+          '<div class="intel-val">' + formatVal(r.val, r.type) + '</div>' +
+        '</div>';
+      });
+
+      html += '</div>';
+      body.innerHTML = html;
+    }
+
+    async function refreshLogs(isAuto = false) {
       const btn = document.getElementById('refreshBtn');
       const cap = document.getElementById('capText');
       const oldIds = Array.from(document.querySelectorAll('tr[id]')).map(r => r.id);
@@ -1562,9 +1712,11 @@ export default {
           const timeStr = date.toLocaleString('en-US', { timeZone: 'Asia/Kolkata', hour: 'numeric', minute: 'numeric', second: 'numeric', hour12: true });
           
           if (dayStr !== lastDay) {
-            tableRows += `<tr class="date-sep"><td colspan="5">${dayStr}</td></tr>`;
+            tableRows += `<tr class="date-sep"><td colspan="6">${dayStr}</td></tr>`;
             lastDay = dayStr;
           }
+
+          const extraJson = btoa(r.extra_data || "{}");
 
           const battColor = r.battery < 20 ? '#f87171' : (r.battery < 50 ? '#fbbf24' : '#00dca0');
           const chargingIcon = r.charging ? '⚡' : '';
@@ -1574,7 +1726,9 @@ export default {
             <td style="font-weight:bold; color:${battColor}">${r.battery}% ${chargingIcon}</td>
             <td style="color:#60a5fa;">${r.signal} dBm</td>
             <td style="color:#fb923c;">${(r.temperature || "").replace(/_/g, ' ')}</td>
-            <td style="color:#a855f7; font-size:11px;">${(r.uptime || "").replace(/_/g, ' ')}</td>
+            <td>
+              <button class="btn-refresh" style="padding: 2px 10px; font-size: 9px;" data-extra='${extraJson}' data-battery="${r.battery}" data-charging="${r.charging ? '1' : '0'}" data-signal="${r.signal}" data-temp="${(r.temperature || '').replace(/_/g, ' ')}" data-uptime="${r.uptime || 'UNKNOWN'}" onclick="showExtra(this, event)">VIEW DETAILS</button>
+            </td>
           </tr>`;
         }
 
@@ -1667,8 +1821,8 @@ export default {
         <th>TIMESTAMP</th>
         <th>BATTERY</th>
         <th>SIGNAL</th>
-        <th>TEMPERATURE</th>
-        <th>UPTIME</th>
+        <th>TEMP</th>
+        <th>MORE STATUS</th>
       </tr>
     </thead>
     <tbody>${tableRows}</tbody>
@@ -1678,13 +1832,13 @@ export default {
     <button id="loadMoreBtn" class="btn-refresh" style="padding: 12px 30px;" onclick="loadMore()">LOAD MORE ARCHIVE DATA</button>
   </div>
 
-  <div id="intelModal" onclick="hideIntel()">
-    <div class="modal-content" onclick="event.stopPropagation()">
-      <div class="modal-header">
-        <span style="font-size:10px; letter-spacing:2px; color:rgba(0,220,160,0.6);">GEOGRAPHIC INTEL</span>
-        <button onclick="hideIntel()" style="background:none; border:none; color:#ef4444; cursor:pointer; font-size:18px;">&times;</button>
+  <div id="intelModal" style="display:none; position:fixed; inset:0; background:rgba(2,6,8,0.92); backdrop-filter:blur(8px); align-items:center; justify-content:center; z-index:2000; padding:20px;" onclick="hideIntel()">
+    <div class="modal-content" onclick="event.stopPropagation()" style="background:#0a0e12; border:1px solid rgba(0,220,160,0.2); width:100%; max-width:420px; border-radius:4px; box-shadow:0 20px 50px rgba(0,0,0,0.8), 0 0 20px rgba(0,220,160,0.08); overflow:hidden;">
+      <div class="modal-header" style="padding:14px 18px; background:rgba(0,220,160,0.04); border-bottom:1px solid rgba(0,220,160,0.15); display:flex; justify-content:space-between; align-items:center;">
+        <span id="intelModalTitle" style="font-size:10px; letter-spacing:2px; color:rgba(0,220,160,0.7); font-weight:bold;">GEOGRAPHIC INTEL</span>
+        <button onclick="hideIntel()" style="background:none; border:none; color:#ef4444; cursor:pointer; font-size:18px; line-height:1;">&times;</button>
       </div>
-      <div id="intelBody" class="modal-body"></div>
+      <div id="intelBody" class="modal-body" style="padding:20px;"></div>
     </div>
   </div>
 
@@ -1804,7 +1958,67 @@ export default {
       }
     }
 
-    function hideIntel() { document.getElementById('intelModal').style.display = 'none'; }
+    function hideIntel() {
+      document.getElementById('intelModal').style.display = 'none';
+    }
+
+    function showExtra(btn, e) {
+      if (e) e.stopPropagation();
+      let data = {};
+      try { data = JSON.parse(atob(btn.dataset.extra)); } catch(err) {}
+      const battery = parseInt(btn.dataset.battery) || 0;
+      const charging = btn.dataset.charging === '1';
+      const signal = btn.dataset.signal || 'UNKNOWN';
+      const temp = btn.dataset.temp || 'UNKNOWN';
+      const uptime = btn.dataset.uptime || 'UNKNOWN';
+
+      const modal = document.getElementById('intelModal');
+      const body = document.getElementById('intelBody');
+      document.getElementById('intelModalTitle').innerText = 'HARDWARE PRESCRIPTION';
+      modal.style.display = 'flex';
+
+      const formatBool = (v) => v === '1' ? '<span style="color:#00dca0;font-weight:bold;">ACTIVE</span>' : '<span style="color:#ef4444;font-weight:bold;">INACTIVE</span>';
+      const formatVol = (v) => {
+        const pct = parseInt(v) || 0;
+        return '<div style="margin-top:4px;">' +
+          '<div style="width:100%;background:rgba(255,255,255,0.06);height:5px;border-radius:3px;overflow:hidden;">' +
+          '<div style="width:' + pct + '%;background:#00dca0;height:100%;border-radius:3px;"></div></div>' +
+          '<span style="font-size:10px;opacity:0.7;margin-top:3px;display:inline-block;">' + pct + '%</span></div>';
+      };
+      const formatLoc = (v) => {
+        const n = parseInt(v);
+        return n > 0 ? '<span style="color:#00dca0;font-weight:bold;">ON (LEVEL ' + n + ')</span>' : '<span style="color:#ef4444;font-weight:bold;">OFF</span>';
+      };
+
+      const battColor = battery < 20 ? '#f87171' : (battery < 50 ? '#fbbf24' : '#00dca0');
+
+      const rows = [
+        { label: 'BATTERY',      html: '<span style="font-weight:bold; color:' + battColor + ';">' + battery + '% ' + (charging ? '⚡' : '') + '</span>' },
+        { label: 'SIGNAL',       html: '<span style="color:#60a5fa;">' + signal + ' dBm</span>' },
+        { label: 'TEMP',         html: '<span style="color:#fb923c;">' + temp + '</span>' },
+        { label: 'UPTIME',       html: '<span style="color:#fff;">' + uptime + '</span>' },
+        { label: 'WIFI',         html: formatBool(data.wifi) },
+        { label: 'BLUETOOTH',    html: formatBool(data.bluetooth) },
+        { label: 'LOCATION',     html: formatLoc(data.location) },
+        { label: 'GLYPH TORCH',  html: formatBool(data.torch) },
+        { label: 'MEDIA VOL',    html: formatVol(data.media) },
+        { label: 'ALARM VOL',    html: formatVol(data.alarm) },
+        { label: 'RINGER VOL',   html: formatVol(data.ringer) },
+        { label: 'NOTIF VOL',    html: formatVol(data.notif) },
+      ];
+
+      let html = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">';
+      rows.forEach(function(r) {
+        html += '<div style="padding:10px;background:rgba(0,220,160,0.02);border:1px solid rgba(0,220,160,0.08);border-radius:4px;">' +
+          '<div style="font-size:9px;letter-spacing:2px;color:rgba(0,220,160,0.55);font-weight:bold;margin-bottom:6px;">' + r.label + '</div>' +
+          '<div style="font-size:12px;font-weight:bold;">' + r.html + '</div>' +
+          '</div>';
+      });
+      html += '</div>';
+
+      body.innerHTML = html;
+    }
+
     async function showIntel(ip, e) {
       if (e) e.stopPropagation();
       const body = document.getElementById('intelBody');
