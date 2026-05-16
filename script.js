@@ -971,6 +971,19 @@ function toggleSidebar() {
   }
 }
 
+function toggleLeftSidebar() {
+  const sidebar = document.getElementById("leftSidebar");
+  const handle = document.getElementById("leftSidebarHandle");
+  const isOpen = sidebar.classList.toggle("open");
+  handle.classList.toggle("open");
+  document.body.classList.toggle("left-sidebar-active");
+  
+  if (isOpen && lastPolledStatus) {
+    syncSidebarToggles(lastPolledStatus);
+  }
+}
+
+
 async function toggleSystemSetting(setting, isEnabled) {
   const key = document.getElementById("key").value.trim();
   if (!key) {
@@ -1179,7 +1192,55 @@ async function execComms() {
   }
 }
 
-// ── Sync Toggles with Polling ────────────────────────────────
+// ── Sync Toggles and Volumes with Polling ────────────────────
+let lastVolumes = {};
+
+function updateVolumeIcon(key, level) {
+  const iconWrap = document.getElementById(`vol_${key}_icon`);
+  if (!iconWrap) return;
+
+  let svg = "";
+  const size = 14;
+  const stroke = 2;
+
+  if (key === 'media') {
+    if (level === 0) {
+      svg = `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${stroke}" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"></path><circle cx="6" cy="18" r="3"></circle><circle cx="18" cy="16" r="3"></circle><line x1="1" y1="1" x2="23" y2="23"></line></svg>`;
+    } else if (level <= 50) {
+      svg = `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${stroke}" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"></path><circle cx="6" cy="18" r="3"></circle><circle cx="18" cy="16" r="3"></circle></svg>`;
+    } else {
+      svg = `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${stroke}" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"></path><circle cx="6" cy="18" r="3"></circle><circle cx="18" cy="16" r="3"></circle><path d="M23 9s-1.5 2.5-1.5 5 1.5 5 1.5 5"></path></svg>`;
+    }
+  } else if (key === 'ringer') {
+    if (level === 0) {
+      svg = `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${stroke}" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>`;
+    } else if (level <= 50) {
+      svg = `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${stroke}" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>`;
+    } else {
+      svg = `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${stroke}" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path><path d="M22 8s1.5 2 1.5 4-1.5 4-1.5 4"></path><path d="M2 8s-1.5 2-1.5 4 1.5 4 1.5 4"></path></svg>`;
+    }
+  } else if (key === 'notification') {
+    if (level === 0) {
+      svg = `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${stroke}" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>`;
+    } else if (level <= 50) {
+      svg = `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${stroke}" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>`;
+    } else {
+      svg = `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${stroke}" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path><path d="M18 10h.01"></path><path d="M12 10h.01"></path><path d="M6 10h.01"></path></svg>`;
+    }
+  } else if (key === 'alarm') {
+    if (level === 0) {
+      svg = `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${stroke}" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="13" r="8"></circle><path d="M12 9v4l2 2"></path><path d="m5 3 2 2"></path><path d="m19 3-2 2"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>`;
+    } else if (level <= 50) {
+      svg = `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${stroke}" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="13" r="8"></circle><path d="M12 9v4l2 2"></path><path d="m5 3 2 2"></path><path d="m19 3-2 2"></path></svg>`;
+    } else {
+      svg = `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${stroke}" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="13" r="8"></circle><path d="M12 9v4l2 2"></path><path d="m5 3 2 2"></path><path d="m19 3-2 2"></path><path d="M12 2v2"></path><path d="M12 22v-2"></path></svg>`;
+    }
+  }
+
+  iconWrap.innerHTML = svg;
+}
+
+
 function syncSidebarToggles(status) {
   if (!status) return;
   
@@ -1205,13 +1266,43 @@ function syncSidebarToggles(status) {
         active = (val === "on" || val === "true" || val === true || val === 1 || val === "1");
       }
       
-      // Only update if not currently focused to avoid jitter while user interacts
       if (document.activeElement !== el) {
         el.checked = active;
       }
     }
   }
+
+  // Volume Sliders Sync
+  const volumes = {
+    'media': status.media_volume,
+    'ringer': status.ringer_volume,
+    'notification': status.notification_volume,
+    'alarm': status.alaram_volume
+  };
+
+  for (const [key, val] of Object.entries(volumes)) {
+    const fillEl = document.getElementById(`vol_${key}_fill`);
+    const valEl = document.getElementById(`vol_${key}_val`);
+    if (fillEl && val !== undefined && val !== null) {
+      const level = Math.min(100, Math.max(0, parseInt(val) || 0));
+      
+      // Pulse if value changed
+      if (lastVolumes[key] !== undefined && lastVolumes[key] !== level) {
+        fillEl.classList.remove("pulse");
+        void fillEl.offsetWidth; // Force reflow
+        fillEl.classList.add("pulse");
+      }
+      lastVolumes[key] = level;
+
+      fillEl.style.height = `${level}%`;
+      if (valEl) valEl.textContent = `${level}%`;
+      
+      // Update Dynamic Icon
+      updateVolumeIcon(key, level);
+    }
+  }
 }
+
 
 
 // ── System Initialization ─────────────────────────────────────
