@@ -1,0 +1,1405 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Vault Intel Viewer</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@500;700&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --teal: #00dca0;
+      --amber: #f59e0b;
+      --mono: 'Share Tech Mono', monospace;
+    }
+    body { 
+      background: #000; 
+      font-family: 'Rajdhani', sans-serif; 
+      display: flex; align-items: center; justify-content: center;
+      min-height: 100vh; overflow: hidden;
+      background-image: radial-gradient(circle at center, #02120b 0%, #000 100%);
+    }
+
+    /* VAULT MEDIA HUD CSS */
+    .vault-hud-panel {
+      position: relative;
+      background: rgba(5, 18, 14, 0.92);
+      border: 1px solid rgba(0,220,160,0.25);
+      border-radius: 6px;
+      width: min(96vw, 1000px);
+      height: min(96vh, 800px);
+      display: flex; flex-direction: column;
+      box-shadow: 0 0 80px rgba(0,220,160,0.08), 0 0 2px rgba(0,220,160,0.4);
+    }
+    
+    .vault-scanlines {
+      pointer-events: none;
+      position: absolute; inset: 0; z-index: 2;
+      background: repeating-linear-gradient(
+        0deg, transparent, transparent 2px,
+        rgba(0,0,0,0.06) 2px, rgba(0,0,0,0.06) 4px
+      );
+    }
+
+    .vault-hud-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 16px 20px;
+      border-bottom: 1px solid rgba(0,220,160,0.12);
+      background: rgba(0,220,160,0.03);
+      flex-shrink: 0; z-index: 3; position: relative;
+    }
+    .vault-hud-label { display: flex; align-items: center; gap: 12px; }
+    .vault-hud-icon {
+      font-size: 18px; color: var(--teal);
+      animation: hudIconPulse 2s ease-in-out infinite;
+    }
+    @keyframes hudIconPulse {
+      0%,100% { opacity: 1; text-shadow: 0 0 6px var(--teal); }
+      50%      { opacity: 0.5; text-shadow: none; }
+    }
+    .vault-hud-title {
+      font-family: var(--mono); font-size: 13px;
+      letter-spacing: 2.5px; color: var(--teal); text-transform: uppercase;
+    }
+    .vault-hud-meta {
+      font-family: var(--mono); font-size: 10px;
+      color: rgba(0,220,160,0.85); letter-spacing: 1px;
+    }
+    .vault-hud-close {
+      background: rgba(239,68,68,0.08);
+      border: 1px solid rgba(239,68,68,0.25);
+      color: #ef4444; border-radius: 3px;
+      width: 30px; height: 30px; font-size: 16px;
+      cursor: pointer; transition: all 0.2s;
+      display: flex; align-items: center; justify-content: center;
+      text-decoration: none;
+    }
+    .vault-hud-close:hover { background: rgba(239,68,68,0.2); box-shadow: 0 0 10px rgba(239,68,68,0.3); }
+
+    .vault-media-area {
+      flex: 1; overflow-y: auto; overflow-x: hidden;
+      padding: 24px; z-index: 3; position: relative;
+      display: flex; flex-direction: column; gap: 20px;
+      justify-content: center;
+    }
+
+    /* PHOTO */
+    .vault-photo-frame {
+      position: relative; display: flex; align-items: center; justify-content: center;
+      background: rgba(0,0,0,0.4); border: 1px solid rgba(0,220,160,0.1);
+      border-radius: 4px; overflow: hidden; min-height: 300px; flex: 1;
+    }
+    .vault-photo-frame img {
+      max-width: 100%; max-height: 65vh; object-fit: contain;
+      display: block; transition: filter 0.3s ease;
+    }
+    .vault-photo-frame img.filter-nightvision { filter: brightness(0.9) contrast(1.4) hue-rotate(80deg) saturate(3) sepia(0.4); }
+    .vault-photo-frame img.filter-thermal { filter: contrast(1.6) hue-rotate(200deg) saturate(5) brightness(0.7); }
+    .vault-photo-frame img.filter-hud { filter: hue-rotate(145deg) saturate(2) brightness(0.85) contrast(1.2); }
+
+    .vault-frame-corner {
+      position: absolute; width: 24px; height: 24px;
+      border-color: var(--teal); border-style: solid; opacity: 0.7;
+    }
+    .vault-frame-corner.tl { top: 12px; left: 12px; border-width: 2px 0 0 2px; }
+    .vault-frame-corner.tr { top: 12px; right: 12px; border-width: 2px 2px 0 0; }
+    .vault-frame-corner.bl { bottom: 12px; left: 12px; border-width: 0 0 2px 2px; }
+    .vault-frame-corner.br { bottom: 12px; right: 12px; border-width: 0 2px 2px 0; }
+
+    .vault-controls { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; padding: 10px 0; }
+    .vault-ctrl-group { display: flex; flex-direction: column; gap: 8px; }
+    .vault-ctrl-label {
+      font-family: var(--mono); font-size: 10px; letter-spacing: 1.5px;
+      color: rgba(0,220,160,0.6); text-transform: uppercase;
+    }
+    .vault-slider {
+      -webkit-appearance: none; appearance: none; width: 100%; height: 4px;
+      background: rgba(0,220,160,0.15); border-radius: 2px; cursor: pointer; outline: none;
+    }
+    .vault-slider::-webkit-slider-thumb {
+      -webkit-appearance: none; width: 16px; height: 16px; border-radius: 50%;
+      background: var(--teal); box-shadow: 0 0 8px var(--teal); cursor: pointer; transition: box-shadow 0.15s;
+    }
+    .vault-slider:hover::-webkit-slider-thumb { box-shadow: 0 0 16px var(--teal); }
+
+    .vault-filter-btns { display: flex; gap: 8px; flex-wrap: wrap; }
+    .vault-filter-btn {
+      font-family: var(--mono); font-size: 10px; letter-spacing: 1px;
+      padding: 6px 14px; border-radius: 2px; cursor: pointer;
+      background: rgba(0,220,160,0.05); border: 1px solid rgba(0,220,160,0.2);
+      color: rgba(0,220,160,0.6); transition: all 0.2s;
+    }
+    .vault-filter-btn:hover, .vault-filter-btn.active {
+      background: rgba(0,220,160,0.15); border-color: var(--teal); color: var(--teal);
+      box-shadow: 0 0 10px rgba(0,220,160,0.2);
+    }
+
+    /* VIDEO */
+    .vault-video-frame {
+      position: relative; border-radius: 4px; overflow: hidden; flex: 1;
+      background: #000; border: 1px solid rgba(0,220,160,0.1); display: flex; align-items: center; justify-content: center;
+    }
+    .vault-video-frame video { width: 100%; max-height: 70vh; outline: none; }
+    .vault-video-overlay { position: absolute; inset: 0; pointer-events: none; padding: 16px; }
+    .vault-rec-dot {
+      font-family: var(--mono); font-size: 12px; letter-spacing: 1px; color: #ef4444;
+      position: absolute; top: 16px; left: 20px; animation: recBlink 1.2s step-start infinite;
+    }
+    @keyframes recBlink { 0%,100%{opacity:1} 50%{opacity:0} }
+    .vault-video-ts {
+      font-family: var(--mono); font-size: 11px; color: rgba(0,220,160,0.7);
+      position: absolute; top: 16px; right: 20px; letter-spacing: 1px;
+    }
+    .vault-crosshair { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; }
+    .ch-h { position: absolute; width: 40px; height: 1px; background: rgba(0,220,160,0.35); }
+    .ch-v { position: absolute; width: 1px; height: 40px; background: rgba(0,220,160,0.35); }
+
+    /* AUDIO */
+    .vault-audio-wrap { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 24px; flex: 1; }
+    .vault-wave-canvas {
+      width: 100%; max-width: 800px; height: 200px;
+      background: rgba(0,0,0,0.3); border-radius: 4px; border: 1px solid rgba(0,220,160,0.1);
+    }
+    .vault-audio-label {
+      display: flex; align-items: center; gap: 10px;
+      font-family: var(--mono); font-size: 12px; letter-spacing: 2px; color: rgba(0,220,160,0.6);
+    }
+    #vaultAudio { width: 100%; max-width: 600px; accent-color: var(--teal); filter: hue-rotate(145deg); outline: none; }
+    .vault-audio-btn {
+      font-family: var(--mono);
+      font-size: 14px;
+      color: var(--teal);
+      background: rgba(0,220,160,0.07);
+      border: 1px solid rgba(0,220,160,0.2);
+      border-radius: 3px;
+      width: 36px;
+      height: 36px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+    }
+    .vault-audio-btn:hover { background: rgba(0,220,160,0.15); box-shadow: 0 0 8px rgba(0,220,160,0.4); }
+    .vault-audio-btn:active { background: rgba(0,220,160,0.25); }
+
+    .vault-photo-fullscreen-btn {
+      position: absolute;
+      bottom: 12px;
+      right: 12px;
+      background: rgba(4, 10, 8, 0.65);
+      border: 1px solid rgba(0, 220, 160, 0.4);
+      color: var(--teal);
+      border-radius: 4px;
+      width: 32px;
+      height: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      z-index: 10;
+      backdrop-filter: blur(4px);
+    }
+    .vault-photo-fullscreen-btn:hover {
+      background: rgba(0, 220, 160, 0.15);
+      border-color: var(--teal);
+      box-shadow: 0 0 8px rgba(0, 220, 160, 0.4);
+      color: #fff;
+    }
+
+    /* CUSTOM MEDIA PLAYER CONTROLS */
+    .vault-audio-controls {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 15px;
+      width: 100%;
+      max-width: 800px;
+      background: rgba(0, 220, 160, 0.03);
+      border: 1px solid rgba(0, 220, 160, 0.1);
+      border-radius: 4px;
+      padding: 12px 20px;
+      margin-top: 15px;
+      box-sizing: border-box;
+    }
+    .vault-seek-bar-container {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex: 1;
+    }
+    .vault-time-display {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: rgba(0, 220, 160, 0.85);
+      letter-spacing: 1px;
+      min-width: 42px;
+      text-align: center;
+      user-select: none;
+    }
+    .vault-seek-bar, .vault-volume-bar {
+      -webkit-appearance: none;
+      appearance: none;
+      background: rgba(0, 220, 160, 0.15);
+      height: 4px;
+      border-radius: 2px;
+      outline: none;
+      transition: background 0.2s;
+      cursor: pointer;
+    }
+    .vault-seek-bar {
+      width: 100%;
+    }
+    .vault-volume-bar {
+      width: 70px;
+    }
+    .vault-seek-bar:hover, .vault-volume-bar:hover {
+      background: rgba(0, 220, 160, 0.3);
+    }
+    .vault-seek-bar::-webkit-slider-thumb, .vault-volume-bar::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--teal);
+      border: 1px solid #fff;
+      box-shadow: 0 0 8px rgba(0, 220, 160, 0.8);
+      transition: transform 0.1s;
+    }
+    .vault-seek-bar::-webkit-slider-thumb:hover, .vault-volume-bar::-webkit-slider-thumb:hover {
+      transform: scale(1.3);
+    }
+    .vault-seek-bar::-moz-range-thumb, .vault-volume-bar::-moz-range-thumb {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--teal);
+      border: 1px solid #fff;
+      box-shadow: 0 0 8px rgba(0, 220, 160, 0.8);
+      transition: transform 0.1s;
+      cursor: pointer;
+    }
+    .vault-seek-bar::-moz-range-thumb:hover, .vault-volume-bar::-moz-range-thumb:hover {
+      transform: scale(1.3);
+    }
+    .vault-volume-container {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .vault-volume-btn, .vault-video-btn, .vault-fullscreen-btn {
+      background: none;
+      border: none;
+      color: var(--teal);
+      font-size: 14px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 6px;
+      transition: all 0.2s;
+      outline: none;
+    }
+    .vault-volume-btn:hover, .vault-video-btn:hover, .vault-fullscreen-btn:hover {
+      color: #fff;
+      text-shadow: 0 0 8px rgba(0, 220, 160, 0.8);
+    }
+
+    /* VIDEO PLAYER OVERLAYS & CONTROLS */
+    .vault-video-frame {
+      position: relative;
+    }
+    .vault-video-controls {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: rgba(6, 8, 10, 0.85);
+      backdrop-filter: blur(8px);
+      border-top: 1px solid rgba(0, 220, 160, 0.2);
+      padding: 12px 20px;
+      display: flex;
+      align-items: center;
+      gap: 15px;
+      z-index: 10;
+      transition: opacity 0.3s ease, transform 0.3s ease;
+      box-sizing: border-box;
+    }
+    .vault-video-frame .vault-video-controls {
+      opacity: 0;
+      transform: translateY(10px);
+      pointer-events: none;
+    }
+    .vault-video-frame:hover .vault-video-controls,
+    .vault-video-frame.show-controls .vault-video-controls {
+      opacity: 1;
+      transform: translateY(0);
+      pointer-events: auto;
+    }
+    .vault-video-btn {
+      background: rgba(0, 220, 160, 0.07);
+      border: 1px solid rgba(0, 220, 160, 0.2);
+      border-radius: 3px;
+      width: 36px;
+      height: 36px;
+    }
+    .vault-video-btn:hover {
+      background: rgba(0, 220, 160, 0.15);
+      box-shadow: 0 0 8px rgba(0, 220, 160, 0.4);
+    }
+
+    /* Footer */
+    .vault-hud-footer {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 12px 20px; border-top: 1px solid rgba(0,220,160,0.1);
+      background: rgba(0,0,0,0.2); flex-shrink: 0; z-index: 3; position: relative;
+    }
+    .vault-footer-stat { font-family: var(--mono); font-size: 10px; letter-spacing: 1px; color: rgba(0,220,160,0.85); }
+    .vault-raw-btn {
+      font-family: var(--mono); font-size: 10px; letter-spacing: 1.5px;
+      color: var(--amber); border: 1px solid rgba(245,158,11,0.3);
+      padding: 6px 16px; border-radius: 2px; text-decoration: none; transition: all 0.2s;
+    }
+    .vault-raw-btn:hover { background: rgba(245,158,11,0.1); box-shadow: 0 0 12px rgba(245,158,11,0.2); }
+
+    /* Ctrl key override for normal text selection */
+    body.ctrl-select-mode,
+    body.ctrl-select-mode * {
+      user-select: text !important;
+      -webkit-user-select: text !important;
+      cursor: auto !important;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="vault-hud-panel" id="vaultHudPanel">
+    <!-- Header -->
+    <div class="vault-hud-header">
+      <div class="vault-hud-label">
+        <span class="vault-hud-icon">◈</span>
+        <span id="vaultHudTitle" class="vault-hud-title">VAULT INTEL VIEWER</span>
+      </div>
+      <div id="vaultHudMeta" class="vault-hud-meta">INITIALIZING...</div>
+      <a href="javascript:history.back()" class="vault-hud-close" title="CLOSE">✕</a>
+    </div>
+    
+    <div class="vault-scanlines"></div>
+
+    <!-- PHOTO PANEL -->
+    <div id="vaultPhotoPanel" class="vault-media-area" style="display:none">
+      <div class="vault-photo-frame" id="vaultPhotoContainer">
+        <div class="vault-frame-corner tl"></div><div class="vault-frame-corner tr"></div>
+        <div class="vault-frame-corner bl"></div><div class="vault-frame-corner br"></div>
+        <img id="vaultPhoto" src="" alt="CAPTURED INTEL" />
+        <button id="photoFullscreenBtn" class="vault-photo-fullscreen-btn" title="Toggle Fullscreen" onclick="togglePhotoFullscreen()">⛶</button>
+      </div>
+      <div class="vault-controls">
+        <div class="vault-ctrl-group">
+          <label class="vault-ctrl-label">EXPOSURE</label>
+          <input type="range" id="filterExposure" class="vault-slider" min="0" max="200" value="100" oninput="applyPhotoFilters()">
+        </div>
+        <div class="vault-ctrl-group">
+          <label class="vault-ctrl-label">CONTRAST</label>
+          <input type="range" id="filterContrast" class="vault-slider" min="0" max="300" value="100" oninput="applyPhotoFilters()">
+        </div>
+        <div class="vault-ctrl-group">
+          <label class="vault-ctrl-label">SATURATION</label>
+          <input type="range" id="filterSaturate" class="vault-slider" min="0" max="300" value="100" oninput="applyPhotoFilters()">
+        </div>
+        <div class="vault-ctrl-group">
+          <label class="vault-ctrl-label">SURVEILLANCE HUD CONTROL</label>
+          <div style="display: flex; gap: 8px; align-items: center; width: 100%;">
+            <button class="vault-filter-btn" style="padding: 6px 8px; min-width: 50px; font-size: 10px;" onclick="rotatePhoto()">⟳ 90°</button>
+            <button class="vault-filter-btn" style="padding: 6px 8px; min-width: 50px; font-size: 10px;" onclick="flipPhoto()">⇄ FLIP</button>
+            <span style="font-family: var(--mono); font-size: 9px; opacity: 0.6; margin-left: 2px;">ZOOM:</span>
+            <input type="range" id="intelZoom" class="vault-slider" min="100" max="500" value="100" style="flex: 1;" oninput="applyPhotoFilters()">
+          </div>
+        </div>
+      </div>
+      
+      <!-- FORENSIC METADATA HUD SCANNER -->
+      <div id="vaultExifScanner" class="vault-exif-scanner" style="margin-top: 15px; display: none;">
+        <div style="font-family: var(--mono); font-size: 10px; color: var(--teal); letter-spacing: 2px; margin-bottom: 8px; font-weight: bold;">
+          [ FORENSIC INTELLIGENCE SCAN ]
+        </div>
+        <div id="exifMetadataGrid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-family: var(--mono); font-size: 11px; background: rgba(0, 220, 160, 0.02); border: 1px solid rgba(0, 220, 160, 0.1); border-radius: 4px; padding: 12px 18px; box-sizing: border-box;">
+          <div><span style="opacity: 0.5;">FILE DETAILS:</span> <span id="exifFile">READING...</span></div>
+          <div><span style="opacity: 0.5;">RESOLUTION:</span> <span id="exifResolution">PENDING...</span></div>
+          <div><span style="opacity: 0.5;">CAMERA CAPTURED (EXIF):</span> <span id="exifCaptured" style="color: var(--amber);">READING...</span></div>
+          <div><span style="opacity: 0.5;">SYSTEM UPLOAD TIME:</span> <span id="exifUploaded">READING...</span></div>
+          <div id="exifGpsContainer" style="grid-column: span 2; display: none; margin-top: 5px; border-top: 1px solid rgba(0, 220, 160, 0.08); padding-top: 8px;">
+            <span style="color: #ef4444; font-weight: bold;">[!] GEOLOCATION VECTOR EXTRAPOLATED:</span>
+            <span id="exifGpsCoords" style="color: #fff; margin-left: 6px;"></span>
+            <a id="exifMapLink" href="#" target="_blank" style="margin-left: 12px; border: 1px solid #ef4444; color: #ef4444; background: rgba(239, 68, 68, 0.07); padding: 2px 6px; border-radius: 2px; text-decoration: none; font-size: 10px;">PLOT LOCATION</a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- VIDEO PANEL -->
+    <div id="vaultVideoPanel" class="vault-media-area" style="display:none">
+      <div class="vault-video-frame" id="vaultVideoContainer">
+        <div class="vault-frame-corner tl"></div><div class="vault-frame-corner tr"></div>
+        <div class="vault-frame-corner bl"></div><div class="vault-frame-corner br"></div>
+        <video id="vaultVideo" playsinline></video>
+        <div class="vault-video-overlay">
+          <span class="vault-rec-dot">● REC</span>
+          <span id="vaultVideoTs" class="vault-video-ts"></span>
+          <div class="vault-crosshair"><span class="ch-h"></span><span class="ch-v"></span></div>
+        </div>
+        <!-- Custom Video Controls Overlay -->
+        <div class="vault-video-controls">
+          <button id="videoPlayBtn" class="vault-video-btn" title="Play / Pause">▶</button>
+          <div class="vault-seek-bar-container">
+            <span id="videoCurrentTime" class="vault-time-display">00:00</span>
+            <input type="range" id="videoSeekBar" class="vault-seek-bar" min="0" value="0" step="0.1">
+            <span id="videoDuration" class="vault-time-display">00:00</span>
+          </div>
+          <div class="vault-volume-container">
+            <button id="videoMuteBtn" class="vault-volume-btn" title="Mute/Unmute">🔊</button>
+            <input type="range" id="videoVolumeBar" class="vault-volume-bar" min="0" max="1" step="0.05" value="1">
+          </div>
+          <button id="videoFullscreenBtn" class="vault-fullscreen-btn" title="Toggle Fullscreen">⛶</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- AUDIO PANEL -->
+    <div id="vaultAudioPanel" class="vault-media-area" style="display:none">
+      <div class="vault-audio-wrap">
+        <canvas id="vaultWaveCanvas" class="vault-wave-canvas" width="800" height="200"></canvas>
+        <div class="vault-audio-label">
+          <span class="vault-wave-icon">◎</span>
+          <span id="vaultAudioStatus">AUDIO INTEL PLAYBACK</span>
+        </div>
+        <div class="vault-audio-controls">
+          <button id="audioPlayBtn" class="vault-audio-btn" title="Play / Pause">▶</button>
+          <div class="vault-seek-bar-container">
+            <span id="audioCurrentTime" class="vault-time-display">00:00</span>
+            <input type="range" id="audioSeekBar" class="vault-seek-bar" min="0" value="0" step="0.1">
+            <span id="audioDuration" class="vault-time-display">00:00</span>
+          </div>
+          <div class="vault-volume-container">
+            <button id="audioMuteBtn" class="vault-volume-btn" title="Mute/Unmute">🔊</button>
+            <input type="range" id="audioVolumeBar" class="vault-volume-bar" min="0" max="1" step="0.05" value="1">
+          </div>
+          <audio id="vaultAudio"></audio>
+        </div>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="vault-hud-footer">
+      <span id="vaultHudFooterLeft" class="vault-footer-stat">...</span>
+      <a id="vaultRawLink" href="#" target="_blank" class="vault-raw-btn">↗ OPEN RAW</a>
+      <span id="vaultHudFooterRight" class="vault-footer-stat">SECURE CONNECTION</span>
+    </div>
+  </div>
+
+  <script>
+    let vaultWaveAnimFrame;
+    let vaultWaveAudioCtx;
+    let vaultWaveAnalyser;
+    let vaultWaveSource;
+    let activeMediaType = null;
+
+    async function init() {
+      const params = new URLSearchParams(window.location.search);
+      const id = params.get('id');
+      const type = params.get('type') || 'image';
+      activeMediaType = type;
+      
+      if (!id) {
+        document.getElementById('vaultHudTitle').textContent = "ERROR: NO ASSET ID PROVIDED";
+        return;
+      }
+
+      const url = `/vault/${id}`;
+      
+      // Pre-flight auth check
+      try {
+        const authCheck = await fetch('/vault/list', { method: 'HEAD' });
+        if (authCheck.redirected && authCheck.url.includes('/vault/auth')) {
+          window.location.href = `/vault/auth?next=${encodeURIComponent('/vault-display.html?id=' + id + '&type=' + type)}`;
+          return;
+        }
+      } catch (e) {
+        console.error("Auth check failed", e);
+      }
+      
+      document.getElementById("vaultRawLink").href = url;
+      
+      if (type === 'image') {
+        document.getElementById("vaultHudTitle").textContent = "PHOTO INTEL VIEWER";
+        document.getElementById("vaultHudMeta").textContent = "RES: 1080P | FLTR: ACTIVE";
+        document.getElementById("vaultPhoto").src = url;
+        document.getElementById("vaultPhotoPanel").style.display = "flex";
+        initExifScanner(id, url);
+        setupPhotoPanning();
+        setupPhotoPinchZoom();
+      } else if (type === 'video') {
+        document.getElementById("vaultHudTitle").textContent = "VIDEO FEED VIEWER";
+        document.getElementById("vaultHudMeta").textContent = "FPS: 30 | ENC: H264";
+        document.getElementById("vaultVideo").src = url;
+        document.getElementById("vaultVideoPanel").style.display = "flex";
+        
+        const now = new Date();
+        document.getElementById("vaultVideoTs").textContent = now.toISOString().replace('T', ' ').substring(0, 19);
+        initVideoControls();
+      } else if (type === 'audio') {
+        document.getElementById("vaultHudTitle").textContent = "AUDIO INTEL PLAYBACK";
+        document.getElementById("vaultHudMeta").textContent = "BITRATE: 128KBPS";
+        const aud = document.getElementById("vaultAudio");
+        aud.src = url;
+        document.getElementById("vaultAudioPanel").style.display = "flex";
+        setupAudioWaveform(aud);
+        initAudioControls();
+      }
+      
+      document.getElementById("vaultHudFooterLeft").textContent = `FILE: ${id}`;
+    }
+
+    let photoRotation = 0;
+    let photoFlipped = false;
+    let isDragging = false;
+    let startX = 0, startY = 0;
+    let translateX = 0, translateY = 0;
+
+    function applyPhotoFilters() {
+      const img = document.getElementById("vaultPhoto");
+      if (!img) return;
+      
+      const exp = document.getElementById("filterExposure").value;
+      const con = document.getElementById("filterContrast").value;
+      const sat = document.getElementById("filterSaturate").value;
+      
+      // Sliders filters
+      img.style.filter = `brightness(${exp}%) contrast(${con}%) saturate(${sat}%)`;
+      
+      // Transformations: Zoom, Panning, Rotate, Flip
+      const zoomVal = document.getElementById("intelZoom").value;
+      const zoom = zoomVal / 100;
+      
+      // Reset translation if zoom goes back to 100%
+      if (zoomVal <= 100) {
+        translateX = 0;
+        translateY = 0;
+      }
+      
+      let transformStr = `translate(${translateX}px, ${translateY}px) scale(${zoom})`;
+      if (photoFlipped) {
+        transformStr += ` scaleX(-1)`;
+      }
+      if (photoRotation !== 0) {
+        transformStr += ` rotate(${photoRotation}deg)`;
+      }
+      
+      img.style.transform = transformStr;
+      img.style.transition = isDragging ? "none" : "transform 0.2s cubic-bezier(0.1, 0.8, 0.2, 1), filter 0.2s";
+    }
+
+    function rotatePhoto() {
+      photoRotation = (photoRotation + 90) % 360;
+      applyPhotoFilters();
+    }
+
+    function flipPhoto() {
+      photoFlipped = !photoFlipped;
+      applyPhotoFilters();
+    }
+
+    function setupPhotoPanning() {
+      const frame = document.querySelector('.vault-photo-frame');
+      const img = document.getElementById('vaultPhoto');
+      if (!frame || !img) return;
+      
+      frame.addEventListener('mousedown', (e) => {
+        const zoom = document.getElementById("intelZoom").value;
+        if (zoom <= 100) return; // Only allow panning when zoomed in!
+        
+        isDragging = true;
+        frame.style.cursor = 'grabbing';
+        startX = e.clientX - translateX;
+        startY = e.clientY - translateY;
+        e.preventDefault(); // Prevent text selection/drag highlights
+      });
+      
+      document.addEventListener('mousemove', (e) => {
+        if (!isDragging) return;
+        translateX = e.clientX - startX;
+        translateY = e.clientY - startY;
+        applyPhotoFilters();
+      });
+      
+      document.addEventListener('mouseup', () => {
+        if (isDragging) {
+          isDragging = false;
+          frame.style.cursor = 'default';
+          applyPhotoFilters();
+        }
+      });
+      
+      // Update cursor to indicate panability on hover when zoomed
+      frame.addEventListener('mouseenter', () => {
+        const zoom = document.getElementById("intelZoom").value;
+        if (zoom > 100) frame.style.cursor = 'grab';
+      });
+      
+      document.getElementById("intelZoom").addEventListener('input', () => {
+        const zoom = document.getElementById("intelZoom").value;
+        frame.style.cursor = zoom > 100 ? 'grab' : 'default';
+      });
+    }
+
+    function setupPhotoPinchZoom() {
+      const frame = document.querySelector('.vault-photo-frame');
+      const img = document.getElementById('vaultPhoto');
+      const slider = document.getElementById("intelZoom");
+      if (!frame || !img || !slider) return;
+      
+      let initDist = 0;
+      let initZoom = 100;
+      
+      frame.addEventListener('touchstart', (e) => {
+        if (e.touches.length === 2) {
+          initDist = Math.hypot(
+            e.touches[0].clientX - e.touches[1].clientX,
+            e.touches[0].clientY - e.touches[1].clientY
+          );
+          initZoom = parseInt(slider.value);
+        }
+      }, { passive: true });
+      
+      frame.addEventListener('touchmove', (e) => {
+        if (e.touches.length === 2 && initDist > 0) {
+          e.preventDefault(); // Stop native page scaling
+          const dist = Math.hypot(
+            e.touches[0].clientX - e.touches[1].clientX,
+            e.touches[0].clientY - e.touches[1].clientY
+          );
+          
+          const factor = dist / initDist;
+          let newZoom = Math.round(initZoom * factor);
+          newZoom = Math.max(100, Math.min(500, newZoom));
+          
+          slider.value = newZoom;
+          applyPhotoFilters();
+        }
+      }, { passive: false });
+      
+      frame.addEventListener('touchend', (e) => {
+        if (e.touches.length < 2) {
+          initDist = 0;
+        }
+      }, { passive: true });
+
+      // Trackpad / Wheel Pinch-to-Zoom interceptor (blocks default browser viewport zoom)
+      frame.addEventListener('wheel', (e) => {
+        if (e.ctrlKey) {
+          e.preventDefault();
+          let val = parseInt(slider.value);
+          if (e.deltaY < 0) {
+            val = Math.min(500, val + 12);
+          } else {
+            val = Math.max(100, val - 12);
+          }
+          slider.value = val;
+          applyPhotoFilters();
+        }
+      }, { passive: false });
+    }
+
+    function initExifScanner(id, url) {
+      document.getElementById("vaultExifScanner").style.display = "block";
+      document.getElementById("exifFile").textContent = id;
+      
+      // Real-time dimensions extraction when loaded
+      const img = document.getElementById("vaultPhoto");
+      if (img) {
+        img.onload = () => {
+          document.getElementById("exifResolution").textContent = `${img.naturalWidth} x ${img.naturalHeight} Px`;
+        };
+      }
+
+      // Fetch authentic Content-Length and scan JPEG binary EXIF
+      fetch(url)
+        .then(res => {
+          if (!res.ok) throw new Error("Fetch failed");
+          
+          // Capture content-length header
+          const len = res.headers.get("content-length");
+          if (len) {
+            const sizeKB = (parseInt(len) / 1024).toFixed(1);
+            document.getElementById("exifFile").textContent = `${id} (${sizeKB} KB)`;
+          }
+          
+          return res.arrayBuffer();
+        })
+        .then(buf => {
+          // Parse actual GPS metadata from JPEG binary buffer
+          const gpsData = getGpsFromExif(buf);
+          
+          if (gpsData) {
+            document.getElementById("exifGpsContainer").style.display = "block";
+            document.getElementById("exifGpsCoords").style.color = "#fff";
+            document.getElementById("exifGpsCoords").textContent = `LAT: ${gpsData.lat}° N | LON: ${gpsData.lon}° E`;
+            document.getElementById("exifMapLink").href = `https://www.google.com/maps/search/?api=1&query=${gpsData.lat},${gpsData.lon}`;
+            document.getElementById("exifMapLink").style.display = "inline-block";
+          } else {
+            document.getElementById("exifGpsContainer").style.display = "block";
+            document.getElementById("exifGpsCoords").style.color = "rgba(239, 68, 68, 0.7)";
+            document.getElementById("exifGpsCoords").textContent = `NO GEOLOCATION METADATA EMBEDDED IN THIS IMAGE FILE`;
+            document.getElementById("exifMapLink").style.display = "none";
+          }
+          
+          // Scan for embedded EXIF capture time (DateTime)
+          const exifDate = extractExifDateTime(buf);
+          document.getElementById("exifCaptured").textContent = exifDate ? exifDate : "NOT DETECTED (NO EXIF DATE TAG)";
+        })
+        .catch(err => {
+          console.warn("Exif extraction failed:", err);
+          document.getElementById("exifGpsContainer").style.display = "block";
+          document.getElementById("exifGpsCoords").style.color = "rgba(239, 68, 68, 0.7)";
+          document.getElementById("exifGpsCoords").textContent = `NO GEOLOCATION METADATA EMBEDDED IN THIS IMAGE FILE`;
+          document.getElementById("exifMapLink").style.display = "none";
+          document.getElementById("exifCaptured").textContent = "UNKNOWN (DECODE FAILED)";
+        });
+
+      // System upload time extraction from 13-digit Unix timestamp inside file name/ID
+      let uploadTime = "UNKNOWN";
+      const match = id.match(/\d{13}/);
+      if (match) {
+        const ms = parseInt(match[0]);
+        const date = new Date(ms);
+        const y = date.getFullYear();
+        const m = (date.getMonth() + 1).toString().padStart(2, '0');
+        const d = date.getDate().toString().padStart(2, '0');
+        const hh = date.getHours().toString().padStart(2, '0');
+        const mm = date.getMinutes().toString().padStart(2, '0');
+        const ss = date.getSeconds().toString().padStart(2, '0');
+        uploadTime = `${y}-${m}-${d} ${hh}:${mm}:${ss}`;
+      }
+      document.getElementById("exifUploaded").textContent = uploadTime;
+    }
+
+    // High-fidelity binary JPEG EXIF/TIFF Parser
+    function getGpsFromExif(arrayBuffer) {
+      try {
+        const view = new DataView(arrayBuffer);
+        if (view.byteLength < 4) return null;
+        if (view.getUint16(0) !== 0xFFD8) return null; // Not a JPEG
+        
+        const length = view.byteLength;
+        let offset = 2;
+        
+        while (offset < length) {
+          const marker = view.getUint16(offset);
+          if (marker === 0xFFE1) {
+            // Found APP1 Segment!
+            return parseExifTiff(view, offset + 4);
+          }
+          if ((marker & 0xFF00) !== 0xFF) break;
+          offset += 2 + view.getUint16(offset + 2);
+        }
+      } catch(e) {
+        console.error("Binary EXIF parse error:", e);
+      }
+      return null;
+    }
+
+    function parseExifTiff(view, offset) {
+      // Check Exif header "Exif\0\0"
+      if (view.getUint32(offset) !== 0x45786966) return null;
+      offset += 6; // skip "Exif" and two zero bytes
+      
+      const tiffOffset = offset;
+      const bigEndian = view.getUint16(offset) === 0x4D4D;
+      if (view.getUint16(offset + 2, !bigEndian) !== 0x002A) return null;
+      
+      const firstIFDOffset = view.getUint32(offset + 4, !bigEndian);
+      let ifdOffset = tiffOffset + firstIFDOffset;
+      
+      const tagsCount = view.getUint16(ifdOffset, !bigEndian);
+      ifdOffset += 2;
+      
+      let gpsIFDOffset = 0;
+      for (let i = 0; i < tagsCount; i++) {
+        const tag = view.getUint16(ifdOffset, !bigEndian);
+        if (tag === 0x8825) { // GPS Info IFD
+          gpsIFDOffset = view.getUint32(ifdOffset + 8, !bigEndian);
+          break;
+        }
+        ifdOffset += 12;
+      }
+      
+      if (!gpsIFDOffset) return null;
+      
+      // Parse GPS Directory
+      let gpsOffset = tiffOffset + gpsIFDOffset;
+      const gpsTagsCount = view.getUint16(gpsOffset, !bigEndian);
+      gpsOffset += 2;
+      
+      let latRef = 'N', lonRef = 'E';
+      let latCoords = null, lonCoords = null;
+      
+      for (let i = 0; i < gpsTagsCount; i++) {
+        const tag = view.getUint16(gpsOffset, !bigEndian);
+        const valueOffset = view.getUint32(gpsOffset + 8, !bigEndian) + tiffOffset;
+        
+        if (tag === 1) { // GPSLatitudeRef
+          latRef = String.fromCharCode(view.getUint8(gpsOffset + 8));
+        } else if (tag === 2) { // GPSLatitude
+          latCoords = readRationalCoords(view, valueOffset, !bigEndian);
+        } else if (tag === 3) { // GPSLongitudeRef
+          lonRef = String.fromCharCode(view.getUint8(gpsOffset + 8));
+        } else if (tag === 4) { // GPSLongitude
+          lonCoords = readRationalCoords(view, valueOffset, !bigEndian);
+        }
+        gpsOffset += 12;
+      }
+      
+      if (latCoords && lonCoords) {
+        const lat = (latCoords[0] + latCoords[1]/60 + latCoords[2]/3600) * (latRef === 'S' ? -1 : 1);
+        const lon = (lonCoords[0] + lonCoords[1]/60 + lonCoords[2]/3600) * (lonRef === 'W' ? -1 : 1);
+        return { lat: lat.toFixed(6), lon: lon.toFixed(6) };
+      }
+      
+      return null;
+    }
+
+    function readRationalCoords(view, offset, littleEndian) {
+      const degNum = view.getUint32(offset, littleEndian);
+      const degDen = view.getUint32(offset + 4, littleEndian);
+      const minNum = view.getUint32(offset + 8, littleEndian);
+      const minDen = view.getUint32(offset + 12, littleEndian);
+      const secNum = view.getUint32(offset + 16, littleEndian);
+      const secDen = view.getUint32(offset + 20, littleEndian);
+      
+      return [
+        degDen ? (degNum / degDen) : 0,
+        minDen ? (minNum / minDen) : 0,
+        secDen ? (secNum / secDen) : 0
+      ];
+    }
+
+    function extractExifDateTime(arrayBuffer) {
+      try {
+        const arr = new Uint8Array(arrayBuffer);
+        const limit = Math.min(arr.length, 65536); // App1 segment boundary
+        let chars = "";
+        for (let i = 0; i < limit; i++) {
+          const code = arr[i];
+          if (code >= 32 && code <= 126) {
+            chars += String.fromCharCode(code);
+          } else {
+            chars += " ";
+          }
+        }
+        // Match standard EXIF timestamp format: YYYY:MM:DD HH:MM:SS
+        const match = chars.match(/\b(\d{4}):(\d{2}):(\d{2}) (\d{2}):(\d{2}):(\d{2})\b/);
+        if (match) {
+          return `${match[1]}-${match[2]}-${match[3]} ${match[4]}:${match[5]}:${match[6]}`;
+        }
+      } catch(e) {
+        console.error("DateTime EXIF extraction error:", e);
+      }
+      return null;
+    }
+
+    function setupAudioWaveform(audioEl) {
+      const canvas = document.getElementById("vaultWaveCanvas");
+      if (!canvas) return;
+      const ctx = canvas.getContext("2d");
+      
+      const numBars = 250;
+      const barWidth = 3;
+      const barSpacing = 2;
+      
+      // Start with safe flat baseline heights
+      let waveformHeights = new Array(numBars).fill(4);
+      let isLoaded = false;
+      
+      // Generates synthetic fallback profile in case decoding fails
+      function generateMockWaveform() {
+        const params = new URLSearchParams(window.location.search);
+        const fileId = params.get('id') || 'default_audio';
+        let hash = 0;
+        for (let i = 0; i < fileId.length; i++) {
+          hash = fileId.charCodeAt(i) + ((hash << 5) - hash);
+        }
+        
+        waveformHeights = [];
+        for (let i = 0; i < numBars; i++) {
+          const sin1 = Math.sin(i * 0.045 + hash);
+          const sin2 = Math.sin(i * 0.13 + hash * 1.8);
+          const sin3 = Math.cos(i * 0.29 + hash * 2.7);
+          let h = Math.abs(sin1 * 0.45 + sin2 * 0.35 + sin3 * 0.2);
+          const noise = Math.sin(i * 2.2 + hash) * 0.1;
+          h = Math.max(0.04, h + noise);
+          if (i < 20) h *= (i / 20);
+          if (i > numBars - 20) h *= ((numBars - i) / 20);
+          waveformHeights.push(Math.max(4, h * 90));
+        }
+      }
+
+      // Pre-fill with clean mock waveform initially
+      generateMockWaveform();
+      
+      // Scan, fetch, and asynchronously decode the ACTUAL vocal stream PCM data!
+      if (audioEl.src) {
+        fetch(audioEl.src)
+          .then(res => {
+            if (!res.ok) throw new Error("Audio fetch failed");
+            return res.arrayBuffer();
+          })
+          .then(buf => {
+            const offlineCtx = new (window.AudioContext || window.webkitAudioContext)();
+            return offlineCtx.decodeAudioData(buf);
+          })
+          .then(audioBuffer => {
+            const rawData = audioBuffer.getChannelData(0); // Mono channel
+            const samples = rawData.length;
+            const blockSize = Math.floor(samples / numBars);
+            
+            const tempAverages = [];
+            let maxAvg = 0.0001;
+            for (let i = 0; i < numBars; i++) {
+              let start = i * blockSize;
+              let sum = 0;
+              for (let j = 0; j < blockSize; j++) {
+                sum += Math.abs(rawData[start + j] || 0);
+              }
+              const avg = sum / blockSize;
+              tempAverages.push(avg);
+              if (avg > maxAvg) maxAvg = avg;
+            }
+            
+            // Normalize all segments dynamically so the absolute loudest peak maps perfectly to 90px
+            const targetMaxHeight = 90;
+            const tempHeights = tempAverages.map(avg => {
+              const scaled = (avg / maxAvg) * targetMaxHeight;
+              return Math.max(4, scaled); // 4px flat baseline for silence
+            });
+            
+            // Soft borders padding fade-in/out
+            for (let i = 0; i < tempHeights.length; i++) {
+              if (i < 15) tempHeights[i] *= (i / 15);
+              if (i > tempHeights.length - 15) tempHeights[i] *= ((tempHeights.length - i) / 15);
+            }
+            
+            waveformHeights = tempHeights;
+            isLoaded = true;
+            draw(); // Re-render immediately with normalized wave print!
+          })
+          .catch(err => {
+            console.warn("Waveform decoding failed, using synthetic fallback pattern:", err);
+          });
+      }
+      
+      if (!vaultWaveAudioCtx) {
+        try {
+          vaultWaveAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+          vaultWaveAnalyser = vaultWaveAudioCtx.createAnalyser();
+          vaultWaveSource = vaultWaveAudioCtx.createMediaElementSource(audioEl);
+          vaultWaveSource.connect(vaultWaveAnalyser);
+          vaultWaveAnalyser.connect(vaultWaveAudioCtx.destination);
+          vaultWaveAnalyser.fftSize = 256;
+        } catch(e) { return; }
+      }
+      
+      const bufferLength = vaultWaveAnalyser.frequencyBinCount;
+      const dataArray = new Uint8Array(bufferLength);
+      
+      function draw() {
+        vaultWaveAnimFrame = requestAnimationFrame(draw);
+        
+        // Live audio average frequency volume for dynamic micro-pulses
+        let avgVolume = 0;
+        if (vaultWaveAnalyser && !audioEl.paused) {
+          vaultWaveAnalyser.getByteFrequencyData(dataArray);
+          let sum = 0;
+          for (let k = 0; k < dataArray.length; k++) {
+            sum += dataArray[k];
+          }
+          avgVolume = sum / dataArray.length;
+        }
+        
+        // 1. Refresh background (deep charcoal/dark-green background matching theme)
+        ctx.fillStyle = "#06080a";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        
+        // 2. Draw subtle grid backdrop
+        ctx.strokeStyle = "rgba(0, 220, 160, 0.03)";
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(0, canvas.height / 2);
+        ctx.lineTo(canvas.width, canvas.height / 2);
+        ctx.stroke();
+        
+        // 3. Draw waveform bars scrolling dynamically
+        const progress = audioEl.duration ? (audioEl.currentTime / audioEl.duration) : 0;
+        const centerX = canvas.width / 2;
+        const centerY = 80; // Center waveform vertically
+        
+        const dynamicScale = 1.0 + (avgVolume / 255.0) * 0.55; // React up to 55% scale
+
+        for (let i = 0; i < numBars; i++) {
+          const barX = centerX + (i - progress * numBars) * (barWidth + barSpacing);
+          
+          // Skip drawing if completely off-screen
+          if (barX < -10 || barX > canvas.width + 10) continue;
+          
+          const rawHeight = waveformHeights[i];
+          const finalHeight = rawHeight * dynamicScale;
+          
+          // Determine color based on active/played status relative to central playhead
+          if (barX < centerX) {
+            // Played section: Glowing high-contrast neon teal
+            ctx.fillStyle = "rgba(0, 220, 160, 0.95)";
+            ctx.shadowBlur = 4;
+            ctx.shadowColor = "rgba(0, 220, 160, 0.5)";
+          } else {
+            // Unplayed section: Dimmed translucent dark teal/gray
+            ctx.fillStyle = "rgba(0, 220, 160, 0.22)";
+            ctx.shadowBlur = 0;
+          }
+          
+          ctx.fillRect(barX - barWidth / 2, centerY - finalHeight / 2, barWidth, finalHeight);
+        }
+        ctx.shadowBlur = 0; // reset
+        
+        // 4. Draw scrolling Timeline tick marks and seconds label below
+        const dur = audioEl.duration || 0;
+        if (dur > 0) {
+          let tickInterval = 1; // seconds
+          if (dur > 300) tickInterval = 30;
+          else if (dur > 120) tickInterval = 10;
+          else if (dur > 30) tickInterval = 5;
+          else if (dur > 15) tickInterval = 2;
+          
+          ctx.fillStyle = "rgba(0, 220, 160, 0.65)";
+          ctx.strokeStyle = "rgba(0, 220, 160, 0.2)";
+          ctx.lineWidth = 1;
+          ctx.font = "9px 'Courier New', monospace";
+          ctx.textAlign = "center";
+          
+          // Draw thin timeline base rule line
+          ctx.beginPath();
+          ctx.moveTo(0, 140);
+          ctx.lineTo(canvas.width, 140);
+          ctx.stroke();
+
+          for (let s = 0; s <= dur; s += tickInterval) {
+            const barIndexForSec = (s / dur) * numBars;
+            const tickX = centerX + (barIndexForSec - progress * numBars) * (barWidth + barSpacing);
+            
+            if (tickX >= 0 && tickX <= canvas.width) {
+              // Draw tick mark
+              ctx.beginPath();
+              ctx.moveTo(tickX, 140);
+              ctx.lineTo(tickX, 145);
+              ctx.stroke();
+              
+              // Draw timestamp string
+              ctx.fillText(formatTime(s), tickX, 158);
+            }
+          }
+        }
+        
+        // 5. Draw red playhead cursor strictly in the middle
+        ctx.strokeStyle = "#ef4444";
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(centerX, 15);
+        ctx.lineTo(centerX, 140);
+        ctx.stroke();
+        
+        // Top circle pin
+        ctx.beginPath();
+        ctx.arc(centerX, 15, 4, 0, Math.PI * 2);
+        ctx.fillStyle = "#ef4444";
+        ctx.fill();
+        
+        // Bottom circle pin
+        ctx.beginPath();
+        ctx.arc(centerX, 140, 4, 0, Math.PI * 2);
+        ctx.fillStyle = "#ef4444";
+        ctx.fill();
+      }
+      
+      audioEl.onplay = () => {
+        if (vaultWaveAudioCtx.state === 'suspended') vaultWaveAudioCtx.resume();
+        draw();
+      };
+      
+      // Auto-draw flat state initially
+      draw();
+    }
+
+    function formatTime(seconds) {
+      if (isNaN(seconds)) return "00:00";
+      const mins = Math.floor(seconds / 60);
+      const secs = Math.floor(seconds % 60);
+      return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    }
+
+    function initAudioControls() {
+      const aud = document.getElementById('vaultAudio');
+      const btn = document.getElementById('audioPlayBtn');
+      const seekBar = document.getElementById('audioSeekBar');
+      const curTimeTxt = document.getElementById('audioCurrentTime');
+      const durTimeTxt = document.getElementById('audioDuration');
+      const muteBtn = document.getElementById('audioMuteBtn');
+      const volBar = document.getElementById('audioVolumeBar');
+
+      let isSeeking = false;
+
+      btn.addEventListener('click', () => {
+        if (aud.paused) {
+          aud.play();
+        } else {
+          aud.pause();
+        }
+      });
+
+      aud.addEventListener('play', () => { btn.textContent = '⏸'; });
+      aud.addEventListener('pause', () => { btn.textContent = '▶'; });
+      aud.addEventListener('ended', () => { btn.textContent = '▶'; });
+
+      const updateDuration = () => {
+        if (aud.duration && !isNaN(aud.duration)) {
+          seekBar.max = aud.duration;
+          durTimeTxt.textContent = formatTime(aud.duration);
+        }
+      };
+
+      // Set immediately if metadata is already loaded
+      updateDuration();
+      aud.addEventListener('loadedmetadata', updateDuration);
+      aud.addEventListener('durationchange', updateDuration);
+
+      aud.addEventListener('timeupdate', () => {
+        if (!isSeeking) {
+          seekBar.value = aud.currentTime;
+          curTimeTxt.textContent = formatTime(aud.currentTime);
+        }
+      });
+
+      seekBar.addEventListener('input', () => {
+        isSeeking = true;
+        curTimeTxt.textContent = formatTime(seekBar.value);
+      });
+
+      seekBar.addEventListener('change', () => {
+        isSeeking = true;
+        aud.currentTime = parseFloat(seekBar.value);
+      });
+
+      aud.addEventListener('seeked', () => {
+        isSeeking = false;
+      });
+
+      muteBtn.addEventListener('click', () => {
+        aud.muted = !aud.muted;
+        muteBtn.textContent = aud.muted ? '🔇' : '🔊';
+      });
+
+      volBar.addEventListener('input', () => {
+        aud.volume = volBar.value;
+        if (volBar.value == 0) {
+          muteBtn.textContent = '🔇';
+        } else {
+          muteBtn.textContent = '🔊';
+        }
+      });
+    }
+
+    function initVideoControls() {
+      const vid = document.getElementById('vaultVideo');
+      const btn = document.getElementById('videoPlayBtn');
+      const seekBar = document.getElementById('videoSeekBar');
+      const curTimeTxt = document.getElementById('videoCurrentTime');
+      const durTimeTxt = document.getElementById('videoDuration');
+      const muteBtn = document.getElementById('videoMuteBtn');
+      const volBar = document.getElementById('videoVolumeBar');
+      const fsBtn = document.getElementById('videoFullscreenBtn');
+      const container = document.getElementById('vaultVideoContainer');
+
+      let isSeeking = false;
+
+      // Click video element itself to play/pause
+      vid.addEventListener('click', () => {
+        if (vid.paused) {
+          vid.play();
+        } else {
+          vid.pause();
+        }
+      });
+
+      btn.addEventListener('click', () => {
+        if (vid.paused) {
+          vid.play();
+        } else {
+          vid.pause();
+        }
+      });
+
+      vid.addEventListener('play', () => { btn.textContent = '⏸'; });
+      vid.addEventListener('pause', () => { btn.textContent = '▶'; });
+      vid.addEventListener('ended', () => { btn.textContent = '▶'; });
+
+      const updateDuration = () => {
+        if (vid.duration && !isNaN(vid.duration)) {
+          seekBar.max = vid.duration;
+          durTimeTxt.textContent = formatTime(vid.duration);
+        }
+      };
+
+      // Set immediately if metadata is already loaded
+      updateDuration();
+      vid.addEventListener('loadedmetadata', updateDuration);
+      vid.addEventListener('durationchange', updateDuration);
+
+      vid.addEventListener('timeupdate', () => {
+        if (!isSeeking) {
+          seekBar.value = vid.currentTime;
+          curTimeTxt.textContent = formatTime(vid.currentTime);
+        }
+      });
+
+      seekBar.addEventListener('input', () => {
+        isSeeking = true;
+        curTimeTxt.textContent = formatTime(seekBar.value);
+      });
+
+      seekBar.addEventListener('change', () => {
+        isSeeking = true;
+        vid.currentTime = parseFloat(seekBar.value);
+      });
+
+      vid.addEventListener('seeked', () => {
+        isSeeking = false;
+      });
+
+      muteBtn.addEventListener('click', () => {
+        vid.muted = !vid.muted;
+        muteBtn.textContent = vid.muted ? '🔇' : '🔊';
+      });
+
+      volBar.addEventListener('input', () => {
+        vid.volume = volBar.value;
+        if (volBar.value == 0) {
+          muteBtn.textContent = '🔇';
+        } else {
+          muteBtn.textContent = '🔊';
+        }
+      });
+
+      fsBtn.addEventListener('click', () => {
+        if (!document.fullscreenElement) {
+          container.requestFullscreen().catch(err => {
+            console.error(`Error attempting to enable full-screen mode: ${err.message}`);
+          });
+        } else {
+          document.exitFullscreen();
+        }
+      });
+
+      // Show / hide custom control bar overlay on mouse activity
+      let controlsTimeout;
+      function showControls() {
+        container.classList.add('show-controls');
+        clearTimeout(controlsTimeout);
+        controlsTimeout = setTimeout(() => {
+          if (!vid.paused) {
+            container.classList.remove('show-controls');
+          }
+        }, 2500);
+      }
+
+      container.addEventListener('mousemove', showControls);
+      container.addEventListener('mouseleave', () => {
+        if (!vid.paused) {
+          container.classList.remove('show-controls');
+        }
+      });
+    }
+
+
+
+
+    function togglePhotoFullscreen() {
+      const container = document.getElementById('vaultPhotoContainer');
+      if (!container) return;
+      if (!document.fullscreenElement) {
+        container.requestFullscreen().catch(err => {
+          console.error(`Error entering photo fullscreen: ${err.message}`);
+        });
+      } else {
+        document.exitFullscreen();
+      }
+    }
+
+    // Toggle selection mode via Ctrl key / Spacebar Play-Pause / Fullscreen F
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Control') {
+        document.body.classList.add('ctrl-select-mode');
+      }
+      
+      // Spacebar Play/Pause
+      if (e.key === ' ' || e.code === 'Space') {
+        if (activeMediaType === 'audio' || activeMediaType === 'video') {
+          e.preventDefault();
+          const media = activeMediaType === 'audio' 
+            ? document.getElementById('vaultAudio') 
+            : document.getElementById('vaultVideo');
+          if (media) {
+            if (media.paused) media.play();
+            else media.pause();
+          }
+        }
+      }
+
+      // Fullscreen shortcut 'f' / 'F'
+      if (e.key === 'f' || e.key === 'F') {
+        e.preventDefault();
+        if (activeMediaType === 'image') {
+          togglePhotoFullscreen();
+        } else if (activeMediaType === 'video') {
+          const videoContainer = document.getElementById('vaultVideoContainer');
+          if (videoContainer) {
+            if (!document.fullscreenElement) {
+              videoContainer.requestFullscreen().catch(err => console.error(err));
+            } else {
+              document.exitFullscreen();
+            }
+          }
+        }
+      }
+
+      // Exit fullscreen shortcut 'Escape'
+      if (e.key === 'Escape') {
+        if (document.fullscreenElement) {
+          document.exitFullscreen();
+        }
+      }
+    });
+    document.addEventListener('keyup', (e) => {
+      if (e.key === 'Control') {
+        document.body.classList.remove('ctrl-select-mode');
+      }
+    });
+    window.addEventListener('blur', () => {
+      document.body.classList.remove('ctrl-select-mode');
+    });
+
+    window.addEventListener('DOMContentLoaded', init);
+  </script>
+</body>
+</html>

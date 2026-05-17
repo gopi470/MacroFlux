@@ -235,8 +235,8 @@ export default {
       const cf = request.cf || {};
       const location = cf.country ? `${cf.city || "Unknown"}, ${cf.region || "Unknown"}, ${cf.country}` : "Global Intelligence Grid";
 
-      // Redirect to home if already logged in and visiting root or login page
-      if ((url.pathname === "/" || url.pathname === "/login") && isLoggedIn) {
+      // Redirect to home if already logged in and visiting root, index.html or login page
+      if ((url.pathname === "/" || url.pathname === "/index.html" || url.pathname === "/login") && isLoggedIn) {
         return Response.redirect(url.origin + "/home", 302);
       }
 
@@ -677,7 +677,7 @@ export default {
     }
 
     // ── File Vault Retrieval (/vault/:id) ──────────────────
-    if (url.pathname.startsWith("/vault/") && !["/vault/list", "/vault/auth", "/vault/delete", "/vault/logout"].includes(url.pathname)) {
+    if (url.pathname.startsWith("/vault/") && !["/vault/list", "/vault/display", "/vault/auth", "/vault/delete", "/vault/logout"].includes(url.pathname)) {
       try {
         if (!isLoggedIn) return renderUnauthorized();
 
@@ -694,10 +694,37 @@ export default {
 
         if (!value) return new Response("FILE NOT FOUND", { status: 404 });
 
+        const totalLength = value.byteLength;
+        const rangeHeader = request.headers.get("Range");
+
+        if (rangeHeader && rangeHeader.startsWith("bytes=")) {
+          const parts = rangeHeader.replace(/bytes=/, "").split("-");
+          const start = parseInt(parts[0], 10);
+          const end = parts[1] ? parseInt(parts[1], 10) : totalLength - 1;
+
+          if (start >= 0 && end < totalLength && start <= end) {
+            const chunk = value.slice(start, end + 1);
+            return new Response(chunk, {
+              status: 206,
+              headers: {
+                "Content-Type": metadata?.contentType || "application/octet-stream",
+                "Content-Disposition": "inline",
+                "Content-Range": `bytes ${start}-${end}/${totalLength}`,
+                "Accept-Ranges": "bytes",
+                "Content-Length": chunk.byteLength.toString(),
+                "Cache-Control": "public, max-age=3600"
+              }
+            });
+          }
+        }
+
         return new Response(value, {
           headers: { 
             "Content-Type": metadata?.contentType || "application/octet-stream",
-            "Content-Disposition": "inline"
+            "Content-Disposition": "inline",
+            "Accept-Ranges": "bytes",
+            "Content-Length": totalLength.toString(),
+            "Cache-Control": "public, max-age=3600"
           }
         });
       } catch (err) {
@@ -812,6 +839,12 @@ export default {
       });
     }
 
+    // ── Vault Standalone Display (/vault/display) ───────────
+    if (url.pathname === "/vault/display") {
+      if (!isLoggedIn) return renderUnauthorized();
+      return env.ASSETS.fetch(new Request(url.origin + "/vault-display.html"));
+    }
+
     // ── File Vault Index (/vault/list) ──────────────────────
     if (url.pathname === "/vault/list") {
       try {
@@ -862,7 +895,7 @@ export default {
               <td>${r.sizeMB} MB</td>
               <td>${r.duration}</td>
               <td style="display:flex; gap:6px; align-items:center;">
-                <a href="/vault/${r.id}">>> OPEN</a>
+                <a href="/vault/display?id=${r.id}&type=${r.typeStr.toLowerCase()}">>> OPEN IN HUD</a>
                 <button onclick="deleteVaultItem('${r.id}', this)" style="background:rgba(239,68,68,0.08); color:#f87171; border:1px solid rgba(239,68,68,0.3); padding:3px 8px; border-radius:3px; font-size:11px; cursor:pointer; font-family:inherit;">DELETE</button>
               </td>
             </tr>`).join("");

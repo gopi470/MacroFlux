@@ -13,7 +13,8 @@
     }
   ],
   "assets": {
-    "directory": "."
+    "directory": ".",
+    "binding": "ASSETS"
   },
   "routes": [
     {

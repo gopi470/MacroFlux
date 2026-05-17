@@ -1352,6 +1352,7 @@ function syncSidebarToggles(status) {
       lastVolumes[key] = level;
 
       fillEl.style.height = `${level}%`;
+      fillEl.style.opacity = level === 0 ? "0" : "1";
       if (valEl) valEl.textContent = `${level}%`;
       
       // Update Dynamic Icon
@@ -1380,7 +1381,10 @@ function setupVolumeDragging() {
     const fill = document.getElementById(`vol_${type}_fill`);
     const val = document.getElementById(`vol_${type}_val`);
     
-    if (fill) fill.style.height = `${percent}%`;
+    if (fill) {
+      fill.style.height = `${percent}%`;
+      fill.style.opacity = percent === 0 ? "0" : "1";
+    }
     if (val) val.textContent = `${percent}%`;
     
     updateVolumeIcon(type, percent);
@@ -1476,10 +1480,48 @@ async function executeVolumeSync() {
   }
 }
 
-
+/* ═══════════════════════════════════════════════════════════════
+   VAULT MEDIA ROUTER
+═══════════════════════════════════════════════════════════════ */
+// Global Interceptor for Vault Links
+document.addEventListener("click", (e) => {
+  const target = e.target.closest(".map-link");
+  if (target && target.href && target.href.includes("/vault/")) {
+    e.preventDefault();
+    bumpInteraction(true);
+    
+    const url = target.href;
+    const fileId = url.split("/vault/")[1];
+    
+    if (url.includes("/vault/image")) {
+      window.open(`/vault/display?id=${fileId}&type=image`, '_blank');
+    } else if (url.includes("/vault/video")) {
+      window.open(`/vault/display?id=${fileId}&type=video`, '_blank');
+    } else if (url.includes("/vault/audio")) {
+      window.open(`/vault/display?id=${fileId}&type=audio`, '_blank');
+    } else {
+      window.open(url, '_blank'); // fallback
+    }
+  }
+});
 
 // ── System Initialization ─────────────────────────────────────
 handleIncomingLocation();
 startPolling();
 checkInitialLogin();
 setupVolumeDragging();
+
+// Toggle selection mode via Ctrl key
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Control') {
+    document.body.classList.add('ctrl-select-mode');
+  }
+});
+document.addEventListener('keyup', (e) => {
+  if (e.key === 'Control') {
+    document.body.classList.remove('ctrl-select-mode');
+  }
+});
+window.addEventListener('blur', () => {
+  document.body.classList.remove('ctrl-select-mode');
+});
