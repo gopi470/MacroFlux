@@ -9,6 +9,21 @@ let lastUpdateTimestamp = parseInt(localStorage.getItem("remote_last_seen") || "
 let lastPolledStatus = null; // Store latest hardware status globally
 let lastActivePollingCmd = "";
 let currentRequestId = 0;
+let lastNetMonster = localStorage.getItem("remote_last_netmonster") || "";
+let lastVolumeManualTime = 0; // Cooldown for volume sync
+let lastInteractionTime = Date.now();
+let highPriorityUntil = 0;
+
+function bumpInteraction(isCommand = false) {
+  lastInteractionTime = Date.now();
+  if (isCommand) {
+    highPriorityUntil = Date.now() + 60000; // 1 min of high speed
+  }
+}
+
+// Global click tracking
+document.addEventListener('click', () => bumpInteraction());
+document.addEventListener('keydown', () => bumpInteraction());
 
 function updateFreshness() {
   const el = document.getElementById("lastSeen");
@@ -80,7 +95,7 @@ function updateSignalBars(rawVal) {
 }
 
 async function startPolling() {
-  setInterval(async function pollStatus() {
+  async function pollStatus() {
     const start = Date.now();
     try {
       const response = await fetch("/poll");
@@ -144,6 +159,21 @@ async function startPolling() {
           if (uptimeEl) uptimeEl.textContent = s.phone_uptime;
         }
 
+        // Handle NetMonster
+        if (s.netmonster_status) {
+          const isValueChange = s.netmonster_status !== lastNetMonster;
+          if (isValueChange) {
+            lastNetMonster = s.netmonster_status;
+            localStorage.setItem("remote_last_netmonster", lastNetMonster);
+          }
+          
+          // If we are waiting for a FRESH report (timestamp must be newer than when we requested)
+          if (isWaitingForFreshData && waitingForType === "netmonster" && s.updated > referenceTime) {
+            isWaitingForFreshData = false;
+            setStatus(s.netmonster_status.toUpperCase(), "telemetry");
+          }
+        }
+
         // Sync Sidebar Toggles
         lastPolledStatus = s;
         syncSidebarToggles(s);
@@ -177,7 +207,20 @@ async function startPolling() {
     } catch (e) {
       console.error("Poll error:", e);
     }
-  }, 3500);
+
+    // ADAPTIVE POLLING LOGIC
+    let delay = 5000; // Standard
+    const now = Date.now();
+
+    if (now < highPriorityUntil) {
+      delay = 2000; // High Priority
+    } else if (now - lastInteractionTime > 120000) {
+      delay = 30000; // Idle (2 mins)
+    }
+
+    setTimeout(pollStatus, delay);
+  }
+  pollStatus();
 }
 
 function handleIncomingLocation() {
@@ -711,6 +754,7 @@ function haptic() {
 }
 
 function execute() {
+  bumpInteraction(true);
   if (execBtn.disabled) return; // 🛡️ hard safety
   haptic();
 
@@ -754,19 +798,22 @@ function execute() {
   // If it's a surveillance or location command, start waiting for a FRESH report
   const isLocationCmd = ["location_share_recent", "location_share"].includes(selectedCmd);
   const isMediaCmd = ["photo_click", "photo_front", "videorecording_on", "microphone_record"].includes(selectedCmd);
+  const isNetMonsterCmd = selectedCmd === "netmonster";
   
-  if (isLocationCmd || isMediaCmd) {
+  if (isLocationCmd || isMediaCmd || isNetMonsterCmd) {
     const thisRequestId = ++currentRequestId;
     isWaitingForFreshData = true;
     lastActivePollingCmd = selectedCmdDisplay;
     const pollingName = selectedCmdDisplay.toUpperCase();
     const isPollingLoc = isLocationCmd;
 
-    waitingForType = isLocationCmd ? "location" : "media"; 
-    referenceTime = lastLocationTime; 
+    waitingForType = isLocationCmd ? "location" : (isNetMonsterCmd ? "netmonster" : "media"); 
+    // For NetMonster, we wait for a status object with a timestamp LATER than our last seen status
+    referenceTime = isNetMonsterCmd ? (lastPolledStatus ? lastPolledStatus.updated : Date.now()) : lastLocationTime; 
     let durationLabel = "";
     if (selectedCmd === "microphone_record") durationLabel = " (30s)";
     else if (selectedCmd === "videorecording_on") durationLabel = " (15s)";
+    else if (selectedCmd === "netmonster") durationLabel = " (15s)";
     
     setStatus(`REQUESTING ${pollingName}${durationLabel} ...`, "busy");
 
@@ -776,6 +823,7 @@ function execute() {
     else if (selectedCmd === "photo_click" || selectedCmd === "photo_front") timeoutMs = 60000;
     else if (selectedCmd === "microphone_record") timeoutMs = 120000;   
     else if (selectedCmd === "videorecording_on") timeoutMs = 150000;   
+    else if (selectedCmd === "netmonster") timeoutMs = 35000;   
     
     setTimeout(() => {
       if (isWaitingForFreshData && currentRequestId === thisRequestId) {
@@ -812,7 +860,11 @@ function execute() {
 
       if (!isLocationCmd && !isMediaCmd) {
         if (isSuccess) {
-          setStatus(`${selectedCmdDisplay.toUpperCase()} SUCCESS`, "ok");
+          if (isNetMonsterCmd) {
+            setStatus("NETMONSTER REQUEST SENT", "ok");
+          } else {
+            setStatus(`${selectedCmdDisplay.toUpperCase()} SUCCESS`, "ok");
+          }
           updateLastSuccess(selectedCmd, time);
         } else {
           setStatus(`${selectedCmdDisplay.toUpperCase()} FAILED`, "err", text, selectedCmd);
@@ -821,7 +873,8 @@ function execute() {
     })
     .catch((err) => {
       if (!isLocationCmd && !isMediaCmd) {
-        setStatus(`${selectedCmdDisplay.toUpperCase()} NETWORK ERROR`, "err", err.message, selectedCmd);
+        const label = isNetMonsterCmd ? "NETMONSTER" : selectedCmdDisplay.toUpperCase();
+        setStatus(`${label} NETWORK ERROR`, "err", err.message, selectedCmd);
       }
     });
 }
@@ -943,22 +996,22 @@ function copyLogs() {
 }
 
 // ── 30-Minute Inactivity Guard ───────────────────────────────
-let idleMinutes = 0;
-const resetIdle = () => { idleMinutes = 0; };
 ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart'].forEach(evt => 
-  document.addEventListener(evt, resetIdle, true)
+  document.addEventListener(evt, () => bumpInteraction(), { passive: true })
 );
 
 setInterval(() => {
-  idleMinutes++;
-  if (idleMinutes >= 30) {
+  const idleMs = Date.now() - lastInteractionTime;
+  if (idleMs >= 30 * 60 * 1000) {
     console.warn("Session expired due to inactivity.");
     logout();
   }
 }, 60000); // Check every 60s
 
+
 /* ── System Sidebar Logic ──────────────────────────────────── */
 function toggleSidebar() {
+  bumpInteraction(true);
   const sidebar = document.getElementById("systemSidebar");
   const handle = document.getElementById("sidebarHandle");
   const isOpen = sidebar.classList.toggle("open");
@@ -972,6 +1025,7 @@ function toggleSidebar() {
 }
 
 function toggleLeftSidebar() {
+  bumpInteraction(true);
   const sidebar = document.getElementById("leftSidebar");
   const handle = document.getElementById("leftSidebarHandle");
   const isOpen = sidebar.classList.toggle("open");
@@ -1212,20 +1266,21 @@ function updateVolumeIcon(key, level) {
       svg = `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${stroke}" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"></path><circle cx="6" cy="18" r="3"></circle><circle cx="18" cy="16" r="3"></circle><path d="M23 9s-1.5 2.5-1.5 5 1.5 5 1.5 5"></path></svg>`;
     }
   } else if (key === 'ringer') {
+    const phonePath = `<path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path>`;
+    if (level === 0) {
+      svg = `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${stroke}" stroke-linecap="round" stroke-linejoin="round">${phonePath}<line x1="1" y1="1" x2="23" y2="23"></line></svg>`;
+    } else if (level <= 50) {
+      svg = `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${stroke}" stroke-linecap="round" stroke-linejoin="round">${phonePath}</svg>`;
+    } else {
+      svg = `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${stroke}" stroke-linecap="round" stroke-linejoin="round">${phonePath}<path d="M14.05 2a9 9 0 0 1 8 7.94M14.05 6A5 5 0 0 1 18 10"></path></svg>`;
+    }
+  } else if (key === 'notification') {
     if (level === 0) {
       svg = `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${stroke}" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>`;
     } else if (level <= 50) {
       svg = `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${stroke}" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>`;
     } else {
       svg = `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${stroke}" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path><path d="M22 8s1.5 2 1.5 4-1.5 4-1.5 4"></path><path d="M2 8s-1.5 2-1.5 4 1.5 4 1.5 4"></path></svg>`;
-    }
-  } else if (key === 'notification') {
-    if (level === 0) {
-      svg = `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${stroke}" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>`;
-    } else if (level <= 50) {
-      svg = `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${stroke}" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>`;
-    } else {
-      svg = `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${stroke}" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path><path d="M18 10h.01"></path><path d="M12 10h.01"></path><path d="M6 10h.01"></path></svg>`;
     }
   } else if (key === 'alarm') {
     if (level === 0) {
@@ -1272,7 +1327,9 @@ function syncSidebarToggles(status) {
     }
   }
 
-  // Volume Sliders Sync
+  // Volume Sliders Sync - Skip only for a short time after manual adjustment
+  if (Date.now() - lastVolumeManualTime < 10000) return;
+
   const volumes = {
     'media': status.media_volume,
     'ringer': status.ringer_volume,
@@ -1303,9 +1360,126 @@ function syncSidebarToggles(status) {
   }
 }
 
+let activeVolumeDragTrack = null;
+
+function setupVolumeDragging() {
+  const tracks = document.querySelectorAll(".volume-track");
+  
+  const updateVol = (trackEl, clientY) => {
+    const bg = trackEl.querySelector('.volume-bar-bg');
+    if (!bg) return;
+    const rect = bg.getBoundingClientRect();
+    const y = clientY - rect.top;
+    const height = rect.height;
+    let percent = 100 - Math.round((y / height) * 100);
+    percent = Math.min(100, Math.max(0, percent));
+    
+    lastVolumeManualTime = Date.now(); // Set cooldown
+    
+    const type = trackEl.dataset.type;
+    const fill = document.getElementById(`vol_${type}_fill`);
+    const val = document.getElementById(`vol_${type}_val`);
+    
+    if (fill) fill.style.height = `${percent}%`;
+    if (val) val.textContent = `${percent}%`;
+    
+    updateVolumeIcon(type, percent);
+  };
+
+  tracks.forEach(trackEl => {
+    // Left-click / Touch Start
+    trackEl.addEventListener("mousedown", (e) => {
+      if (e.button !== 0) return; // Only left click
+      activeVolumeDragTrack = trackEl;
+      updateVol(trackEl, e.clientY);
+      e.preventDefault();
+    });
+
+    trackEl.addEventListener("touchstart", (e) => {
+      activeVolumeDragTrack = trackEl;
+      updateVol(trackEl, e.touches[0].clientY);
+    }, { passive: true });
+  });
+
+  window.addEventListener("mousemove", (e) => {
+    if (activeVolumeDragTrack) {
+      updateVol(activeVolumeDragTrack, e.clientY);
+    }
+  });
+
+  window.addEventListener("touchmove", (e) => {
+    if (activeVolumeDragTrack) {
+      updateVol(activeVolumeDragTrack, e.touches[0].clientY);
+    }
+  }, { passive: true });
+
+  window.addEventListener("mouseup", () => {
+    activeVolumeDragTrack = null;
+  });
+
+  window.addEventListener("touchend", () => {
+    activeVolumeDragTrack = null;
+  });
+}
+
+async function executeVolumeSync() {
+  bumpInteraction(true);
+  const key = document.getElementById("key").value.trim();
+  if (!key) {
+    setStatus("KEY REQUIRED FOR SYNC", "err");
+    // Pulse the key input to draw attention
+    const keyInput = document.getElementById("key");
+    keyInput.classList.add("pulse-err");
+    setTimeout(() => keyInput.classList.remove("pulse-err"), 1000);
+    return;
+  }
+  
+  const vMedia = parseInt(document.getElementById("vol_media_val").textContent);
+  const vRinger = parseInt(document.getElementById("vol_ringer_val").textContent);
+  const vNotif = parseInt(document.getElementById("vol_notification_val").textContent);
+  const vAlarm = parseInt(document.getElementById("vol_alarm_val").textContent);
+  
+  const btn = document.getElementById("volExecuteBtn");
+  btn.disabled = true;
+  btn.classList.add("loading");
+  
+  try {
+    // Construct the command with all 4 volumes
+    const url = `/control?cmd=set_volume&key=${key}&cmd2=${vMedia}&cmd3=${vRinger}&cmd4=${vNotif}&cmd5=${vAlarm}`;
+    
+    const res = await fetch(url);
+    if (res.ok) {
+      setStatus("VOLUME SYNC TRANSMITTED", "busy");
+      // Add success pulse glow
+      btn.style.borderColor = "var(--teal)";
+      btn.style.boxShadow = "0 0 10px var(--teal-glow)";
+      setTimeout(() => {
+        btn.disabled = false;
+        btn.classList.remove("loading");
+        btn.style.borderColor = "";
+        btn.style.boxShadow = "";
+      }, 2000);
+    } else {
+      throw new Error("Sync Failed");
+    }
+  } catch (e) {
+    setStatus("VOLUME SYNC FAILED", "err");
+    // Add failure pulse glow
+    btn.style.borderColor = "var(--red)";
+    btn.style.boxShadow = "0 0 10px rgba(239, 68, 68, 0.4)";
+    setTimeout(() => {
+      btn.disabled = false;
+      btn.classList.remove("loading");
+      btn.style.borderColor = "";
+      btn.style.boxShadow = "";
+    }, 2000);
+  }
+}
+
 
 
 // ── System Initialization ─────────────────────────────────────
 handleIncomingLocation();
 startPolling();
 checkInitialLogin();
+setupVolumeDragging();

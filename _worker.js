@@ -378,35 +378,45 @@ export default {
         return renderTactical("UNAUTHORIZED", 401);
       }
 
-      // Dynamically capture all 13+ parameters
+      // Dynamically capture all incoming parameters
       const hardwareData = { updated: Date.now() };
       for (const [k, v] of searchParams.entries()) {
         if (k !== "key") hardwareData[k] = v;
       }
-      
-      // Persist to D1 for history
-      try {
-        const battery = parseInt(hardwareData.battery_level || "0");
-        const battStatus = (hardwareData.battery_status || "").toLowerCase().trim();
-        // Handle both "on"/"off" and "1"/"0"
-        const charging = (battStatus === "on" || battStatus.includes("charging") || hardwareData.battery_status === "1") ? 1 : 0;
 
-        const signal = parseInt(hardwareData.signal_strength || "0");
-        const rawTemp = hardwareData.battery_temperature || "0";
+      // ── Persistent Status Merging ──
+      const existingStatusRaw = await env.LOCATION_KV.get("status");
+      let mergedData = { ...hardwareData };
+      if (existingStatusRaw) {
+        try {
+          const existingStatus = JSON.parse(existingStatusRaw);
+          // Merge incoming into existing, ensuring 'updated' is always the newest
+          mergedData = { ...existingStatus, ...hardwareData };
+        } catch (e) {}
+      }
+
+      // Persist to D1 for history (using merged data to avoid 0s on partial updates)
+      try {
+        const battery = parseInt(mergedData.battery_level || "0");
+        const battStatus = (mergedData.battery_status || "").toLowerCase().trim();
+        const charging = (battStatus === "on" || battStatus.includes("charging") || mergedData.battery_status === "1") ? 1 : 0;
+
+        const signal = parseInt(mergedData.signal_strength || "0");
+        const rawTemp = mergedData.battery_temperature || "0";
         const temp = rawTemp.includes("°") ? rawTemp : (rawTemp === "0" ? "0°C" : rawTemp + "°C");
-        const uptime = hardwareData.phone_uptime || "Unknown";
+        const uptime = mergedData.phone_uptime || "Unknown";
         
-        // Pack all 13 parameters + others into extra_data for the popup
         const extraData = JSON.stringify({
-          torch: hardwareData.glyphtorch_status,
-          alarm: hardwareData.alaram_volume,
-          media: hardwareData.media_volume,
-          ringer: hardwareData.ringer_volume,
-          notif: hardwareData.notification_volume,
-          location: hardwareData.location_status,
-          wifi: hardwareData.wifi_status,
-          bluetooth: hardwareData.bluetooth_status,
-          batt_status: hardwareData.battery_status
+          torch: mergedData.glyphtorch_status,
+          alarm: mergedData.alaram_volume,
+          media: mergedData.media_volume,
+          ringer: mergedData.ringer_volume,
+          notif: mergedData.notification_volume,
+          location: mergedData.location_status,
+          wifi: mergedData.wifi_status,
+          bluetooth: mergedData.bluetooth_status,
+          batt_status: mergedData.battery_status,
+          netmonster: mergedData.netmonster_status
         });
 
         try {
@@ -415,7 +425,6 @@ export default {
           ).bind(Date.now(), battery, charging, signal, temp, uptime, ip, location, extraData).run();
         } catch (dbErr) {
           if (dbErr.message.includes("extra_data")) {
-            // Auto-Migration: Add column if missing
             await env.DB.prepare("ALTER TABLE status_logs ADD COLUMN extra_data TEXT").run();
             await env.DB.prepare(
               "INSERT INTO status_logs (timestamp, battery, charging, signal, temperature, uptime, ip, location, extra_data) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
@@ -428,7 +437,7 @@ export default {
         console.error("D1 Hardware Log Error:", e);
       }
 
-      await env.LOCATION_KV.put("status", JSON.stringify(hardwareData));
+      await env.LOCATION_KV.put("status", JSON.stringify(mergedData));
       return renderTactical("OK STATUS", 200);
     }
 
@@ -488,12 +497,38 @@ export default {
       const cmd = url.searchParams.get("cmd");
       const key = url.searchParams.get("key"); // This is the MACROS KEY
       const cmd2 = url.searchParams.get("cmd2");
+      const cmd3 = url.searchParams.get("cmd3");
+      const cmd4 = url.searchParams.get("cmd4");
+      const cmd5 = url.searchParams.get("cmd5");
       
       const macroId = env.MACRO_ID || "PASTE_YOUR_ID_FOR_LOCAL_TESTING";
       let target = `https://trigger.macrodroid.com/${macroId}/control?cmd=${cmd}&key=${key}`;
       if (cmd2) target += `&cmd2=${encodeURIComponent(cmd2)}`;
+      if (cmd3) target += `&cmd3=${encodeURIComponent(cmd3)}`;
+      if (cmd4) target += `&cmd4=${encodeURIComponent(cmd4)}`;
+      if (cmd5) target += `&cmd5=${encodeURIComponent(cmd5)}`;
       
-      return await fetch(target);
+      const response = await fetch(target);
+
+      // Optimistically update KV so the UI doesn't bounce back during next poll
+      if (response.ok && cmd === "set_volume") {
+        try {
+          const existingStatusRaw = await env.LOCATION_KV.get("status");
+          if (existingStatusRaw) {
+            let existingStatus = JSON.parse(existingStatusRaw);
+            if (cmd2) existingStatus.media_volume = cmd2;
+            if (cmd3) existingStatus.ringer_volume = cmd3;
+            if (cmd4) existingStatus.notification_volume = cmd4;
+            if (cmd5) existingStatus.alaram_volume = cmd5;
+            existingStatus.updated = Date.now();
+            await env.LOCATION_KV.put("status", JSON.stringify(existingStatus));
+          }
+        } catch (e) {
+          console.error("Failed to optimistic update volumes", e);
+        }
+      }
+
+      return response;
     }
 
     if (url.pathname === "/api/macros/execute") {
@@ -1716,7 +1751,8 @@ export default {
             lastDay = dayStr;
           }
 
-          const extraJson = btoa(r.extra_data || "{}");
+          // Safe Base64 encoding for Unicode
+          const extraJson = btoa(encodeURIComponent(r.extra_data || "{}"));
 
           const battColor = r.battery < 20 ? '#f87171' : (r.battery < 50 ? '#fbbf24' : '#00dca0');
           const chargingIcon = r.charging ? '⚡' : '';
@@ -1965,7 +2001,12 @@ export default {
     function showExtra(btn, e) {
       if (e) e.stopPropagation();
       let data = {};
-      try { data = JSON.parse(atob(btn.dataset.extra)); } catch(err) {}
+      try { 
+        data = JSON.parse(decodeURIComponent(atob(btn.dataset.extra))); 
+      } catch(err) {
+        // Fallback for older entries encoded directly with btoa
+        try { data = JSON.parse(atob(btn.dataset.extra)); } catch(fallbackErr) {}
+      }
       const battery = parseInt(btn.dataset.battery) || 0;
       const charging = btn.dataset.charging === '1';
       const signal = btn.dataset.signal || 'UNKNOWN';
@@ -2005,6 +2046,7 @@ export default {
         { label: 'ALARM VOL',    html: formatVol(data.alarm) },
         { label: 'RINGER VOL',   html: formatVol(data.ringer) },
         { label: 'NOTIF VOL',    html: formatVol(data.notif) },
+        { label: 'NETMONSTER',   html: '<span style="color:#00ffc8;font-size:10px;">' + (data.netmonster || 'N/A') + '</span>' },
       ];
 
       let html = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">';
