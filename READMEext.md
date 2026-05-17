@@ -35,6 +35,22 @@ The system features a multi-tiered IP intelligence service to provide geographic
 
 This ensures that the dashboard remains fast and does not exceed external API rate limits, even with multiple users or high traffic.
 
+### 3. Persistent KV Status Merging
+When the mobile device reports only specific or partial diagnostic datasets (such as a NetMonster network telemetry string) to the `/status` endpoint, a flat overwrite of the stored JSON object would obliterate other vital telemetry fields like battery level, active volumes, and hardware toggles. The Cloudflare Worker resolves this with a state-merging pipeline:
+
+1. Retrieves the current JSON object stored in the `LOCATION_KV` namespace under the key `"status"`.
+2. Parses the existing data and merges the new incoming query parameters directly on top.
+3. Automatically updates the overall `updated` timestamp to the current server system time.
+4. Overwrites the KV namespace with the merged state.
+
+This ensures single-parameter updates maintain dashboard consistency without forcing the mobile client to re-transmit massive payloads of static configuration parameters on every update request.
+
+### 4. UTF-8 Safe Unicode Base64 Encoding
+To save status history containing complex Unicode and extended Latin characters (e.g., specific telemetry bullets `•` or cell tower representation characters `᛫` in carrier data strings) inside the D1 database log payloads, the system bypasses standard browser/worker `btoa()` limitations (which throw `InvalidCharacterError` on strings exceeding the Latin-1 range):
+
+- **Worker-side Encoding**: String data is first wrapped inside `encodeURIComponent` before executing `btoa()`. This safely converts multi-byte Unicode strings into standard ASCII URI octets before executing the base64 transformation.
+- **Client-side Decoding**: The javascript payload decoding block uses a safe fallback pipeline: it decodes using `decodeURIComponent(atob(...))` to unpack the Unicode payload, and falls back to standard `atob()` if processing older legacy telemetry logs that were saved before the URI-encoded migration.
+
 ---
 
 ## 📅 Task Scheduling Pipeline
@@ -65,6 +81,12 @@ When a restricted endpoint is accessed without a valid session, the system doesn
 ### Vault Authentication
 The File Vault uses a separate authentication token (`vault_token`) to ensure that even if a main session is compromised, sensitive files (Images/Audio/Video) remain locked behind a second password.
 
+### Absolute Inactivity Guard
+To guarantee the system locks itself securely even in background states:
+- **Tab Throttling Workaround**: Rather than counting ticking intervals (e.g. `idleMinutes++`) which browsers aggressively slow down or pause in minimized background tabs, the system implements an absolute-timestamp comparison pipeline.
+- **Verification Engine**: When any interactive event occurs (such as keypresses, mouse movement, touches, or scroll triggers), a global `lastInteractionTime` timestamp is refreshed.
+- **Exclusion Verification**: The background system loop running every 60 seconds calculates `Date.now() - lastInteractionTime`. If the delta exceeds 30 minutes, it calls `logout()` instantly. If the tab was suspended, the logout action runs immediately upon the tab being re-awakened.
+
 ---
 
 ## 🎨 Frontend Implementation
@@ -88,6 +110,23 @@ The aesthetic is controlled via CSS variables in `:root`, ensuring consistency:
 - `--teal`: `#00dca0` (Primary Action)
 - `--teal-dim`: `rgba(0, 220, 160, 0.16)` (Panel Backgrounds)
 - `--panel`: `rgba(5, 26, 20, 0.95)` (Glassmorphism effect)
+
+### 3. Adaptive UI Polling Engine
+To conserve network bandwidth and mobile device resources, the client dashboard utilizes a smart adaptive polling cadence linked directly to the user's active context:
+- **High-Speed Cadence (2s delay)**: Automatically triggers immediately following any control action execution (or panel interaction) for up to 60 seconds. This provides near-instant visual confirmation as commands execute and report back.
+- **Normal Cadence (5s delay)**: Activated while the dashboard remains open and active in the viewport, ensuring smooth telemetry refreshes under typical usage.
+- **Idle Cadence (30s delay)**: Engaged automatically if no interactions (mouse moves, clicks, keyboard entries, touch inputs) are detected for more than 2 minutes. This minimizes server load during passive periods.
+
+### 4. Interactive Drag-to-Slide Volume Columns
+The volume sidebar is enhanced with mouse-drag and touch-drag event mapping:
+- Custom tracking hooks `mousedown`, `mousemove`, `touchstart`, and `touchmove` monitor drag coordinate deltas over the vertical slider track.
+- Volume levels update in real time with high-performance CSS sizing and dynamic percentage calculations.
+- A floating **Sync Button** features smooth rotation transforms on hover and an continuous CSS spin animation (`sync-spin`) during active network transmission phases.
+
+### 5. High-Contrast Telemetry Block Styling
+To make important telemetry data stand out in the terminal logs (such as cellular diagnostic updates), the system features a dedicated styling class:
+- **CSS Class `.t-text.telemetry`**: Employs standard terminal monospacing with custom `1px` letter-spacing, a glowing `.telemetry` text shadow, and a distinct vertical solid teal left-border.
+- This creates an attractive, high-contrast, segmented visual box that lets critical network notifications pop amongst generic system logs.
 
 ---
 
@@ -140,6 +179,8 @@ MacroDroid should send a GET request with the following query parameters:
 - `battery_temperature`: String (e.g., "35°C").
 - `signal_strength`: Integer (dBm).
 - `phone_uptime`: String (e.g., "12:34:56").
+- `netmonster_status`: String (e.g., "Airtel 4G • LTE 1800"). Represents cellular network signal metrics from NetMonster.
+
 
 ### 2. Vault Upload (`/upload`)
 Files are uploaded as binary `POST` requests.

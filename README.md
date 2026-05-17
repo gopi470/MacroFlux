@@ -30,6 +30,7 @@ graph TD
 The platform implements a multi-layered security model to ensure restricted access:
 
 - **Primary Gateway**: Protected by a global `ACCESS_KEY` secret. Valid authentication sets a `session=authorized` cookie with a 30-minute TTL.
+- **Inactivity Guard**: The 30-minute idle check utilizes absolute timestamp mathematics (`Date.now() - lastInteractionTime`) rather than interval ticks, ensuring full resilience against modern browser background tab throttling.
 - **Unauthorized Handling**: Attempting to access restricted paths without a session triggers a "Tactical Unauthorized" page with a 7-second auto-redirect to login and IP/Geo logging of the intruder.
 - **Vault Security**: The file vault (`/vault`) requires a secondary `VAULT_PASS` secret. Successful auth sets a `vault_token=authorized` cookie (10-minute TTL).
 - **MacroDroid Auth**: Device-to-Server communication is secured via a `REPORT_KEY` query parameter, validated against worker secrets.
@@ -50,8 +51,8 @@ The platform implements a multi-layered security model to ensure restricted acce
 
 ### System APIs
 | Path | Method | Auth | Description |
-|---|---|---|
-| `/status` | GET | `REPORT_KEY` | Receive battery/temp/signal from device |
+|---|---|---|---|
+| `/status` | GET | `REPORT_KEY` | Receive hardware & network status. Integrates KV state-merging to prevent partial updates from resetting other telemetry. |
 | `/report` | GET | `REPORT_KEY` | Update live location maps link |
 | `/poll` | GET | Session | Real-time state fetch for dashboard |
 | `/control` | GET | Session | Immediate command trigger via MacroDroid |
@@ -66,6 +67,8 @@ The backend is a monolithic **Cloudflare Worker** (`_worker.js`) handling 100% o
 
 - **Dynamic Routing**: A custom request handler processes both API calls and HTML page rendering.
 - **HTML Injection**: Uses `HTMLRewriter` to dynamically inject a shared Cyberpunk navigation menu and styles into static assets (`home.html`, etc.).
+- **KV Status Merging**: The `/status` handler merges incoming telemetry fields on top of current stored data. This allows single-parameter triggers (like NetMonster network scans) to preserve battery, signal, and volume levels in the global state.
+- **Unicode Safe Logs**: Encodes D1 database extra logs using `encodeURIComponent` before `btoa()`, preventing global system crashes on Unicode and extended character ranges (e.g., cell tower symbols `•` or `᛫`).
 - **Cron Scheduler**: A `scheduled` event handler runs every minute, checking the D1 database for pending commands and triggering them automatically.
 - **Log Equalization**: An intelligent algorithm filters noisy requests (like `/poll`) from the history log while ensuring critical events are always recorded.
 - **IP Intelligence**: Multi-provider geo-lookup logic (ipapi.co with fallback to ip-api.com) with a D1 caching layer to stay within rate limits.
@@ -79,10 +82,11 @@ The frontend is built for speed and aesthetics, adhering to a **"Tactical Cyberp
 - **Core Tech**: Vanilla HTML5, CSS3, and JavaScript. No heavy frameworks.
 - **Theming**: Deep blacks (`#06080a`), tactical teals (`#00dca0`), and alert reds (`#ef4444`).
 - **Typography**: Uses `Share Tech Mono` for a terminal feel and `Rajdhani` for UI elements.
-- **Interactivity**: 
-    - **Live Polling**: Dashboards refresh data every 5 seconds with "New Row" highlight animations.
-    - **Glassmorphism**: Subtle backdrop blurs and semi-transparent panels.
-    - **Responsive**: Fully optimized for mobile (Android/iOS) and desktop browsers.
+- **Adaptive Polling**: Accelerates state updates during user interaction (2s on actions, 5s standard) and dials back to low-power idle mode (30s) during periods of inactivity to save device resources and network bandwidth.
+- **Interactive Controls**: Drag-to-slide volume columns, responsive click actions, and a rotating floating sync button that spins on active telemetry updates.
+- **High-Contrast Telemetry Logs**: Features custom glowing `.telemetry` UI borders and text-shadow blocks for real-time reporting (like NetMonster data) directly in the console.
+- **Glassmorphism**: Subtle backdrop blurs and semi-transparent panels.
+- **Responsive**: Fully optimized for mobile (Android/iOS) and desktop browsers.
 
 ---
 
