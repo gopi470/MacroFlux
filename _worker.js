@@ -956,7 +956,7 @@ export default {
   <meta charset="UTF-8">
   <title>File Vault</title>
   <link rel="icon" type="image/svg+xml" href="/favicon.svg">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=0.3, maximum-scale=5.0">
+  <meta name="viewport" content="initial-scale=1.0, minimum-scale=0.3, maximum-scale=5.0, user-scalable=yes">
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { background: #06080a; color: #00dca0; font-family: 'Courier New', monospace; padding: 24px 24px 24px 76px; font-size: 13px; }
@@ -1398,7 +1398,7 @@ export default {
   <title>Request Logs</title>
   <link rel="icon" type="image/svg+xml" href="/favicon.svg">
   <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=0.3, maximum-scale=5.0, user-scalable=yes">
+  <meta name="viewport" content="initial-scale=1.0, minimum-scale=0.3, maximum-scale=5.0, user-scalable=yes">
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { background: #06080a; color: #00dca0; font-family: 'Courier New', monospace; padding: 24px 24px 24px 76px; font-size: 13px; }
@@ -1991,7 +1991,7 @@ export default {
   <title>Status Logs</title>
   <link rel="icon" type="image/svg+xml" href="/favicon.svg">
   <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=0.3, maximum-scale=5.0, user-scalable=yes">
+  <meta name="viewport" content="initial-scale=1.0, minimum-scale=0.3, maximum-scale=5.0, user-scalable=yes">
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { background: #06080a; color: #00dca0; font-family: 'Courier New', monospace; padding: 24px 24px 24px 76px; font-size: 13px; }
@@ -2468,7 +2468,7 @@ export default {
 <html lang="en">
 <head>
   <meta charset="UTF-8"><title>Schedule Logs</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=0.3, maximum-scale=5.0, user-scalable=yes">
+  <meta name="viewport" content="initial-scale=1.0, minimum-scale=0.3, maximum-scale=5.0, user-scalable=yes">
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { background: #06080a; color: #00dca0; font-family: 'Courier New', monospace; padding: 24px 24px 24px 76px; font-size: 13px; }
