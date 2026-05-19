@@ -56,52 +56,7 @@ What started as a simple toggle controller grew into a full surveillance and tel
 
 ### Data Flow Diagram
 
-```mermaid
-flowchart TB
-    subgraph DEVICE["Android Device"]
-        MD["MacroDroid Automation"]
-    end
-
-    subgraph CLOUD["Cloudflare Edge"]
-        direction TB
-        W["Worker\n(Router + Auth + Logic)"]
-        subgraph STORAGE["Storage"]
-            direction LR
-            KV[("KV Store\n(Live State + Files)")]
-            D1[("D1 Database\n(Logs + Schedules)")]
-        end
-        CRON["Cron Trigger\n(every minute)"]
-    end
-
-    subgraph CLIENT["Web Browser"]
-        DASH["Dashboard UI"]
-    end
-
-    %% Telemetry ingestion
-    MD -- "POST /status\n(battery, signal, network)" --> W
-    W -- "merge + write" --> KV
-    W -- "append log" --> D1
-
-    %% File upload
-    MD -- "POST /upload\n(image, audio, video)" --> W
-    W -- "write binary" --> KV
-    W -- "index metadata" --> D1
-
-    %% Dashboard polling
-    DASH -- "GET /poll" --> W
-    W -- "read state" --> KV
-    W -- "return JSON" --> DASH
-
-    %% Control command
-    DASH -- "GET /control\n(command)" --> W
-    W -- "webhook trigger" --> MD
-
-    %% Cron scheduling
-    CRON -- "tick" --> W
-    W -- "query PENDING" --> D1
-    W -- "execute scheduled command" --> MD
-    W -- "update status" --> D1
-```
+![Data Flow Diagram](docs/data_flow_diagram.png)
 
 ---
 

@@ -1,316 +1,407 @@
 # Remote Phone Control UI — Extended Technical Documentation
 
-This document provides a deep dive into the internal logic, algorithms, and architectural decisions of the Remote Phone Control UI system.
+This document provides a comprehensive, developer-grade deep dive into the internal logic, state machines, algebraic formulas, and architectural designs of the Remote Phone Control UI system.
 
 ---
 
 ## Table of Contents
-1. [Advanced Algorithms](#advanced-algorithms)
-2. [Task Scheduling Pipeline](#task-scheduling-pipeline)
-3. [Security Architecture](#security-architecture)
-4. [Frontend Implementation](#frontend-implementation)
-5. [Database Management](#database-management)
-6. [Development and Deployment Tips](#development-and-deployment-tips)
-7. [Environment Secrets Reference](#environment-secrets-reference)
-8. [MacroDroid Integration Details](#macrodroid-integration-details)
-9. [Performance and Concurrency Optimizations](#performance-and-concurrency-optimizations)
-10. [Browser Intelligence and Device Detection](#browser-intelligence-and-device-detection)
-11. [Specialized Utility Systems](#specialized-utility-systems)
-12. [Scaling and Optimization Limits](#scaling-and-optimization-limits)
-13. [Conceptual Overview](#conceptual-overview)
-14. [Common Troubleshooting](#common-troubleshooting)
-15. [Future Expansion Ideas](#future-expansion-ideas)
+1. [System Overview](#system-overview)
+2. [System Architecture](#system-architecture)
+3. [Authentication and Security](#authentication-and-security)
+4. [Endpoints and API Reference](#endpoints-and-api-reference)
+5. [Backend Infrastructure](#backend-infrastructure)
+6. [Frontend Design System](#frontend-design-system)
+7. [Mobile Responsiveness](#mobile-responsiveness)
+8. [Database Schema](#database-schema)
+9. [Task Scheduling Pipeline](#task-scheduling-pipeline)
+10. [Vault HUD and Media Processing](#vault-hud-and-media-processing)
+11. [Performance and Optimization](#performance-and-optimization)
+12. [Browser Intelligence and Device Detection](#browser-intelligence-and-device-detection)
+13. [Setup Instructions](#setup-instructions)
+14. [Environment Variables Reference](#environment-variables-reference)
+15. [Common Troubleshooting](#common-troubleshooting)
+16. [Project File Directory](#project-file-directory)
+17. [Future Expansion Ideas](#future-expansion-ideas)
+18. [License](#license)
 
 ---
 
-## Advanced Algorithms
+## System Overview
 
-### 1. Log Equalization and Filtering
-To prevent the dashboard's high-frequency polling from overwhelming the Cloudflare D1 database and cluttering the user interface, the system implements a log equalization algorithm in the worker handler. The system checks if the pathname matches a set of noisy routes (such as /poll, /favicon.ico, and /requests). When a /poll request is handled, the worker evaluates a random check to skip writing the log entry ninety-five percent of the time.
+This platform provides low-latency telemetry ingestion, real-time command routing, and media vault management. Deployed on Cloudflare Workers, the system relies on D1 SQL databases for relational state management and KV namespaces for high-capacity binary assets and transient configurations.
 
-- Objective: Maintain a one hundred percent audit trail for critical actions (commands, unauthorized attempts) while only sampling background activity.
-- Result: Reduces database write volume by approximately ninety-five percent for background traffic.
-- User Interface Benefit: The HTTP Logs view remains readable and relevant without needing massive manual filtering.
+### Performance Philosophy
+Traditional servers introduce CPU overhead, cold starts, and container state maintenance issues. By moving the routing layer to Cloudflare's global edge network:
+- Telemetry processing is executed within milliseconds of the target device transmitting status packets.
+- Edge database lookups bypass long network round-trips by utilizing localized read replicas and memory caches.
+- Memory consumption is optimized by streaming requests directly to disk or key-value structures without loading large blobs into worker instances.
 
-### 2. IP Intelligence and Geolocation Caching
-The system features a multi-tiered IP intelligence service to provide geographic context for every request.
+---
 
-- Primary Provider: ipapi.co
-- Fallback Provider: ip-api.com
-- Caching Layer: Every lookup is stored in the geo_cache table in D1.
-- Workflow:
-    1. Check D1 for existing IP data.
-    2. If missing, query the Primary Provider.
-    3. If rate-limited or the request fails, query the Fallback Provider.
-    4. Store the result in D1 with a timestamp.
+## System Architecture
 
-This ensures that the dashboard remains fast and does not exceed external API rate limits, even with multiple users or high traffic.
+### Conceptual Layers
+The system behaves as a three-tier architecture distributed between the edge cloud, the target hardware, and the administration console:
+![Data Flow Diagram](docs/data_flow_diagram.png)
 
-### 3. Persistent Key-Value Status Merging
-When the mobile device reports only specific or partial diagnostic datasets (such as a NetMonster network telemetry string) to the /status endpoint, a flat overwrite of the stored JSON object would obliterate other vital telemetry fields like battery level, active volumes, and hardware toggles. The Cloudflare Worker resolves this with a state-merging pipeline:
+#### Android Device Layer (Sensor & Automation Provider)
+The target Android device acts as a sensor gateway and automation executor. Using MacroDroid:
+- Hardware changes (such as battery charge, signal degradation, volume slider shifts) are bound to trigger events.
+- These events execute HTTP POST requests payloaded with JSON telemetry datasets pointing to the Cloudflare Worker status endpoint.
+- File system watchers monitor local directories (such as camera folders or audio recorders) and automatically stream binary data blocks to the worker upload path.
 
-1. Retrieves the current JSON object stored in the LOCATION_KV namespace under the key status.
-2. Parses the existing data and merges the new incoming query parameters directly on top.
-3. Automatically updates the overall updated timestamp to the current server system time.
-4. Overwrites the Key-Value namespace with the merged state.
+#### Cloudflare Workers Layer (Serverless Application Kernel)
+The worker script runs on Cloudflare's serverless V8 isolate engine. It acts as the routing kernel, handling:
+- Security validation (session verification, JWT validation, cookie decryption).
+- Telemetry state merging and location coordinate caching.
+- File vault cataloging and binary block streaming using HTTP range slicing.
+- Scheduled task verification and automated Cron triggers.
 
-This ensures single-parameter updates maintain dashboard consistency without forcing the mobile client to re-transmit massive payloads of static configuration parameters on every update request.
+#### Client Dashboard Layer (User Console)
+The frontend dashboard provides a graphical interface representing the active state of the device:
+- It maintains an adaptive polling interval, querying the worker status endpoint via AJAX.
+- It translates raw volume percentages and toggle states into interactive UI columns, sliders, and progress indicators.
+- It displays historical status logs, schedule logs, and audited HTTP request histories via smart table rehydration.
 
-### 4. UTF-8 Safe Unicode Base64 Encoding
-To save status history containing complex Unicode and extended Latin characters (such as specific telemetry bullets or cell tower representation characters in carrier data strings) inside the D1 database log payloads, the system bypasses standard browser and worker Base64 encoding limitations (which throw character errors on strings exceeding the Latin-1 range).
+#### KV and D1 Division of Labor
+To keep resource costs at zero and speed at maximum, storage responsibilities are divided by access pattern:
+- Cloudflare Key-Value (KV) Storage: Optimized for high-throughput, simple lookup parameters. It holds the active live state JSON block (read on every poll request) and raw media files (images, audio records, and video recordings).
+- Cloudflare D1 SQL Database: Optimized for relational queries, structured log filtering, and transactional updates. It manages HTTP request logs, historical battery/signal heatmaps, queued cron commands, and vault file metadata indexes.
 
-- Worker-side Encoding: String data is first wrapped inside encodeURIComponent before executing the Base64 transformation. This safely converts multi-byte Unicode strings into standard ASCII URI octets before executing the base64 transformation.
-- Client-side Decoding: The JavaScript payload decoding block uses a safe fallback pipeline: it decodes using decodeURIComponent after performing the Base64 decode to unpack the Unicode payload, and falls back to standard Base64 decode if processing older legacy telemetry logs that were saved before the URI-encoded migration.
+---
 
-### 5. Asynchronous Client-Side Audio PCM Decoding
-To present an authentic voiceprint profile instead of a simulated graphic visualizer, the standalone HUD media center decodes actual audio channels directly in the browser.
-- Offline Decoding Pipeline: When an audio source is loaded, it intercepts the URL and performs a binary fetch requesting the audio resource. It passes the resulting binary data directly into the OfflineAudioContext decode method.
-- Peak Downsampling: The mono channel raw floating-point samples are grouped into two hundred and fifty sequential blocks. For each block, it calculates the absolute amplitude average.
-- Dynamic Range Normalization: It maps the absolute peak value to a ceiling of ninety pixels, scaling all other bars proportionally. It applies a soft cosine window padding to both boundaries (fade-in and fade-out over fifteen bars) to draw a clean vocal waveform canvas.
+## Authentication and Security
 
-### 6. Binary-level JPEG EXIF/TIFF Parsing
-Surveillance photographs contain critical tactical parameters that must be reviewed. The HUD integrates a lightweight binary parser that walks JPEG structures without external dependencies:
-- Marker Traversal: The parser scans the binary data using a DataView. It skips the Start of Image marker and reads headers until it locates the APP1 Marker.
-- TIFF Header Parsing: It validates the Exif signature, detects byte endianness (Big Endian or Little Endian), and skips to the first Image File Directory.
-- Directory Resolution: It searches the tag catalogue for the GPS Info directory pointer. Upon resolution, it walks the GPS directory to extract latitude and longitude references and coordinate values.
-- Coordinate Conversion: Rational coordinates (stored as numerator and denominator fractions) are translated into high-precision decimal coordinates (degrees + minutes divided by sixty + seconds divided by thirty-six hundred) and multiplied by negative one if referencing West or South vectors, enabling Google Maps plotting.
+### JSON Web Token (JWT) Details
+Session authorization utilizes JSON Web Tokens (JWT) signed with the Hash-based Message Authentication Code (HMAC) using the SHA-256 algorithm (HS256).
 
-### 7. Multi-Touch Pinch-to-Zoom Gestures
-To optimize mobile tactical review of high-resolution aerial and device photos, the display canvas supports native pinch gestures:
-- Calculated Scale Matrix: Tracks standard pointer touches. If two touches are present, it continuously computes the hypotenuse distance between pointers.
-- Pinch Ratio Mapping: It computes a scaling factor against the original touch delta and maps the result to a strict one hundred percent to five hundred percent zoom scale.
-- Trackpad Intercepts: Intercepts desktop trackpad wheel gestures (when combined with the Ctrl key) to scale zooming values smoothly by increments of twelve percent while calling preventDefault to lock browser viewport scaling.
+#### Token Structure
+- Header: Specifies the algorithm (HS256) and token type (JWT).
+- Payload: Contains standard claims:
+  - sub (subject): set to admin.
+  - iat (issued at): epoch timestamp when the session was created.
+  - exp (expiration): set to 24 hours after issuance.
+- Signature: Generated by hashing the base64url-encoded header and payload with either the custom JWT_SECRET or the ACCESS_KEY fallback.
 
-### 8. HTTP 206 Range Request Slicing (Backend Worker)
-To enable mobile and edge browsers to smoothly seek and scrub through large tactical video and audio recordings, the Cloudflare Worker implements standard range slicing:
-- Header Parsing: Evaluates incoming Range headers (such as bytes=start-end).
-- Memory Optimization: Rather than pulling massive audio files into the worker's constrained memory limit, the server slices the D1 or Key-Value data directly at the exact start and end byte offsets before passing them into the client socket.
-- Compliance Handshake: Returns the sliced segment with an HTTP 206 Partial Content status along with a configured Content-Range header.
+#### Verification Pipeline
+On every incoming restricted request, the worker parses the HTTP Cookie header, extracts the session token, decodes the payload, validates that the expiration timestamp is in the future, and recalculates the signature using the server-side secret. If any check fails, the session is invalidated, and the request is aborted.
+
+### Absolute Inactivity Guard Engine
+Rather than relying on JavaScript window timer loops (which are routinely throttled or paused by modern mobile browsers to reduce battery drain in background tabs), the platform implements a time-delta evaluation mechanism:
+- User activity listeners (bound to click, keydown, scroll, and touchstart events) update a value stored in browser local storage with the current system millisecond value.
+- Every sixty seconds, a background loop calculates the delta between the current system time and the last saved activity timestamp.
+- If this delta exceeds thirty minutes, the browser clears all cookies and forces a redirection to the logout gateway.
+- If the browser tab was suspended in the background for hours, the check runs instantly upon tab activation, ensuring an immediate session termination.
+
+### Tactical Unauthorized Access Logging
+When an unauthenticated request hits a protected resource (such as /home, /schedule, or /vault/list), the system initiates an intruder isolation routine:
+- It reads connection metadata, extracting the IP address, User-Agent header, and Cloudflare-injected geolocation parameters (country, region, city).
+- It inserts a security log record into D1 with a status code of 401.
+- It renders a crimson Tactical Red page with an animated lock symbol and a seven-second countdown.
+- Once the countdown reaches zero, the browser is redirected back to the login screen.
+
+### Vault Encryption and Isolation
+The vault features a separate password lock to guarantee security isolation. Even if a user session is active, files stored in the vault remain inaccessible unless a secondary VAULT_PASS challenge is completed. This sets a separate vault_token cookie with a short 10-minute expiry time.
+
+---
+
+## Endpoints and API Reference
+
+| Route | Method | Access Level / Auth | Expected Input | Primary Action & Output |
+|---|---|---|---|---|
+| `/` | GET | None (Optional) | None | Serves the login page. Redirects to `/home` if already authenticated. |
+| `/home` | GET | `session` Cookie | None | Serves the main Command Center dashboard UI. |
+| `/schedule` | GET | `session` Cookie | None | Serves the Task Scheduler queue management UI. |
+| `/requests` | GET | `session` Cookie | None | Serves the HTTP Audit Logs viewer table. |
+| `/statuslogs` | GET | `session` Cookie | None | Serves the battery, signal, and telemetry logs chart. |
+| `/schedule/logs` | GET | `session` Cookie | None | Serves the execution status history for queued commands. |
+| `/vault/list` | GET | `session` & `vault_token` | None | Serves the file index gallery showing images, audio, and video files. |
+| `/vault/display` | GET | `session` & `vault_token` | `id` (Query string) | Serves the standalone media analyzer HUD viewer. |
+| `/status` | GET | `REPORT_KEY` | Telemetry parameters | Ingests and updates batter status, signal, and volume variables. |
+| `/report` | GET | `REPORT_KEY` | Geolocation parameters | Ingests and updates target GPS coordinate variables. |
+| `/upload` | POST | `REPORT_KEY` | Multipart stream | Ingests raw binary data of images, audio, or video logs. |
+| `/poll` | GET | `session` Cookie | None | Returns the active state JSON block for real-time polling updates. |
+| `/control` | GET | `session` Cookie | `action` (Query string) | Forwards commands immediately via webhook requests to MacroDroid. |
+| `/intel` | GET | `session` Cookie | `ip` (Query string) | Resolves geolocation details of logged requests. |
+| `/schedule/create`| POST | `session` Cookie | JSON Config payload | Appends a new command task to the database queue. |
+
+---
+
+## Backend Infrastructure
+
+### Key-Value Status Merging Pipeline
+When the worker receives status parameters from the device, it avoids standard flat object replacement:
+1. It fetches the existing status JSON string from LOCATION_KV.
+2. It parses the string into a temporary memory object.
+3. It loops through all incoming query parameters and overrides only the modified fields (such as updating netmonster_status while leaving battery_level intact).
+4. It sets the updated parameter to the worker's current server time.
+5. It stringifies the merged object and writes it back to the KV storage space.
+
+### NetMonster Sanitizer Logic
+Cellular network diagnostics returned by Android APIs can contain generic placeholder text when connections drop or switch (such as "NETMONSTER", "N/A", "null", or empty strings). The worker applies a sanitization filter:
+- It evaluates both the primary netmonster_status parameter and the backup netmonster_status2 parameter.
+- It runs a match validation routine to check for known generic placeholders.
+- If the primary parameter is generic or missing, it evaluates the backup parameter.
+- If both are invalid, the field is skipped, preventing the system from polluting the dashboard with meaningless network labels.
+
+### Unicode Base64 Encoding Mechanism
+Standard base64 encoding utilities (such as btoa in JavaScript) throw errors when processing strings that fall outside the Latin-1 character set. Because cell tower strings and carrier diagnostics contain special symbols and non-ASCII characters, the worker utilizes a two-step transformation:
+- Encoding: The string payload is passed through encodeURIComponent to convert non-ASCII characters into URL-encoded hexadecimal sequences. The resulting safe ASCII string is then encoded via btoa.
+- Decoding: The decoded base64 string is passed to decodeURIComponent, restoring the original Unicode character representation on the dashboard without risk of execution crashes.
+
+### HTTP 206 Slicing Implementation
+To support scrubbing through media assets (such as surveillance videos or audio recordings) on Safari and Chrome browsers:
+1. The worker intercepts requests containing a Range header (for example, bytes=1024-2048).
+2. It parses the requested range start and range end coordinates.
+3. It retrieves the binary stream from Key-Value storage, slicing the buffer from the requested start byte to the end byte.
+4. It crafts an HTTP 206 response, appending the Content-Range (bytes start-end/total) and Content-Length headers, and streams the partial byte block to the browser.
+
+---
+
+## Frontend Design System
+
+### Design Guidelines
+- Neon Styling: Element borders utilize CSS box-shadow overrides to create glowing teal accents against a solid dark gray backdrop.
+- Terminal Aesthetic: Text blocks use a fixed-width monospace font to emulate a system terminal read-out, making logs and metrics highly readable.
+
+### Fluid Clip-Path Liquid Wobble Animation
+The top edge of the volume level indicators uses an animated wave graphic to represent liquid filling:
+- The bar's top border uses a dynamic CSS clip-path polygon configuration.
+- The polygon's top edge coordinates oscillate using sinusoidal path keyframes.
+- Because only the top edge vertices are animated, the body of the bar remains solid while the surface exhibits a natural fluid ripple.
+
+### Drag-to-Slide Volume Mechanics
+The vertical volume bars utilize coordinated event listeners to enable sliding controls:
+- Mousedown and touchstart listeners activate tracking.
+- Mousemove and touchmove listeners calculate the vertical coordinate position of the cursor relative to the slider's total height.
+- The volume level is mapped to a value between zero and one hundred, updating the UI dynamically and sending the control request when tracking stops.
+
+---
+
+## Mobile Responsiveness
+
+### Horizontal Table Scrolling
+Tables containing HTTP histories and telemetry logs are wrapped in parent containers configured with overflow-x: auto and customized low-profile scrollbars. This keeps column layouts readable on narrow phone screens without scaling down the font size.
+
+### Fluid Flex Containers
+Dashboard control bars and headers utilize flex-wrap styling. When the viewport narrows, control buttons wrap cleanly to a new line instead of causing horizontal layout breaks or text clipping.
+
+### Viewport Configuration and Zoom-Out Mechanics
+To allow users to pinch-zoom the dashboard on mobile screens down to a 0.3x scale:
+- The standard width=device-width instruction is omitted from the viewport meta tag, as this setting locks the page to the device's default width and blocks zoom-out gestures.
+- The meta tag specifies initial-scale=1.0, minimum-scale=0.1, maximum-scale=5.0, and user-scalable=yes.
+- This allows mobile browsers to zoom out, exposing the entire desktop dashboard layout on a small screen.
+
+---
+
+## Database Schema
+
+| Table Name | Primary Key | Columns & Metadata |
+|---|---|---|
+| `logs` | `id` | `timestamp` (TEXT), `method` (TEXT), `path` (TEXT), `status` (INTEGER), `ip` (TEXT), `user_agent` (TEXT), `location` (TEXT) |
+| `status_logs` | `id` | `timestamp` (TEXT), `battery_level` (INTEGER), `battery_status` (TEXT), `battery_temp` (TEXT), `signal_strength` (INTEGER), `uptime` (TEXT), `extra_status` (TEXT) |
+| `command_schedules` | `id` | `command` (TEXT), `params` (TEXT), `execute_time` (INTEGER), `status` (TEXT), `log_output` (TEXT) |
+| `geo_cache` | `ip` | `country` (TEXT), `region` (TEXT), `city` (TEXT), `timestamp` (TEXT) |
+| `vault_files` | `id` | `file_id` (TEXT), `file_type` (TEXT), `file_size` (INTEGER), `content_type` (TEXT), `timestamp` (TEXT) |
+
+### Table Columns and Types
+- logs: Stores audit trails of HTTP requests (Primary Key id, timestamp, method, path, status, ip, user_agent, location).
+- status_logs: Stores hardware battery, temperature, signal, and system uptime logs (Primary Key id, timestamp, battery_level, battery_status, battery_temp, signal_strength, uptime, extra_status).
+- command_schedules: Manages queued tasks (Primary Key id, command, params, execute_time, status, log_output).
+- geo_cache: Stores cached IP location data (Primary Key ip, country, region, city, timestamp).
+- vault_files: Stores metadata for uploaded files (Primary Key id, file_id, file_type, file_size, content_type, timestamp).
 
 ---
 
 ## Task Scheduling Pipeline
 
-The system supports both immediate and delayed command execution.
+### Scheduler State Machine
+Scheduled tasks transition through three states:
+- PENDING: The task is successfully queued and waiting for its execution time.
+- EXECUTED: The Cron trigger successfully executed the task and updated the record.
+- FAILED: The execution attempt failed, and the error output was logged.
 
-### Scheduled Execution Flow
-1. Creation: User selects a time and command in the scheduler interface.
-2. Persistence: The request is stored in the command_schedules table with a PENDING status.
-3. Trigger: A Cloudflare Workers Cron Trigger (configured to run every minute) fires.
-4. Processing:
-   - The scheduled handler in the worker queries D1 for all PENDING tasks where the target time is less than or equal to the current time.
-   - Each task is executed via a fetch request to the MacroDroid webhook.
-   - The response from MacroDroid is captured and stored in the log_output column.
-   - The task status is updated to EXECUTED or FAILED.
-
----
-
-## Security Architecture
-
-### Tactical Unauthorized Access Page
-When a restricted endpoint is accessed without a valid session, the system serves a Tactical Alert page:
-- Intruder Logging: Before serving the page, the worker logs the intruder's IP address, User-Agent, and Geolocation to D1.
-- Design: The user interface uses a high-alert red and black theme with a seven-second countdown.
-- Technical Barrier: It uses HttpOnly and Lax cookie flags to prevent script-based session theft.
-
-### Vault Authentication
-The File Vault uses a separate authentication token (vault_token) to ensure that even if a main session is compromised, sensitive files (images, audio, and video) remain locked behind a second password.
-
-### Absolute Inactivity Guard
-To guarantee the system locks itself securely even in background states:
-- Tab Throttling Workaround: Rather than counting ticking intervals (which browsers aggressively slow down or pause in minimized background tabs), the system implements an absolute-timestamp comparison pipeline.
-- Verification Engine: When any interactive event occurs (such as keypresses, mouse movement, touches, or scroll triggers), a global last interaction timestamp is refreshed.
-- Exclusion Verification: The background system loop running every sixty seconds calculates the difference between the current time and the last interaction timestamp. If the delta exceeds thirty minutes, the user is logged out instantly. If the tab was suspended, the logout action runs immediately upon the tab being re-awakened.
+### Cron Execution Loop
+1. The Cron trigger fires at one-minute intervals.
+2. The worker queries the command_schedules table for records marked PENDING where execute_time is less than or equal to the current timestamp.
+3. The worker loops through the matched tasks and fires the MacroDroid control webhook.
+4. The worker updates the status of the tasks based on the webhook response and saves the execution logs to the database.
 
 ---
 
-## Frontend Implementation
+## Vault HUD and Media Processing
 
-### Shared Navigation Injection
-Instead of duplicating the navigation menu across all HTML files, the system uses Cloudflare's HTMLRewriter. The worker invokes Cloudflare's HTMLRewriter on the target element selector '.top-left-menu' and replaces its inner content with the SHARED_NAV_HTML string, transforming the response object on the fly. This allows the navigation menu to be updated in one place (the worker file) and instantly reflect across the home page, scheduler, request logs, and status logs.
+### Asynchronous Client-Side Audio PCM Decoding
+To present an authentic voiceprint profile instead of a simulated graphic visualizer, the standalone HUD media center decodes actual audio channels directly in the browser.
+- Offline Decoding Pipeline: When an audio source is loaded, it intercepts the URL and performs a binary fetch requesting the audio resource. It passes the resulting binary data directly into the OfflineAudioContext decode method.
+- Peak Downsampling: The mono channel raw floating-point samples are grouped into two hundred and fifty sequential blocks. For each block, it calculates the absolute amplitude average.
+- Dynamic Range Normalization: It maps the absolute peak value to a ceiling of ninety pixels, scaling all other bars proportionally. It applies a soft cosine window padding to both boundaries (fade-in and fade-out over fifteen bars) to draw a clean vocal waveform canvas.
 
-### Design Tokens
-The aesthetic is controlled via CSS variables, ensuring consistency:
-- Primary Teal: #00dca0
-- Panel Background: rgba(5, 26, 20, 0.95)
-- Border Radius: 4px
+### Binary-level JPEG EXIF/TIFF Parsing
+Surveillance photographs contain critical parameters that must be reviewed. The HUD integrates a lightweight binary parser that walks JPEG structures without external dependencies:
+- Marker Traversal: The parser scans the binary data using a DataView. It skips the Start of Image marker and reads headers until it locates the APP1 Marker.
+- TIFF Header Parsing: It validates the Exif signature, detects byte endianness (Big Endian or Little Endian), and skips to the first Image File Directory.
+- Directory Resolution: It searches the tag catalogue for the GPS Info directory pointer. Upon resolution, it walks the GPS directory to extract latitude and longitude references and coordinate values.
+- Coordinate Conversion: Rational coordinates (stored as numerator and denominator fractions) are translated into high-precision decimal coordinates (degrees + minutes divided by sixty + seconds divided by thirty-six hundred) and multiplied by negative one if referencing West or South vectors, enabling Google Maps plotting.
 
-### 3. Adaptive UI Polling Engine
-To conserve network bandwidth and mobile device resources, the client dashboard utilizes an adaptive polling cadence linked directly to the user's active context:
-- High-Speed Cadence (2-second delay): Automatically triggers immediately following any control action execution or panel interaction for up to sixty seconds. This provides near-instant visual confirmation.
-- Normal Cadence (5-second delay): Activated while the dashboard remains open and active in the viewport.
-- Idle Cadence (30-second delay): Engaged automatically if no interactions are detected for more than two minutes.
-
-### 4. Interactive Drag-to-Slide Volume Columns
-The volume sidebar is enhanced with mouse-drag and touch-drag event mapping:
-- Custom tracking hooks monitor drag coordinate deltas over the vertical slider track.
-- Volume levels update in real time with high-performance CSS sizing and dynamic percentage calculations.
-- A floating Sync Button features smooth rotation transforms on hover and a continuous spin animation during active network transmission phases.
-
-### 5. High-Contrast Telemetry Block Styling
-To make important telemetry data stand out in the terminal logs (such as cellular diagnostic updates), the system features a dedicated styling class employing terminal monospacing with custom letter-spacing, a glowing text shadow, and a distinct vertical solid teal left-border. This creates an attractive, high-contrast visual box.
-
-### 6. Universal Ctrl plus Select Selector Bypass
-Accidental click-and-drag text highlights disrupt the console's visual fidelity, so text selection is disabled globally by default. However, copying coordinates, cell log details, and timestamps is necessary for diagnostics:
-- Key-state Listeners: Client scripts capture keydown and keyup events for the Control key.
-- Class Injection: When held, the body is appended with a selection mode class.
-- CSS Override Rule: A global stylesheet override ruleset enables text selection on all elements when the class is present, allowing instant copying of any console text.
-
-### 7. Fluid Clip-Path Liquid Wobble Animation
-Volume slider progress bars are styled with a fluid liquid surface animation:
-- Only Top Edge Animation: Animates only the top edge of the filled region, leaving the body static and solid.
-- Dynamic CSS Polygon Masking: Employs a clip-path using a custom polygon coordinate system where the top y-coordinates are locked in absolute pixels while the x-coordinates are spaced in standard percentages. This guarantees that the wave height remains exactly identical regardless of the fill percentage.
-- Keyframe Bending: Uses keyframes to gently bend and shift the polygon vertices, producing a natural fluid surface wobble horizontally and vertically.
+### Multi-Touch Pinch-to-Zoom Gestures
+To optimize mobile review of high-resolution aerial and device photos, the display canvas supports native pinch gestures:
+- Calculated Scale Matrix: Tracks pointer touches. If two touches are present, it continuously computes the hypotenuse distance between pointers.
+- Pinch Ratio Mapping: It computes a scaling factor against the original touch delta and maps the result to a strict one hundred percent to five hundred percent zoom scale.
+- Trackpad Intercepts: Intercepts desktop trackpad wheel gestures (when combined with the Ctrl key) to scale zooming values smoothly by increments of twelve percent while calling preventDefault to lock browser viewport scaling.
 
 ---
 
-## Database Management
+## Performance and Optimization
+
+### Log Equalization and Filtering
+To prevent the dashboard's high-frequency polling from overwhelming the Cloudflare D1 database and cluttering the user interface, the system implements a log equalization algorithm in the worker handler. The system checks if the pathname matches a set of noisy routes (such as /poll, /favicon.ico, and /requests). When a /poll request is handled, the worker evaluates a random check to skip writing the log entry ninety-five percent of the time.
+
+### Non-blocking Analytics
+Logging writes are wrapped in the worker's event context:
+- The worker prepares the response and sends it back to the client immediately.
+- It then executes database logging writes asynchronously inside the event.waitUntil context.
+- This allows logging queries to execute in the background without holding up the client response.
+
+### Smart AJAX Rehydration
+The client interface avoids full table redraws during active polling:
+- When fetching status updates, it requests only the most recent ten log records.
+- The client-side script compares the IDs of incoming records with the rows currently rendered in the DOM.
+- It prepends only new entries and applies a transient CSS highlight animation to indicate the update.
 
 ### Auto-Cleanup Routine
 To stay within the free-tier limits of Cloudflare D1 and ensure high performance, the worker executes a cleanup routine with a five percent probability on every request. The D1 SQL statement deletes rows from the logs table where the ID is found in the ordered list of IDs sorted by descending timestamp, starting after the first two thousand records. This rolling window approach keeps only the two thousand most recent logs, preventing the database from growing indefinitely.
 
----
+### Edge Storage Constraints and Scaling Limits
+To run the application entirely within the free limits of Cloudflare Workers, KV, and D1, the system adheres to strict storage and operational boundaries:
 
-## Development and Deployment Tips
-
-- Local Testing: Use the wrangler command line interface to test the worker logic locally.
-- D1 Migrations: Always update the schema file and run the D1 execute command when adding new tables or columns.
-- MacroDroid Keys: Ensure the report key and access key match between your Worker Secrets and the MacroDroid action configurations.
-
----
-
-## Environment Secrets Reference
-
-The system relies on the following environment variables (set via secrets utility):
-
-- ACCESS_KEY: Password for the primary dashboard login.
-- REPORT_KEY: Authorization key used by MacroDroid to post status, location, and vault files.
-- VAULT_PASS: Secondary password required to open and list files in the Vault.
-- MACRO_ID: The unique ID of the MacroDroid webhook (from the trigger URL).
-- MACRO_KEY: Optional secondary key for MacroDroid webhooks.
-- LOCATION_KV: Binding to the Key-Value namespace.
-- DB: Binding to the D1 Database.
-
----
-
-## MacroDroid Integration Details
-
-### 1. Hardware Status Update
-MacroDroid sends a GET request to the status path with the following query parameters:
-- key: The report key.
-- battery_level: Integer (0-100).
-- battery_status: String (e.g., Charging, Discharging).
-- battery_temperature: String (e.g., 35 degrees C).
-- signal_strength: Integer (dBm).
-- phone_uptime: String (e.g., 12:34:56).
-- netmonster_status: String representing cellular network signal metrics.
-
-### 2. Vault Upload
-Files are uploaded as binary POST requests:
-- Query Parameters: key=REPORT_KEY and type=image, audio, or video.
-- Body: Raw bytes of the file.
-- Logic: The server detects the file type, generates a unique ID, stores the binary in Key-Value storage, and indexes the metadata in D1 for fast retrieval.
-
----
-
-## Performance and Concurrency Optimizations
-
-### 1. Non-Blocking Analytics
-To ensure the user gets a fast response, logging to the D1 database is handled out-of-band. The handler constructs and returns the response block, wrapping the D1 logging promise in the Cloudflare context waitUntil method so the execution completes out-of-band.
-
-### 2. One-Pass Log Processing
-When rendering logs or status logs, the system processes rows of data in a single pass to stay within CPU time limits. It performs date-grouping, status-coloring, and link generation during the initial iteration over the database results.
-
-### 3. Smart Rehydration
-The dashboard's auto-refresh logic doesn't reload the entire table. It fetches only the latest ten logs, compares IDs with the existing document, prepends only new rows, and applies a CSS animation to highlight incoming data.
+| Resource Layer | Free Tier Limit | Application Safeguard & Allocation |
+|---|---|---|
+| Cloudflare Workers CPU Time | 10ms per request | Execution is optimized to complete routing and auth checks in under 2ms. Heavy processes (like D1 writes) are deferred out-of-band using `event.waitUntil`. |
+| Cloudflare D1 Storage | 10MB total capacity | Maintained via a rolling log cleanup. The auto-cleanup routine restricts logs to the 2,000 most recent entries. |
+| Cloudflare KV Storage | 1GB total capacity | Reserved for raw file media storage. Files in the vault are indexed up to 500 files for active lists. |
+| Cloudflare KV Value Size | 25MB per key | Supports uploading large images and audio clips, but media processing limits uploads on MacroDroid to 20MB. |
+| Cloudflare D1 Read/Write Limits | 5M Reads & 95K Writes per day | High-frequency polling hits the KV state cache (which uses zero-cost Worker Subrequests) instead of calling D1. Poll logs are sampled at a 5% rate (equalization logic). |
 
 ---
 
 ## Browser Intelligence and Device Detection
 
-The worker script contains a user agent parser that identifies:
-- Browser: Chrome, Brave, Edge, Opera, Vivaldi, Firefox, Safari.
-- Device Type: Desktop, iPhone, Samsung, Pixel, OnePlus, Xiaomi, Motorola.
-- Client Hints: Utilizes client hint headers where available for more accurate detection.
+The worker analyzes the incoming User-Agent header and client hints to log device details:
+- Browser Engine Detection: Maps browser strings to Chrome, Brave, Firefox, Safari, Edge, Opera, or Vivaldi.
+- Device Model Resolution: Parses hardware patterns to identify iPhone, Samsung, Pixel, OnePlus, Xiaomi, Motorola, or generic desktop systems.
+- OS Identification: Records Windows, Android, macOS, Linux, or iOS operating systems.
 
-This data is stored in the database logs, providing an audit trail of exactly what device was used to access the system.
-
----
-
-## Specialized Utility Systems
-
-### 1. Universal Backspace Navigation
-To provide an app-like experience and prevent accidental page exits, the system implements a backspace interceptor. A global event listener on keydown events intercepts the Backspace key. It checks if the event target is a text input element, text area, or content-editable container; if not, it calls preventDefault and commands the window history object to move back one step.
-
-### 2. Global Favicon Injection
-Instead of manually adding a favicon link to every static HTML file, the worker automatically injects it into every response with a text/html content type. When the content type header contains text/html, the response text is retrieved and modified by performing a regular expression replacement on the head opening tag to append the favicon markup immediately after it.
-
-### 3. Tactical Response Helper
-The worker uses a helper function to generate consistent, themed API and error responses:
-- Visuals: Centered boxes with teal borders and monospaced system response headers.
-- Adaptive Styling: Automatically switches to a red theme for error codes.
-- Consistency: Used for status, location, schedule, and upload responses.
-
-### 4. Smart Redirects
-The system handles navigation intelligently:
-- Vault Gateway: Accessing any vault paths will automatically redirect to the vault authorization gate if the session is missing, preserving the intended destination parameter.
-- Login Loop Prevention: Authenticated users visiting the root or login page are automatically redirected to the home page.
-- Session Expiry: Session cookies are set with a thirty-minute expiry time and Lax flag for security.
+This details exactly what hardware and client software was used to access the control panel.
 
 ---
 
-## Scaling and Optimization Limits
+## Setup Instructions
 
-- Log Limit: Set to two thousand records to maintain database performance.
-- Vault Capacity: Indexed up to five hundred files for listing, limited by Key-Value storage capacity.
-- Rate Limiting: The IP Intelligence module includes delay and fallback logic to prevent being rate-limited by geolocation providers during bursts of traffic.
+### Prerequisites
+- A Cloudflare account with a D1 database and KV namespace provisioned.
+- Node.js and the Wrangler CLI tool installed locally.
+- MacroDroid configured on the target Android device.
+
+### Environment Provisioning
+- Run the command: wrangler d1 create remote_control_ui
+- Run the command: wrangler kv:namespace create LOCATION_KV
+- Initialize the database schema: wrangler d1 execute remote_control_ui --remote --file=schema.sql
+
+### Secrets Configuration
+- Run the command: wrangler secret put ACCESS_KEY
+- Run the command: wrangler secret put REPORT_KEY
+- Run the command: wrangler secret put VAULT_PASS
+- Run the command: wrangler secret put MACRO_ID
+
+### Production Deployment
+- Deploy the worker globally: wrangler deploy
+
+### MacroDroid Integration Blueprint
+To establish communication between the Android hardware and the Cloudflare Edge Worker, configure the MacroDroid tasks according to the following specifications:
+
+#### 1. Command Webhook Trigger (Incoming)
+* **Trigger Type**: Webhook (incoming).
+* **Identifier**: Match the `MACRO_ID` string configured in wrangler secrets.
+* **Parameter Mapping**: MacroDroid should listen for a URL parameter containing the execution command (e.g. `action={command}`).
+* **Actions**: A series of conditional branch tests evaluating the incoming variable to execute device scripts (such as taking a front camera capture, initiating an audio voice recording, or modifying sound slider states).
+
+#### 2. Telemetry Ingestion Dispatch (Outgoing)
+* **Action Type**: HTTP GET Request.
+* **Target URL**: `https://[your-worker-domain]/status`
+* **Query Parameters**:
+  * `key`: Set to the secret `REPORT_KEY` string.
+  * `battery`: Local device battery level percentage variable.
+  * `battery_status`: Local device battery charge status state string.
+  * `temp`: Local device battery temperature variable.
+  * `sig`: Local network signal strength or decibel variable.
+  * `uptime`: System uptime duration variable.
+  * `netmonster_status`: Real-time network carrier status parameter.
+
+#### 3. Vault Media Upload (Outgoing)
+* **Action Type**: HTTP POST Request.
+* **Target URL**: `https://[your-worker-domain]/upload`
+* **Query Parameters**:
+  * `key`: Set to the secret `REPORT_KEY` string.
+  * `type`: Asset type identifier (must equal `image`, `audio`, or `video`).
+  * `name`: Custom target filename string for storage mapping.
+* **Request Content**: Send as Multipart Form Data or File Upload. Select the target file path variable (e.g. latest camera image or voice record output) as the upload payload field.
 
 ---
 
-## Conceptual Overview
+## Environment Variables Reference
 
-### Analogy
-Think of this project as a Digital Secretary sitting in the cloud.
-1. The Device (Android) is like a remote employee who occasionally calls the secretary to report their status (such as battery levels or locations).
-2. The Dashboard (You) is the manager. You check the secretary's notes (the Logs) and occasionally tell the secretary to send a message back to the employee (such as requesting a screenshot).
-3. The Database (D1 and Key-Value) is the secretary's filing cabinet where everything is organized and stored.
-
-### Glossary
-- Cloudflare Worker: A script that runs on Cloudflare's network, handling backend logic.
-- D1: A structured database suited for logs and lists.
-- Key-Value Namespace: A simple storage system for immediate status data or large files.
-- MacroDroid: An automation application running on the Android device.
-- Wrangler: The utility tool used on your computer to deploy the code to Cloudflare.
-
-### Life of a Command
-1. You click a button on the Dashboard.
-2. The browser sends a request to the worker control path.
-3. The worker checks if you are logged in.
-4. The worker sends a trigger signal to the MacroDroid Webhook URL.
-5. MacroDroid on your phone receives the signal and performs the action.
-6. MacroDroid sends the result back to the worker via the upload path.
-7. The worker saves the result in the Vault and updates the logs.
+| Variable Name | Required / Optional | Default / Fallback | Functional Description |
+|---|---|---|---|
+| `ACCESS_KEY` | Required | None | The primary administrative password for dashboard authentication. |
+| `JWT_SECRET` | Optional | `ACCESS_KEY` | Private key for signing and verifying JWT session cookies. |
+| `REPORT_KEY` | Required | None | Secret token required by MacroDroid to authorize status updates and uploads. |
+| `VAULT_PASS` | Required | None | Secondary passcode required to authorize access to encrypted vault routes. |
+| `MACRO_ID` | Required | None | The unique target ID of the device's MacroDroid webhook trigger. |
+| `MACRO_KEY` | Optional | None | Secondary security parameter for authorizing external webhook commands. |
+| `LOCATION_KV` | Required | None | Cloudflare KV namespace binding for live states and binary assets. |
+| `DB` | Required | None | Cloudflare D1 Relational SQLite Database binding for logs and task data. |
 
 ---
 
 ## Common Troubleshooting
 
-- Unauthorized dashboard access: Ensure your browser allows cookies. The system uses a session cookie to maintain authorization.
-- Logs not appearing: Check if you have applied the database schema to your D1 database. Also, check if your report key in MacroDroid matches the one in your Worker Secrets.
-- Multi-device support: Multiple devices can use the system by pointing their MacroDroid setup to the same Worker URL. Logs will identify them by their IP and Source.
+- Dashboard redirects to login loop: Ensure your browser is configured to accept cookies. The dashboard relies on a secure session cookie for authentication.
+- Scheduled commands do not trigger: Check if the Cloudflare Workers Cron trigger is configured to fire. You can verify active schedules in the Cloudflare dashboard.
+- NetMonster data returns blank values: Make sure the NetMonster status parameter matches the variables set in your MacroDroid variables list.
+
+---
+
+## Project File Directory
+
+| File Name | Location | System Layer & Functional Purpose |
+|---|---|---|
+| `_worker.js` | Root | Monolithic backend worker containing all logic, routing, auth, and asset utilities. |
+| `index.html` | Root | Static secure administrative login gateway template. |
+| `home.html` | Root | Active telemetry metrics and real-time Command Center console dashboard. |
+| `schedule.html` | Root | Interactive frontend queue controls for task scheduling. |
+| `vault-display.html` | Root | Separate multimedia analyzer interface displaying metadata and waveforms. |
+| `script.js` | Root | Main frontend client logic script controlling AJAX requests, sliders, and polling. |
+| `style.css` | Root | Layout stylesheet containing tactical neon themes, variables, and wave animations. |
+| `schema.sql` | Root | Relational SQLite layout script for Cloudflare D1 tables. |
+| `wrangler.jsonc` | Root | Environment config file binding the worker to local databases and domains. |
+| `favicon.svg` | Root | Vector asset automatically injected in response heads. |
+| `.gitignore` | Root | Local git rules mapping files and directories excluded from commits. |
+| `.assetsignore` | Root | Local Cloudflare deploy rules mapping files excluded from serverless builds. |
+| `README.md` | Root | Primary system manual highlighting setup, routes, and high-level structure. |
+| `READMEext.md` | Root | Extended technical developer reference detailing internal state and logic. |
+| `docs/data_flow_diagram.png` | `docs/` | System data flow visual diagram. |
 
 ---
 
 ## Future Expansion Ideas
 
-- Multi-Device Support: Adding a interface selector to filter logs by specific device IDs.
-- Real-time Notifications: Using external communication APIs to alert you when battery is low.
-- Remote Terminal: A web-based console to send custom shell commands to the phone.
-- Advanced Graphs: Visualizing battery drain and signal strength over time.
+- Multi-Device Support: Add device ID tracking columns to D1 tables to manage multiple Android devices from a single dashboard.
+- Custom Webhooks: Trigger alert emails or instant messaging notifications if battery levels drop below critical thresholds.
+- Live Canvas Location Plotting: Integrate real-time mapping libraries to display coordinates directly on the dashboard screen.
 
 ---
 
 ## License
 
 Personal use and experimentation. Built by [gopi470](https://github.com/gopi470).
-
