@@ -1,217 +1,315 @@
 # Remote Phone Control UI
 
-> **Tactical Android Command & Control Interface**
-> Real-time device monitoring and automation powered by Cloudflare Workers, D1 SQL, KV Storage, and MacroDroid.
+Tactical Android Command and Control Interface
+Real-time device monitoring and automation powered by Cloudflare Workers, D1 SQL, KV Storage, and MacroDroid.
 
-**Live Instance:** [ui.muffinjuice.xyz](https://ui.muffinjuice.xyz)
+Live Instance: https://ui.muffinjuice.xyz
+
+---
+
+## Table of Contents
+1. [System Overview](#system-overview)
+2. [System Architecture](#system-architecture)
+3. [Authentication and Security](#authentication-and-security)
+4. [Endpoints and API Reference](#endpoints-and-api-reference)
+5. [Backend Infrastructure](#backend-infrastructure)
+6. [Frontend Design System](#frontend-design-system)
+7. [Mobile Responsiveness](#mobile-responsiveness)
+8. [Database Schema](#database-schema)
+9. [Task Scheduling Pipeline](#task-scheduling-pipeline)
+10. [Vault HUD and Media Processing](#vault-hud-and-media-processing)
+11. [Performance and Optimization](#performance-and-optimization)
+12. [Browser Intelligence and Device Detection](#browser-intelligence-and-device-detection)
+13. [Setup Instructions](#setup-instructions)
+14. [Environment Variables Reference](#environment-variables-reference)
+15. [Common Troubleshooting](#common-troubleshooting)
+16. [Project File Directory](#project-file-directory)
+17. [Future Expansion Ideas](#future-expansion-ideas)
+18. [License](#license)
 
 ---
 
 ## System Overview
 
-This project provides a professional-grade, cyberpunk-themed dashboard to remotely monitor and control an Android device. It acts as a bridge between **MacroDroid** (on-device automation) and a web-based **Command Center** — deployed entirely as a single **Cloudflare Worker** with zero external backend infrastructure.
+This project provides a professional-grade, cyberpunk-themed dashboard to remotely monitor and control an Android device. It acts as a bridge between MacroDroid (on-device automation) and a web-based Command Center, deployed entirely as a single Cloudflare Worker with zero external backend infrastructure.
 
-What started as a simple toggle controller grew into a full surveillance and telemetry platform with file vaulting, cellular network diagnostics, hardware monitoring, scheduled automation, and a forensic media HUD.
+What started as a simple toggle controller grew into a full surveillance and telemetry platform with file vaulting, cellular network diagnostics, hardware monitoring, scheduled automation, and a media HUD.
 
-### Architecture
+---
 
-```
-┌─────────────────────────────┐
-│     Android Device          │
-│     (MacroDroid)            │
-│  GET /status  ──────────┐   │
-│  GET /report  ──────────┤   │
-│  POST /upload ──────────┤   │
-└─────────────────────────┼───┘
-                          ▼
-              ┌───────────────────────┐
-              │   Cloudflare Worker   │
-              │    (_worker.js)       │
-              │                       │
-              │  ┌─────────────────┐  │
-              │  │  Cloudflare KV  │  │  ← Live status, location, vault files
-              │  └─────────────────┘  │
-              │  ┌─────────────────┐  │
-              │  │  Cloudflare D1  │  │  ← Logs, schedules, geo cache, vault index
-              │  └─────────────────┘  │
-              └──────────┬────────────┘
-                         │
-              ┌──────────▼────────────┐
-              │    Web Dashboard      │
-              │   (You / Browser)     │
-              │  Poll /status (5s)    │
-              │  Send /control        │
-              └───────────────────────┘
+## System Architecture
+
+### High-Level Flow
+- MacroDroid on the Android device pushes status, location, and upload packets to the Cloudflare Worker, which acts as the central logic processor.
+
+### Request Lifecycle
+- Incoming requests are authenticated, parsed, and logged. Valid requests interact with Cloudflare KV for transient state, and Cloudflare D1 for persistent database logs.
+
+### Worker to MacroDroid Communication
+- The dashboard sends a request to the control endpoint, which in turn triggers a secure webhook request pointing to the MacroDroid device URL.
+
+### D1 and KV Responsibilities
+- Cloudflare KV is responsible for fast read/write transient variables (such as current status and raw files), while Cloudflare D1 stores relational database logs, scheduled tasks, and metadata indexes.
+
+### Polling and Control Pipeline
+- The client dashboard polls the worker status endpoint periodically. Control actions execute asynchronously, returning immediately to the client while worker actions run in the background.
+
+### Data Flow Diagram
+
+```mermaid
+flowchart TB
+    subgraph DEVICE["Android Device"]
+        MD["MacroDroid Automation"]
+    end
+
+    subgraph CLOUD["Cloudflare Edge"]
+        direction TB
+        W["Worker\n(Router + Auth + Logic)"]
+        subgraph STORAGE["Storage"]
+            direction LR
+            KV[("KV Store\n(Live State + Files)")]
+            D1[("D1 Database\n(Logs + Schedules)")]
+        end
+        CRON["Cron Trigger\n(every minute)"]
+    end
+
+    subgraph CLIENT["Web Browser"]
+        DASH["Dashboard UI"]
+    end
+
+    %% Telemetry ingestion
+    MD -- "POST /status\n(battery, signal, network)" --> W
+    W -- "merge + write" --> KV
+    W -- "append log" --> D1
+
+    %% File upload
+    MD -- "POST /upload\n(image, audio, video)" --> W
+    W -- "write binary" --> KV
+    W -- "index metadata" --> D1
+
+    %% Dashboard polling
+    DASH -- "GET /poll" --> W
+    W -- "read state" --> KV
+    W -- "return JSON" --> DASH
+
+    %% Control command
+    DASH -- "GET /control\n(command)" --> W
+    W -- "webhook trigger" --> MD
+
+    %% Cron scheduling
+    CRON -- "tick" --> W
+    W -- "query PENDING" --> D1
+    W -- "execute scheduled command" --> MD
+    W -- "update status" --> D1
 ```
 
 ---
 
-## Authentication System
+## Authentication and Security
 
-- **Primary Gateway**: Protected by a global `ACCESS_KEY` secret. Valid auth sets a `session=authorized` cookie (30-min TTL, `SameSite=Lax; Secure`).
-- **Inactivity Guard**: Uses absolute timestamp comparison (`Date.now() - lastInteractionTime`), immune to browser background tab throttling.
-- **Unauthorized Handler**: Serves a themed "Tactical Alert" red page with a 7-second countdown and IP/Geo logging of the intruder before redirect to login.
-- **Vault Security**: `/vault` routes require a secondary `VAULT_PASS` secret, setting a separate `vault_token` cookie (10-min TTL).
-- **MacroDroid Auth**: All device-to-server calls use `?key=REPORT_KEY` validated against Worker secrets.
+- Primary Gateway: Protected by a global ACCESS_KEY secret. Valid authentication issues a JSON Web Token (JWT) signed using HS256 with either a custom JWT_SECRET or fallback to the ACCESS_KEY, storing it in a session cookie (session=authorized) with a 30-minute Time-To-Live, using SameSite=Lax and Secure flags.
+- Inactivity Guard: Uses absolute timestamp comparison (Date.now minus lastInteractionTime), rendering the session check immune to browser background tab throttling.
+- Unauthorized Handler: Serves a themed High Alert red page with a 7-second countdown and logs the IP and geolocation of the unauthorized access attempt before redirecting to the login page.
+- Vault Security: Routes under /vault require a secondary VAULT_PASS secret, which sets a separate vault_token cookie with a 10-minute Time-To-Live.
+- MacroDroid Authentication: All device-to-server calls must include a REPORT_KEY query parameter, which is validated against the secrets configured in the Cloudflare Worker.
 
 ---
 
-## Endpoints & API Reference
+## Endpoints and API Reference
 
 ### User Interface (Authenticated Session)
 
 | Path | Description |
 |---|---|
-| `/` | Secure Login Gateway |
-| `/home` | Main Command Center — Live terminal, telemetry, controls |
-| `/schedule` | Task Scheduler — Queue commands at specific times |
-| `/requests` | HTTP Request History — Full audit log |
-| `/statuslogs` | Hardware Health Analytics — Battery, signal, temp history |
-| `/schedule/logs` | Scheduled Command Execution History |
-| `/vault/list` | Encrypted File Archive — Images, audio, video |
-| `/vault/display` | Forensic Media HUD — Full-featured media viewer |
+| / | Secure Login Gateway |
+| /home | Main Command Center containing the live terminal, telemetry data, and controls |
+| /schedule | Task Scheduler interface to queue commands for execution at specific times |
+| /requests | HTTP Request History providing a full audit log |
+| /statuslogs | Hardware Health Analytics displaying battery, signal, and temperature history |
+| /schedule/logs | Scheduled Command Execution History |
+| /vault/list | Encrypted File Archive displaying images, audio, and video |
+| /vault/display | Media HUD and media viewer |
 
 ### System APIs (MacroDroid / Automated)
 
-| Path | Auth | Description |
+| Path | Authentication | Description |
 |---|---|---|
-| `/status` | `REPORT_KEY` | Receive hardware & network telemetry. Merges with existing KV state. |
-| `/report` | `REPORT_KEY` | Update live location link |
-| `/upload` | `REPORT_KEY` | Upload binary files (image/audio/video) to Vault |
-| `/poll` | Session | Real-time state fetch for dashboard polling |
-| `/control` | Session | Trigger MacroDroid webhook command immediately |
-| `/intel` | Session | IP Geolocation lookup (D1-cached) |
-| `/schedule/create` | Session | Queue a new scheduled command |
+| /status | REPORT_KEY | Receives hardware and network telemetry, merging them with the existing Key-Value state. |
+| /report | REPORT_KEY | Updates the live location link |
+| /upload | REPORT_KEY | Uploads binary files (images, audio, or video) to the Vault |
+| /poll | Session | Real-time state fetch for dashboard polling |
+| /control | Session | Triggers the MacroDroid webhook command immediately |
+| /intel | Session | Performs an IP Geolocation lookup, cached using D1 |
+| /schedule/create | Session | Queues a new scheduled command |
 
 ---
 
 ## Backend Infrastructure
 
-The entire backend is a single monolithic **Cloudflare Worker** (`_worker.js`) handling:
+The backend is a single monolithic Cloudflare Worker handling all server-side logic:
 
-- **Dynamic Routing**: Custom request handler processes API calls and renders all HTML pages server-side as template literals.
-- **HTMLRewriter Injection**: Shared cyberpunk nav menu and styles are injected into static assets (`home.html`, `schedule.html`, etc.) via `HTMLRewriter`, avoiding duplication.
-- **KV Status Merging**: Incoming `/status` params are merged **on top of** the stored KV object — so a single-param NetMonster update never wipes out battery or volume data.
-- **NetMonster Dual-Param Filtering**: Accepts both `netmonster_status` and `netmonster_status2` as safety fallbacks. Sanitizes generic placeholders (`"NETMONSTER"`, `"N/A"`, `"null"`) and resolves the first valid value before persisting.
-- **Unicode-Safe Base64 Encoding**: Uses `encodeURIComponent(btoa(...))` on the server and `decodeURIComponent(atob(...))` on the client to safely store cell tower symbols (e.g. `•`, `᛫`) in D1.
-- **HTTP 206 Range Request Slicing**: KV binary assets (video/audio) are sliced at exact byte offsets and served with `206 Partial Content` + `Content-Range` headers for mobile media seeking.
-- **Cron Scheduler**: `scheduled()` fires every minute, queries D1 for `PENDING` commands, executes them via MacroDroid webhook, and updates status to `EXECUTED` or `FAILED`.
-- **Log Equalization**: 5% sampling of high-frequency `/poll` requests. 100% capture of all security events, commands, and errors.
-- **IP Intelligence**: Multi-provider geo-lookup (ipapi.co → ip-api.com fallback) with D1 caching to stay within rate limits.
-- **Non-blocking Analytics**: Logging uses `ctx.waitUntil()` so responses are returned instantly before D1 writes complete.
-- **Auto Cleanup**: 5% chance on each request to prune old logs, keeping tables under 2000 rows.
+- Dynamic Routing: A custom request handler processes API calls and renders all HTML pages server-side as template literals.
+- HTMLRewriter Injection: A shared cyberpunk navigation menu and styles are injected into static assets (home.html, schedule.html, etc.) via HTMLRewriter to avoid duplication.
+- Key-Value Status Merging: Incoming /status parameters are merged on top of the stored Key-Value object. A single-parameter NetMonster update will not overwrite battery or volume data.
+- NetMonster Dual-Parameter Filtering: Accepts both netmonster_status and netmonster_status2 parameters as safety fallbacks. Sanitizes generic placeholders (such as NETMONSTER, N/A, null) and resolves the first valid value before storage.
+- Unicode-Safe Base64 Encoding: Encodes strings on the server and decodes on the client using URL encoding and base64 transforms to safely store cell tower symbols (such as bullet points) in the D1 database.
+- HTTP 206 Range Request Slicing: Slices Key-Value binary assets (video and audio) at exact byte offsets and serves them with partial content headers for mobile media seeking.
 
 ---
 
 ## Frontend Design System
 
-**Stack**: Vanilla HTML5, CSS3, JavaScript — no frameworks, no bundlers.
+The frontend utilizes vanilla HTML5, CSS3, and JavaScript without external frameworks or bundlers.
 
-**Design Language**: Tactical Cyberpunk
-- **Colors**: Deep black `#06080a`, tactical teal `#00dca0`, alert red `#ef4444`
-- **Typography**: `Share Tech Mono` (terminal), `Rajdhani` (UI labels)
-- **Effects**: Glassmorphism panels, neon glow shadows, animated teal accents
+- Theming: Uses deep black (#06080a), tactical teal (#00dca0), and alert red (#ef4444) themes.
+- Typography: Utilizes Share Tech Mono for the terminal aesthetic and Rajdhani for UI labels.
+- Visuals: Implements glassmorphism panels, neon glow shadows, and animated teal accents.
 
-**Key UI Systems:**
-
-| System | Description |
-|---|---|
-| Adaptive Polling | 2s (post-action) → 5s (active) → 30s (idle) cadence |
-| Liquid Fill Animation | CSS `clip-path` polygon wobble on volume bars — top edge only |
-| Ctrl+Select Bypass | Hold Ctrl to enable `user-select: text` across all panels |
-| Drag-to-Slide Volumes | Mouse & touch drag mapping on vertical volume bars |
-| Backspace Navigation | Global `keydown` intercept — acts as browser Back button |
-| AJAX Smart Merge | Auto-refresh only prepends new rows; highlights them with animation |
-| Floating Sync Button | Rotates on hover; CSS spin animation during active polling |
+Key UI Systems:
+- Control Select Bypass: Allows the user to hold the Ctrl key to temporarily enable text selection across all panels.
+- Drag-to-Slide Volumes: Maps mouse and touch drag events on vertical volume bars.
+- Backspace Navigation: Intercepts the backspace key to act as a browser Back button when not typing in a form field.
+- Floating Sync Button: Displays active status polling with a rotating CSS spin animation.
 
 ---
 
 ## Mobile Responsiveness
 
-All four log dashboards (`/requests`, `/statuslogs`, `/schedule/logs`, `/vault/list`) are fully optimized for mobile:
+All log dashboards (/requests, /statuslogs, /schedule/logs, /vault/list) are optimized for mobile viewports:
 
-- **Horizontal Table Scroll**: Tables wrapped in `.table-wrapper { overflow-x: auto }` with custom neon scrollbars
-- **Synchronized Column Widths**: `table { width: max-content; table-layout: auto }` + `white-space: nowrap` on all `th`/`td` — header and body always aligned
-- **Fluid Header Flex**: `.header` uses `flex-direction: row; flex-wrap: wrap` — controls dynamically unwrap side-by-side on zoom-out or landscape
-- **Single-Line Header Titles**: `white-space: nowrap` on `h2` with scaled `font-size: 13px; letter-spacing: 2px` on mobile
-- **Pinch-Zoom-Out Support**: All log pages use `<meta name="viewport" content="initial-scale=1.0, minimum-scale=0.3, maximum-scale=5.0, user-scalable=yes">` — `width=device-width` is intentionally omitted to allow zooming below 1.0x
-
----
-
-## Database Schema (Cloudflare D1)
-
-| Table | Contents |
-|---|---|
-| `logs` | Every HTTP request — timestamp, method, path, status, IP, source, location |
-| `status_logs` | Hardware heartbeats — battery %, temp, signal dBm, uptime, extra JSON |
-| `command_schedules` | Scheduled tasks — command, target time, status, output log |
-| `geo_cache` | IP geolocation cache — avoids repeated external API calls |
-| `vault_files` | Vault file metadata index — ID, type, size, content-type, timestamps |
+- Horizontal Table Scroll: Tables are wrapped in a scrollable container with customized scrollbars.
+- Synchronized Column Widths: Table layout is set to auto with no-wrap rules on table header and body cells, keeping widths aligned.
+- Fluid Header Flex: The header container uses flexbox wrapping to dynamically unwrap control elements side-by-side on zoom-out or landscape rotation.
+- Single-Line Header Titles: Prevents text wrapping on titles and scales down font sizes on mobile devices.
+- Pinch-Zoom-Out Support: Viewport meta tags configure initial-scale, minimum-scale, and maximum-scale settings without using width=device-width, enabling zoom-out support down to 0.3x.
 
 ---
 
-## Vault HUD Media Center (`/vault/display`)
+## Database Schema
 
-A fully standalone forensic media viewer:
+The database schema is implemented using Cloudflare D1 tables:
 
-| Feature | Description |
-|---|---|
-| EXIF Parser | Binary JPEG/TIFF parser — extracts GPS coords, camera model, capture date |
-| GPS Plotting | Converts rational EXIF coordinates → decimal → Google Maps link |
-| Audio Waveform | `OfflineAudioContext` decodes raw PCM, builds real amplitude waveform |
-| Pinch-to-Zoom | Touch pinch gestures + Ctrl+Wheel trackpad — `100%` to `500%` zoom |
-| Fullscreen | `F` key toggle, `Escape` to exit |
-| Rotation & Mirror | 90° rotation, horizontal mirror flip |
-| Grab-to-Pan | Mouse drag panning at any zoom level |
-| Spacebar Play | Instant play/pause toggle |
+- logs: Records every HTTP request, storing the timestamp, method, path, status code, IP address, client source, and location.
+- status_logs: Stores hardware heartbeat data including battery percentage, temperature, signal strength, uptime, and extra status JSON.
+- command_schedules: Manages queued tasks, storing the command, target execution time, status, and output log.
+- geo_cache: Caches IP geolocation details to minimize redundant external API lookups.
+- vault_files: Indexes vault file metadata, tracking the unique file ID, type, size, content-type, and creation timestamps.
+
+---
+
+## Task Scheduling Pipeline
+
+- Cron Jobs: Fires every minute to query D1 for pending commands.
+- Queued Commands: The scheduler manages tasks stored in the command_schedules table with execution targets.
+- Execution States: Updates target tasks from PENDING to either EXECUTED or FAILED depending on response status.
+- Retry Logic: Fails securely and records MacroDroid output logs into D1 database columns for debugging.
+- Automation Lifecycle: Connects scheduling updates to D1 execution routines, notifying database logs of scheduled tasks.
+
+---
+
+## Vault HUD and Media Processing
+
+The /vault/display route serves as a standalone media viewer:
+
+- EXIF Parser: A client-side JPEG/TIFF binary parser that extracts GPS coordinates, camera model, and capture date.
+- GPS Plotting: Translates rational EXIF coordinates to decimal format to display locations on Google Maps.
+- Audio Waveform: Decodes raw PCM audio using the browser's OfflineAudioContext to render authentic amplitude waveforms on a canvas.
+- Pinch-to-Zoom: Supports multi-touch pinch gestures on mobile and Ctrl+Wheel trackpad scrolling on desktop up to 500% zoom.
+- Fullscreen: Integrates key controls to toggle fullscreen mode.
+- Transform Controls: Supports 90-degree rotation and horizontal mirror flipping.
+- Grab-to-Pan: Allows click-and-drag panning across zoomed media.
+- Spacebar Control: Instantly toggles play and pause states for audio and video media.
+
+---
+
+## Performance and Optimization
+
+- Log Equalization: Applies a five percent sampling rate to high-frequency polling requests, while maintaining one hundred percent capture of security events, commands, and errors.
+- Non-blocking Analytics: Handles logging asynchronously using the waitUntil method so responses are returned to the client before D1 database writes complete.
+- AJAX Smart Merge: Refreshes tables by prepending only new rows with a temporary highlight animation to avoid layout redraw lag.
+- Adaptive Polling: Cadence dynamically scales from 2 seconds (post-action) to 5 seconds (active) and up to 30 seconds (idle) to conserve device resources and bandwidth.
+- Cleanup Routines: Performs database cleanup checks periodically to keep logging tables under two thousand rows.
+
+---
+
+## Browser Intelligence and Device Detection
+
+- User-Agent Parsing: Evaluates client user agents to capture and log operating system and browser details.
+- Client Hints: Extracts platform and architecture values from user-agent client hints where supported.
+- Device Classification: Classifies incoming requests as desktop, tablet, or specific mobile device models.
+- Browser-Specific Handling: Applies CSS selectors and touch handlers to account for differences between Chrome, Safari, and other mobile rendering engines.
 
 ---
 
 ## Setup Instructions
 
-### 1. Requirements
-- Cloudflare Account
-- Node.js + Wrangler CLI (`npm install -g wrangler`)
-- MacroDroid installed on Android
+To deploy this system, ensure the following requirements are met:
+- A Cloudflare account.
+- Node.js and the Wrangler command line utility installed globally.
+- MacroDroid installed on the target Android device.
 
-### 2. Provisioning
-```bash
-# Create D1 Database
-npx wrangler d1 create remote_control_ui
+Provisioning the environment:
+- Create the D1 Database by running the command: wrangler d1 create remote_control_ui
+- Create the Key-Value Namespace by running the command: wrangler kv:namespace create LOCATION_KV
+- Apply the database schema by running the command: wrangler d1 execute remote_control_ui --remote --file=schema.sql
 
-# Create KV Namespace
-npx wrangler kv:namespace create LOCATION_KV
+Configuring secrets:
+- Set the dashboard login password by running the command: wrangler secret put ACCESS_KEY
+- Set the MacroDroid authentication key by running the command: wrangler secret put REPORT_KEY
+- Set the file vault password by running the command: wrangler secret put VAULT_PASS
+- Set the MacroDroid Webhook ID by running the command: wrangler secret put MACRO_ID
 
-# Apply Schema
-npx wrangler d1 execute remote_control_ui --remote --file=schema.sql
-```
-
-### 3. Secrets
-```bash
-npx wrangler secret put ACCESS_KEY    # Dashboard login password
-npx wrangler secret put REPORT_KEY    # MacroDroid auth key
-npx wrangler secret put VAULT_PASS    # File vault password
-npx wrangler secret put MACRO_ID      # MacroDroid Webhook ID
-```
-
-### 4. Deploy
-```bash
-npx wrangler deploy
-```
+Deploying to production:
+- Publish the application by running the command: wrangler deploy
 
 ---
 
 ## Environment Variables Reference
 
-| Secret | Required | Purpose |
-|---|---|---|
-| `ACCESS_KEY` | ✅ | Primary dashboard login password |
-| `REPORT_KEY` | ✅ | Auth key for MacroDroid device calls |
-| `VAULT_PASS` | ✅ | Secondary vault authentication password |
-| `MACRO_ID` | ✅ | MacroDroid webhook trigger ID |
-| `MACRO_KEY` | Optional | Secondary MacroDroid key (if enabled) |
-| `LOCATION_KV` | ✅ | KV namespace binding (in `wrangler.jsonc`) |
-| `DB` | ✅ | D1 database binding (in `wrangler.jsonc`) |
+- ACCESS_KEY: The primary password required to log in to the dashboard.
+- JWT_SECRET: An optional secret key used to sign and verify session JSON Web Tokens (JWT). Falls back to the ACCESS_KEY if not configured.
+- REPORT_KEY: The authentication key used by MacroDroid to authorize status updates, location reports, and file uploads.
+- VAULT_PASS: The secondary password required to authorize access to the encrypted File Vault.
+- MACRO_ID: The unique identifier for the MacroDroid webhook trigger.
+- MACRO_KEY: An optional secondary key for MacroDroid webhooks.
+- LOCATION_KV: Binding to the Cloudflare Key-Value namespace.
+- DB: Binding to the Cloudflare D1 Database.
+
+---
+
+## Common Troubleshooting
+
+- Unauthorized dashboard access: Ensure your browser allows cookies. The system uses a session cookie to maintain authorization.
+- Logs not appearing: Check if you have applied the database schema to your D1 database. Also, check if your report key in MacroDroid matches the one in your Worker Secrets.
+- Multi-device support: Multiple devices can use the system by pointing their MacroDroid setup to the same Worker URL. Logs will identify them by their IP and Source.
+
+---
+
+## Project File Directory
+
+- _worker.js: The monolithic Cloudflare Worker containing all backend API endpoints, static assets rendering logic, template utilities via HTMLRewriter, and JWT authorization helpers.
+- index.html: The static secure login gateway page where ACCESS_KEY credentials are submitted.
+- home.html: The main authenticated Command Center dashboard containing visual telemetry controls, toggles, terminal console logs, volume sliders, and location status tools.
+- schedule.html: The authenticated task scheduling dashboard providing controls to queue, view, or manage scheduled task entries.
+- vault-display.html: The standalone multimedia HUD viewer with built-in client-side EXIF/TIFF parsers, offline audio waveform decorators, zoom gestures, and spatial transforms.
+- script.js: The frontend script containing polling triggers, command execution callbacks, liquid volume slider drag handlers, key state modifiers, and AJAX row rehydration logic.
+- style.css: The central CSS stylesheet mapping tactical cyberpunk themes, custom typography variables, scrolling bars, keyframe wobbling polygon fills, and media query overrides.
+- schema.sql: The SQLite schema declaration defining logs, status_logs, command_schedules, geo_cache, and vault_files tables initialized in Cloudflare D1.
+- wrangler.jsonc: The Cloudflare configuration file binding the worker to LOCATION_KV, the D1 database, custom domain triggers, and cron pipelines.
+- favicon.svg: The design icon injected automatically into all HTML head tags.
+- .gitignore: Git configuration controlling repository file exclusions to prevent credential leaks.
+- .assetsignore: Cloudflare assets controller listing files that should be ignored during static worker updates.
+- README.md: The primary documentation detailing system architecture, credentials, endpoint references, optimization, and setup.
+- READMEext.md: The extended technical documentation detailing low-level algorithmic designs, binary parsing steps, state merges, and concurrency plans.
+
+---
+
+## Future Expansion Ideas
+
+- Multi-Device Support: Adding an interface selector to filter logs by specific device IDs.
+- Real-time Notifications: Using external communication APIs to alert you when battery is low.
+- Remote Terminal: A web-based console to send custom shell commands to the phone.
+- Advanced Graphs: Visualizing battery drain and signal strength over time.
 
 ---
 
