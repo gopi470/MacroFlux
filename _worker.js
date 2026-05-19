@@ -172,7 +172,7 @@ export default {
     try {
       const url = new URL(request.url);
       const cookie = request.headers.get("Cookie") || "";
-      const jwtSecret = env.JWT_SECRET || env.ACCESS_KEY || "remote_fallback_key_2024";
+      const jwtSecret = env.JWT_SECRET || env.ACCESS_KEY;
       const sessionCookie = cookie.split('; ').find(row => row.startsWith('session='))?.split('=')[1];
       const decodedToken = sessionCookie ? await jwtUtils.verify(sessionCookie, jwtSecret) : null;
       const isLoggedIn = !!decodedToken;
@@ -267,7 +267,7 @@ export default {
         // 1. Handle Login Request
         if (url.pathname === "/login") {
           const key = url.searchParams.get("key");
-          const secretKey = env.ACCESS_KEY || "123"; // Fallback to 123 until secret is set
+          const secretKey = env.ACCESS_KEY;
 
           if (key === secretKey) {
             // Issue a 24-hour JWT
@@ -398,7 +398,7 @@ export default {
         // ── Update Hardware Status (/status) ──────────────────
         if (url.pathname === "/status") {
           const { searchParams } = url;
-          if (searchParams.get("key") !== (env.REPORT_KEY || "REPORT_SECRET")) {
+          if (searchParams.get("key") !== env.REPORT_KEY) {
             return renderTactical("UNAUTHORIZED", 401);
           }
 
@@ -489,7 +489,7 @@ export default {
         // ── Update Location Link (/report) ──────────────────────
         if (url.pathname === "/report") {
           const { searchParams } = url;
-          if (searchParams.get("key") !== (env.REPORT_KEY || "REPORT_SECRET")) {
+          if (searchParams.get("key") !== env.REPORT_KEY) {
             return renderTactical("UNAUTHORIZED", 401);
           }
 
@@ -613,7 +613,7 @@ export default {
           try {
             const { searchParams } = url;
             const providedKey = searchParams.get("key");
-            const secretKey = env.REPORT_KEY || "REPORT_SECRET";
+            const secretKey = env.REPORT_KEY;
 
             if (providedKey !== secretKey) {
               return renderTactical("UNAUTHORIZED", 401);
@@ -2728,7 +2728,7 @@ export default {
 
       for (const item of results) {
         try {
-          const keyToUse = item.secret_key || env.MACRO_KEY || env.REPORT_KEY || "REPORT_SECRET";
+          const keyToUse = item.secret_key || env.MACRO_KEY || env.REPORT_KEY;
           // Construct target URL to match manual control exactly
           let target = `https://trigger.macrodroid.com/${macroId}/control?cmd=${item.command}&key=${keyToUse}`;
           if (item.params) target += `&cmd2=${encodeURIComponent(item.params)}`;
