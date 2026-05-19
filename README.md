@@ -69,6 +69,7 @@ The backend is a monolithic **Cloudflare Worker** (`_worker.js`) handling 100% o
 - **HTML Injection**: Uses `HTMLRewriter` to dynamically inject a shared Cyberpunk navigation menu and styles into static assets (`home.html`, etc.).
 - **KV Status Merging**: The `/status` handler merges incoming telemetry fields on top of current stored data. This allows single-parameter triggers (like NetMonster network scans) to preserve battery, signal, and volume levels in the global state.
 - **Unicode Safe Logs**: Encodes D1 database extra logs using `encodeURIComponent` before `btoa()`, preventing global system crashes on Unicode and extended character ranges (e.g., cell tower symbols `•` or `᛫`).
+- **HTTP Range Request Support**: Workers serve binary vault assets with complete range compatibility. Slices `ArrayBuffer` binaries on the fly, responding with `206 Partial Content`, `Accept-Ranges`, and `Content-Range` headers to support instant seeking/scrubbing across desktop and mobile browsers.
 - **Cron Scheduler**: A `scheduled` event handler runs every minute, checking the D1 database for pending commands and triggering them automatically.
 - **Log Equalization**: An intelligent algorithm filters noisy requests (like `/poll`) from the history log while ensuring critical events are always recorded.
 - **IP Intelligence**: Multi-provider geo-lookup logic (ipapi.co with fallback to ip-api.com) with a D1 caching layer to stay within rate limits.
@@ -85,6 +86,8 @@ The frontend is built for speed and aesthetics, adhering to a **"Tactical Cyberp
 - **Adaptive Polling**: Accelerates state updates during user interaction (2s on actions, 5s standard) and dials back to low-power idle mode (30s) during periods of inactivity to save device resources and network bandwidth.
 - **Interactive Controls**: Drag-to-slide volume columns, responsive click actions, and a rotating floating sync button that spins on active telemetry updates.
 - **High-Contrast Telemetry Logs**: Features custom glowing `.telemetry` UI borders and text-shadow blocks for real-time reporting (like NetMonster data) directly in the console.
+- **Universal Ctrl + Select Bypass**: Pressing and holding the `Ctrl` key temporarily disables all global cyberpunk `user-select: none` overrides and lets you easily drag, select, and copy logs, tower cells, and database items directly on any panel.
+- **Liquid Fill Animation Effect**: Volumetric bars are animated strictly on the top edge of the filled region using a fluid CSS `clip-path` polygon mask that sways up and down dynamically while keeping the rest of the fill solid and static.
 - **Glassmorphism**: Subtle backdrop blurs and semi-transparent panels.
 - **Responsive**: Fully optimized for mobile (Android/iOS) and desktop browsers.
 
@@ -106,6 +109,12 @@ The project uses **Cloudflare D1** for high-performance, persistent data storage
 ## 📦 Other Critical Systems
 
 - **Equalization Algorithm**: Prevents logging bloat by sampling high-frequency `/poll` requests (5% sample rate) while capturing 100% of security-relevant events.
+- **Vault HUD Media Command Center (`vault-display.html`)**: A standalone media interface:
+  - *Forensic EXIF Metadata Extrapolator*: Custom client-side binary JPEG/TIFF parser that extracts camera model parameters, original capture date/times, and GPS geolocation coords to plot them directly on Google Maps.
+  - *Actual Vocal Wave Decryptor*: Fetches and decodes actual audio stream binary buffers asynchronously using `OfflineAudioContext`, building custom peak arrays to render authentic audio waveforms.
+  - *Surveillance Manipulation Deck*: Features zoom sliders, $90^\circ$ rotation, mirror flips, and grab-to-drag panning.
+  - *Mobile Gestures & Wheel Control*: Integrates double-touch pinch-to-zoom scaling and trackpad Ctrl+Wheel pinch controls, blocking standard viewport magnification.
+  - *Spacebar Hotkey*: Play/pause media streams instantly using the spacebar.
 - **Vault Retrieval**: Serves binary data (Images/Video/Audio) from KV with correct MIME types and inline disposition.
 - **Migration Suite**: Built-in `/migrate` endpoint to move legacy KV logs into the D1 SQL database.
 - **Automated Cleanup**: The worker periodically purges old logs (keeping only the last 2000) to stay within D1 free-tier limits.

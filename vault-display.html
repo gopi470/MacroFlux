@@ -22,6 +22,14 @@
       background-image: radial-gradient(circle at center, #02120b 0%, #000 100%);
     }
 
+    /* Ctrl key override for normal text selection */
+    body.ctrl-select-mode,
+    body.ctrl-select-mode * {
+      user-select: text !important;
+      -webkit-user-select: text !important;
+      cursor: auto !important;
+    }
+
     /* VAULT MEDIA HUD CSS */
     .vault-hud-panel {
       position: relative;

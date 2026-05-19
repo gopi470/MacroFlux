@@ -51,6 +51,32 @@ To save status history containing complex Unicode and extended Latin characters 
 - **Worker-side Encoding**: String data is first wrapped inside `encodeURIComponent` before executing `btoa()`. This safely converts multi-byte Unicode strings into standard ASCII URI octets before executing the base64 transformation.
 - **Client-side Decoding**: The javascript payload decoding block uses a safe fallback pipeline: it decodes using `decodeURIComponent(atob(...))` to unpack the Unicode payload, and falls back to standard `atob()` if processing older legacy telemetry logs that were saved before the URI-encoded migration.
 
+### 5. Asynchronous Client-Side Audio PCM Decoding
+To present an authentic voiceprint profile instead of a simulated graphic visualizer, the standalone HUD media center (`vault-display.html`) decodes actual audio channels directly in the browser:
+- **Offline Decoding Pipeline**: When an audio source loaded, it intercepts the URL and does a binary `fetch` requesting the audio resource. It passes the resulting `ArrayBuffer` directly into `OfflineAudioContext.decodeAudioData()`.
+- **Peak Downsampling**: The mono channel raw floating-point samples are grouped into $250$ sequential blocks. For each block, it calculates the absolute amplitude average $\frac{1}{N}\sum |sample_i|$.
+- **Dynamic Range Normalization**: It maps the absolute peak value to a ceiling of $90\text{px}$, scaling all other bars proportionally. It applies a soft cosine window padding to both boundaries (fade-in and fade-out over $15$ bars) to draw a clean vocal waveform canvas.
+
+### 6. Binary-level JPEG EXIF/TIFF Parsing
+Surveillance photographs contain critical tactical parameters that must be reviewed. The HUD integrates a lightweight binary parser that walks JPEG structures without external dependencies:
+- **Marker Traversal**: The parser scans the binary `ArrayBuffer` using a `DataView`. It skips the SOI (`0xFFD8`) and reads headers until it locates the APP1 Marker (`0xFFE1`).
+- **TIFF Header Parsing**: It validates the `"Exif\0\0"` signature, detects byte endianness (`0x4D4D` for Big Endian, `0x4949` for Little Endian), and skips to the first Image File Directory (IFD).
+- **Directory Resolution**: It searches the tag catalogue for the GPS Info IFD pointer (`0x8825`). Upon resolution, it walks the GPS IFD directory to extract `GPSLatitudeRef`, `GPSLatitude`, `GPSLongitudeRef`, and `GPSLongitude`.
+- **Coordinate Conversion**: Rational coordinates (stored as numerator/denominator fractions) are translated into high-precision decimal coordinates (`degrees + minutes/60 + seconds/3600`) and multiplied by $-1$ if referencing West/South vectors, enabling Google Maps plotting.
+
+### 7. Multi-Touch Pinch-to-Zoom Gestures
+To optimize mobile tactical review of high-resolution aerial and device photos, the display canvas supports native pinch gestures:
+- **Calculated Scale Matrix**: Tracks standard pointer touches inside `touchstart` and `touchmove`. If `e.touches.length === 2`, it continuously computes the hypotenuse distance between pointers:
+  $$\Delta d = \sqrt{(x_1 - x_2)^2 + (y_1 - y_2)^2}$$
+- **Pinch Ratio mapping**: It computes a scaling factor against the original touch delta and maps the result to a strict $100\%$ to $500\%$ zoom slider scale.
+- **Trackpad Intercepts**: Intercepts desktop trackpad wheel gestures (`wheel` event combined with `e.ctrlKey === true`) to scale zooming values smoothly by increments of $12\%$ while calling `e.preventDefault()` to lock browser viewport scaling.
+
+### 8. HTTP 206 Range Request Slicing (Backend Worker)
+To enable mobile and edge browsers to smoothly seek/scrub through large tactical video and audio recordings, the Cloudflare Worker implements standard range slicing:
+- **Header Parsing**: Evaluates incoming `Range` headers (e.g. `bytes=start-end`).
+- **Memory Optimization**: Rather than pulling massive $200\text{MB}$ audio files into the worker's constrained V8 memory limit (which would trigger memory allocation exits), the server slices the D1 or KV `ArrayBuffer` directly at the exact start/end byte offsets before passing them into the client socket.
+- **Compliance Handshake**: Returns the sliced segment with an HTTP `206 Partial Content` status along with a configured `Content-Range: bytes start-end/total` header.
+
 ---
 
 ## 📅 Task Scheduling Pipeline
@@ -127,6 +153,18 @@ The volume sidebar is enhanced with mouse-drag and touch-drag event mapping:
 To make important telemetry data stand out in the terminal logs (such as cellular diagnostic updates), the system features a dedicated styling class:
 - **CSS Class `.t-text.telemetry`**: Employs standard terminal monospacing with custom `1px` letter-spacing, a glowing `.telemetry` text shadow, and a distinct vertical solid teal left-border.
 - This creates an attractive, high-contrast, segmented visual box that lets critical network notifications pop amongst generic system logs.
+
+### 6. Universal Ctrl + Select Selector Bypass
+Accidental click-and-drag text highlights disrupt the cyberpunk console's visual fidelity, so `user-select: none` is applied globally by default. However, copy-pasting coordinates, cell log details, and timestamps is necessary for diagnostics:
+- **Key-state Listeners**: Client scripts capture `keydown` and `keyup` events for the `Control` key (along with `window` blur listeners).
+- **Class Injection**: When held, `document.body` is appended with `.ctrl-select-mode`.
+- **CSS Override rule**: A global stylesheet override ruleset `body.ctrl-select-mode * { user-select: text !important; -webkit-user-select: text !important; }` allows instant, frictionless copying of any console text.
+
+### 7. Fluid Clip-Path Liquid Wobble Animation
+Volume slider progress bars are styled with a clean, GPU-friendly liquid surface animation:
+- **Only Top Edge Animation**: Animate *only* the top edge of the filled region, leaving the body static and solid to match a sleek dashboard look.
+- **Dynamic CSS Polygon Masking**: Employs a CSS `clip-path` using a custom $11$-point `polygon()` coordinates system where the top $y$-coordinates are locked in absolute pixels ($1\text{px}$ to $6\text{px}$) while the $x$-coordinates are spaced in standard percentages. This guarantees that the wave height remains exactly identical ($5\text{px}$) whether the volume is set to $10\%$ or $100\%$.
+- **Seamless Keyframe Bending**: Uses `@keyframes liquidWobble` to gently bend and shift the polygon vertices, producing a natural fluid surface wobble horizontally and vertically without rotating overlays or extra canvas rendering.
 
 ---
 

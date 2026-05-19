@@ -1286,46 +1286,72 @@ select:focus ~ .select-arrow { transform: translateY(-50%) rotate(180deg); }
   height: 0%; /* Dynamic */
   background: linear-gradient(to top, #008f6a, #00ffaa); /* Much brighter green */
   transition: height 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.2s var(--ease);
+  
+  /* Apply subtle GPU-friendly fluid edge wobble clip-path */
+  animation: liquidWobble 8s ease-in-out infinite;
 }
 
-.volume-bar-fill::before,
-.volume-bar-fill::after {
-  content: '';
-  position: absolute;
-  top: -12px;
-  left: -50%;
-  width: 200%;
-  height: 20px;
-  border-radius: 38%;
-  pointer-events: none;
-}
-
-/* Front Wave Layer */
-.volume-bar-fill::before {
-  background: #00ffaa;
-  opacity: 0.85;
-  animation: liquidWave1 3.5s linear infinite;
-  z-index: 2;
-}
-
-/* Deep Back Wave Layer */
-.volume-bar-fill::after {
-  background: #008f6a;
-  opacity: 0.6;
-  animation: liquidWave2 4.5s linear infinite;
-  z-index: 1;
-}
-
-@keyframes liquidWave1 {
-  0% { transform: rotate(0deg) translateY(0); }
-  50% { transform: rotate(180deg) translateY(-2px); }
-  100% { transform: rotate(360deg) translateY(0); }
-}
-
-@keyframes liquidWave2 {
-  0% { transform: rotate(0deg) translateY(0); }
-  50% { transform: rotate(-180deg) translateY(2px); }
-  100% { transform: rotate(-360deg) translateY(0); }
+@keyframes liquidWobble {
+  0%, 100% {
+    clip-path: polygon(
+      0% 4px,
+      12.5% 2px,
+      25% 1px,
+      37.5% 2px,
+      50% 4px,
+      62.5% 5px,
+      75% 6px,
+      87.5% 5px,
+      100% 4px,
+      100% 100%,
+      0% 100%
+    );
+  }
+  25% {
+    clip-path: polygon(
+      0% 5px,
+      12.5% 4px,
+      25% 2px,
+      37.5% 1px,
+      50% 2px,
+      62.5% 4px,
+      75% 5px,
+      87.5% 6px,
+      100% 5px,
+      100% 100%,
+      0% 100%
+    );
+  }
+  50% {
+    clip-path: polygon(
+      0% 4px,
+      12.5% 5px,
+      25% 6px,
+      37.5% 5px,
+      50% 4px,
+      62.5% 2px,
+      75% 1px,
+      87.5% 2px,
+      100% 4px,
+      100% 100%,
+      0% 100%
+    );
+  }
+  75% {
+    clip-path: polygon(
+      0% 2px,
+      12.5% 1px,
+      25% 2px,
+      37.5% 4px,
+      50% 5px,
+      62.5% 6px,
+      75% 5px,
+      87.5% 4px,
+      100% 2px,
+      100% 100%,
+      0% 100%
+    );
+  }
 }
 .volume-icon-wrap {
   margin-top: 5px;

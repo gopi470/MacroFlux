@@ -40,6 +40,14 @@ const SHARED_NAV_STYLE = `
   .nav-drop-item:hover { background: rgba(0, 220, 160, 0.06); color: #fff; border-left-color: var(--teal); }
   .nav-drop-item svg { opacity: 0.6; transition: all 0.2s var(--ease); margin-right: 12px; flex-shrink: 0; }
   .nav-drop-item:hover svg { opacity: 1; }
+  
+  /* Ctrl/Meta key override for text selection on worker logs pages */
+  body.ctrl-select-mode,
+  body.ctrl-select-mode * {
+    user-select: text !important;
+    -webkit-user-select: text !important;
+    cursor: auto !important;
+  }
 `;
 
 const SHARED_NAV_HTML = `
@@ -100,7 +108,23 @@ const SHARED_NAV_HTML = `
         }
       }
     });
+
+    // Ctrl/Meta Select Bypass
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Control' || e.key === 'Meta') {
+        document.body.classList.add('ctrl-select-mode');
+      }
+    });
+    document.addEventListener('keyup', (e) => {
+      if (e.key === 'Control' || e.key === 'Meta') {
+        document.body.classList.remove('ctrl-select-mode');
+      }
+    });
+    window.addEventListener('blur', () => {
+      document.body.classList.remove('ctrl-select-mode');
+    });
   </script>
+
 `;
 
 // ── JWT Security Utilities (HS256) ──────────────────────────
@@ -152,13 +176,13 @@ export default {
       const sessionCookie = cookie.split('; ').find(row => row.startsWith('session='))?.split('=')[1];
       const decodedToken = sessionCookie ? await jwtUtils.verify(sessionCookie, jwtSecret) : null;
       const isLoggedIn = !!decodedToken;
-  
+
       const logRequest = async (statusCode) => {
         try {
           if (url.searchParams.get("nosave") === "1") return;
           if (url.pathname === "/statuslogs") return; // Never log status logs page visits
 
-          
+
           const isNoisy = ["/poll", "/favicon.ico", "/requests"].includes(url.pathname);
 
           // Equalization Algorithm: Prevent /poll from taking over the hidden history
@@ -185,7 +209,7 @@ export default {
             else if (lowerUa.includes("safari") && !lowerUa.includes("chrome")) browser = "SAFARI";
 
             const isMobile = lowerUa.includes("mobi") || lowerUa.includes("android") || lowerUa.includes("iphone") || lowerUa.includes("ipad");
-            
+
             let deviceType = "DESKTOP";
             if (isMobile) {
               let brand = "MOBILE";
@@ -207,7 +231,7 @@ export default {
 
           const cf = request.cf || {};
           const location = cf.country ? `${cf.city || "Unknown"}, ${cf.region || "Unknown"}, ${cf.country}` : "Global";
-          
+
           await env.DB.prepare(
             "INSERT INTO logs (timestamp, method, path, status, ip, source, noisy, location) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
           ).bind(
@@ -230,75 +254,75 @@ export default {
         }
       };
 
-    const handleRequest = async () => {
-      const ip = request.headers.get("cf-connecting-ip") || "0.0.0.0";
-      const cf = request.cf || {};
-      const location = cf.country ? `${cf.city || "Unknown"}, ${cf.region || "Unknown"}, ${cf.country}` : "Global Intelligence Grid";
+      const handleRequest = async () => {
+        const ip = request.headers.get("cf-connecting-ip") || "0.0.0.0";
+        const cf = request.cf || {};
+        const location = cf.country ? `${cf.city || "Unknown"}, ${cf.region || "Unknown"}, ${cf.country}` : "Global Intelligence Grid";
 
-      // Redirect to home if already logged in and visiting root, index.html or login page
-      if ((url.pathname === "/" || url.pathname === "/index.html" || url.pathname === "/login") && isLoggedIn) {
-        return Response.redirect(url.origin + "/home", 302);
-      }
-
-    // 1. Handle Login Request
-    if (url.pathname === "/login") {
-      const key = url.searchParams.get("key");
-      const secretKey = env.ACCESS_KEY || "123"; // Fallback to 123 until secret is set
-      
-      if (key === secretKey) {
-        // Issue a 24-hour JWT
-        const token = await jwtUtils.sign({ 
-          sub: "admin", 
-          iat: Math.floor(Date.now() / 1000),
-          exp: Math.floor(Date.now() / 1000) + (3600 * 24) 
-        }, jwtSecret);
-
-        return new Response(null, {
-          status: 302,
-          headers: {
-            "Location": "/home?login=success",
-            "Set-Cookie": `session=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=86400; Secure`
-          }
-        });
-      }
-      return Response.redirect(url.origin + "/?error=1", 302);
-    }
-
-    // 2. Handle Logout
-    if (url.pathname === "/logout") {
-      return new Response(null, {
-        status: 302,
-        headers: {
-          "Location": "/",
-          "Set-Cookie": "session=; Path=/; Max-Age=0"
+        // Redirect to home if already logged in and visiting root, index.html or login page
+        if ((url.pathname === "/" || url.pathname === "/index.html" || url.pathname === "/login") && isLoggedIn) {
+          return Response.redirect(url.origin + "/home", 302);
         }
-      });
-    }
 
-    // 3. Handle Home/Dashboard
-    if (url.pathname === "/home") {
-      if (!isLoggedIn) return renderUnauthorized();
-      const response = await env.ASSETS.fetch(new Request(url.origin + "/home.html"));
-      return new HTMLRewriter()
-        .on(".top-left-menu", {
-          element(el) { el.replace(SHARED_NAV_HTML, { html: true }); }
-        })
-        .transform(response);
-    }
+        // 1. Handle Login Request
+        if (url.pathname === "/login") {
+          const key = url.searchParams.get("key");
+          const secretKey = env.ACCESS_KEY || "123"; // Fallback to 123 until secret is set
 
-    if (url.pathname === "/schedule") {
-      if (!isLoggedIn) return renderUnauthorized();
-      const response = await env.ASSETS.fetch(new Request(url.origin + "/schedule.html"));
-      return new HTMLRewriter()
-        .on(".top-left-menu", {
-          element(el) { el.replace(SHARED_NAV_HTML, { html: true }); }
-        })
-        .transform(response);
-    }
+          if (key === secretKey) {
+            // Issue a 24-hour JWT
+            const token = await jwtUtils.sign({
+              sub: "admin",
+              iat: Math.floor(Date.now() / 1000),
+              exp: Math.floor(Date.now() / 1000) + (3600 * 24)
+            }, jwtSecret);
 
-    // Helper for Tactical API Responses
-    const renderTactical = (msg, code = 200) => {
-      return new Response(`<!DOCTYPE html>
+            return new Response(null, {
+              status: 302,
+              headers: {
+                "Location": "/home?login=success",
+                "Set-Cookie": `session=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=86400; Secure`
+              }
+            });
+          }
+          return Response.redirect(url.origin + "/?error=1", 302);
+        }
+
+        // 2. Handle Logout
+        if (url.pathname === "/logout") {
+          return new Response(null, {
+            status: 302,
+            headers: {
+              "Location": "/",
+              "Set-Cookie": "session=; Path=/; Max-Age=0"
+            }
+          });
+        }
+
+        // 3. Handle Home/Dashboard
+        if (url.pathname === "/home") {
+          if (!isLoggedIn) return renderUnauthorized();
+          const response = await env.ASSETS.fetch(new Request(url.origin + "/home.html"));
+          return new HTMLRewriter()
+            .on(".top-left-menu", {
+              element(el) { el.replace(SHARED_NAV_HTML, { html: true }); }
+            })
+            .transform(response);
+        }
+
+        if (url.pathname === "/schedule") {
+          if (!isLoggedIn) return renderUnauthorized();
+          const response = await env.ASSETS.fetch(new Request(url.origin + "/schedule.html"));
+          return new HTMLRewriter()
+            .on(".top-left-menu", {
+              element(el) { el.replace(SHARED_NAV_HTML, { html: true }); }
+            })
+            .transform(response);
+        }
+
+        // Helper for Tactical API Responses
+        const renderTactical = (msg, code = 200) => {
+          return new Response(`<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -315,159 +339,180 @@ export default {
     <div>[ ${msg} ]</div>
   </div>
 </body></html>`, { status: code, headers: { "Content-Type": "text/html; charset=UTF-8" } });
-    };
+        };
 
-    // Helper for Unauthorized Access (Countdown Redirect)
-    const renderUnauthorized = () => {
-      const ip = request.headers.get("cf-connecting-ip") || "0.0.0.0";
-      const cf = request.cf || {};
-      const location = cf.country ? (cf.city || "Unknown") + ", " + cf.country : "Global Intelligence Grid";
-      
-      return new Response('<!DOCTYPE html>' +
-'<html lang="en">' +
-'<head>' +
-'  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">' +
-'  <title>Unauthorized Access</title>' +
-'  <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet">' +
-'  <style>' +
-'    * { box-sizing: border-box; margin: 0; padding: 0; }' +
-'    body { background: #020608; color: #ef4444; font-family: \'Share Tech Mono\', monospace; display: flex; align-items: center; justify-content: center; height: 100vh; overflow: hidden; }' +
-'    .alert-box { border: 1px solid rgba(239, 68, 68, 0.15); padding: 40px; background: rgba(239, 68, 68, 0.02); max-width: 420px; width: 95%; position: relative; border-radius: 4px; }' +
-'    h1 { font-size: 18px; letter-spacing: 2px; margin-bottom: 25px; text-transform: uppercase; font-weight: normal; color: #fff; text-align: center; }' +
-'    .detail { font-size: 11px; margin-bottom: 12px; opacity: 0.7; letter-spacing: 1px; display: flex; justify-content: space-between; border-bottom: 1px solid rgba(239, 68, 68, 0.05); padding-bottom: 8px; }' +
-'    .detail span { color: #00dca0; }' +
-'    .timer-wrap { margin-top: 30px; text-align: center; }' +
-'    .timer { font-size: 10px; margin-bottom: 20px; letter-spacing: 2px; color: rgba(239,68,68,0.5); }' +
-'    #count { font-size: 22px; color: #fff; }' +
-'    .btn { background: #ef4444; color: #000; border: none; padding: 14px 28px; font-family: inherit; cursor: pointer; font-size: 11px; letter-spacing: 2px; transition: all 0.2s; text-decoration: none; display: inline-block; border-radius: 2px; }' +
-'    .btn:hover { background: #fff; color: #ef4444; }' +
-'  </style>' +
-'</head>' +
-'<body>' +
-'  <div class="alert-box">' +
-'    <h1>UNAUTHORIZED ACCESS</h1>' +
-'    <div class="detail">Target: <span>' + url.pathname + '</span></div>' +
-'    <div class="detail">Your IP: <span>' + ip + '</span></div>' +
-'    <div class="detail">Location: <span>' + location + '</span></div>' +
-'    <div class="detail">Status: <span>Restricted</span></div>' +
-'    ' +
-'    <div class="timer-wrap">' +
-'      <div class="timer">Redirecting in <span id="count">7</span>s</div>' +
-'      <a href="/" class="btn">LOGIN NOW</a>' +
-'    </div>' +
-'  </div>' +
-'  <script>' +
-'    let c = 7;' +
-'    const t = setInterval(() => {' +
-'      c--;' +
-'      document.getElementById(\'count\').innerText = c;' +
-'      if (c <= 0) {' +
-'        clearInterval(t);' +
-'        window.location.href = \'/\';' +
-'      }' +
-'    }, 1000);' +
-'    document.addEventListener("keydown", (e) => { if(e.key === "Backspace") window.history.back(); });' +
-'  </script>' +
-'</body></html>', { status: 401, headers: { "Content-Type": "text/html; charset=UTF-8" } });
-    };
+        // Helper for Unauthorized Access (Countdown Redirect)
+        const renderUnauthorized = () => {
+          const ip = request.headers.get("cf-connecting-ip") || "0.0.0.0";
+          const cf = request.cf || {};
+          const location = cf.country ? (cf.city || "Unknown") + ", " + cf.country : "Global Intelligence Grid";
 
-    // ── Update Hardware Status (/status) ──────────────────
-    if (url.pathname === "/status") {
-      const { searchParams } = url;
-      if (searchParams.get("key") !== (env.REPORT_KEY || "REPORT_SECRET")) {
-        return renderTactical("UNAUTHORIZED", 401);
-      }
+          return new Response('<!DOCTYPE html>' +
+            '<html lang="en">' +
+            '<head>' +
+            '  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">' +
+            '  <title>Unauthorized Access</title>' +
+            '  <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet">' +
+            '  <style>' +
+            '    * { box-sizing: border-box; margin: 0; padding: 0; }' +
+            '    body { background: #020608; color: #ef4444; font-family: \'Share Tech Mono\', monospace; display: flex; align-items: center; justify-content: center; height: 100vh; overflow: hidden; }' +
+            '    .alert-box { border: 1px solid rgba(239, 68, 68, 0.15); padding: 40px; background: rgba(239, 68, 68, 0.02); max-width: 420px; width: 95%; position: relative; border-radius: 4px; }' +
+            '    h1 { font-size: 18px; letter-spacing: 2px; margin-bottom: 25px; text-transform: uppercase; font-weight: normal; color: #fff; text-align: center; }' +
+            '    .detail { font-size: 11px; margin-bottom: 12px; opacity: 0.7; letter-spacing: 1px; display: flex; justify-content: space-between; border-bottom: 1px solid rgba(239, 68, 68, 0.05); padding-bottom: 8px; }' +
+            '    .detail span { color: #00dca0; }' +
+            '    .timer-wrap { margin-top: 30px; text-align: center; }' +
+            '    .timer { font-size: 10px; margin-bottom: 20px; letter-spacing: 2px; color: rgba(239,68,68,0.5); }' +
+            '    #count { font-size: 22px; color: #fff; }' +
+            '    .btn { background: #ef4444; color: #000; border: none; padding: 14px 28px; font-family: inherit; cursor: pointer; font-size: 11px; letter-spacing: 2px; transition: all 0.2s; text-decoration: none; display: inline-block; border-radius: 2px; }' +
+            '    .btn:hover { background: #fff; color: #ef4444; }' +
+            '  </style>' +
+            '</head>' +
+            '<body>' +
+            '  <div class="alert-box">' +
+            '    <h1>UNAUTHORIZED ACCESS</h1>' +
+            '    <div class="detail">Target: <span>' + url.pathname + '</span></div>' +
+            '    <div class="detail">Your IP: <span>' + ip + '</span></div>' +
+            '    <div class="detail">Location: <span>' + location + '</span></div>' +
+            '    <div class="detail">Status: <span>Restricted</span></div>' +
+            '    ' +
+            '    <div class="timer-wrap">' +
+            '      <div class="timer">Redirecting in <span id="count">7</span>s</div>' +
+            '      <a href="/" class="btn">LOGIN NOW</a>' +
+            '    </div>' +
+            '  </div>' +
+            '  <script>' +
+            '    let c = 7;' +
+            '    const t = setInterval(() => {' +
+            '      c--;' +
+            '      document.getElementById(\'count\').innerText = c;' +
+            '      if (c <= 0) {' +
+            '        clearInterval(t);' +
+            '        window.location.href = \'/\';' +
+            '      }' +
+            '    }, 1000);' +
+            '    document.addEventListener("keydown", (e) => { if(e.key === "Backspace") window.history.back(); });' +
+            '  </script>' +
+            '</body></html>', { status: 401, headers: { "Content-Type": "text/html; charset=UTF-8" } });
+        };
 
-      // Dynamically capture all incoming parameters
-      const hardwareData = { updated: Date.now() };
-      for (const [k, v] of searchParams.entries()) {
-        if (k !== "key") hardwareData[k] = v;
-      }
-
-      // ── Persistent Status Merging ──
-      const existingStatusRaw = await env.LOCATION_KV.get("status");
-      let mergedData = { ...hardwareData };
-      if (existingStatusRaw) {
-        try {
-          const existingStatus = JSON.parse(existingStatusRaw);
-          // Merge incoming into existing, ensuring 'updated' is always the newest
-          mergedData = { ...existingStatus, ...hardwareData };
-        } catch (e) {}
-      }
-
-      // Persist to D1 for history (using merged data to avoid 0s on partial updates)
-      try {
-        const battery = parseInt(mergedData.battery_level || "0");
-        const battStatus = (mergedData.battery_status || "").toLowerCase().trim();
-        const charging = (battStatus === "on" || battStatus.includes("charging") || mergedData.battery_status === "1") ? 1 : 0;
-
-        const signal = parseInt(mergedData.signal_strength || "0");
-        const rawTemp = mergedData.battery_temperature || "0";
-        const temp = rawTemp.includes("°") ? rawTemp : (rawTemp === "0" ? "0°C" : rawTemp + "°C");
-        const uptime = mergedData.phone_uptime || "Unknown";
-        
-        const extraData = JSON.stringify({
-          torch: mergedData.glyphtorch_status,
-          alarm: mergedData.alaram_volume,
-          media: mergedData.media_volume,
-          ringer: mergedData.ringer_volume,
-          notif: mergedData.notification_volume,
-          location: mergedData.location_status,
-          wifi: mergedData.wifi_status,
-          bluetooth: mergedData.bluetooth_status,
-          batt_status: mergedData.battery_status,
-          netmonster: mergedData.netmonster_status
-        });
-
-        try {
-          await env.DB.prepare(
-            "INSERT INTO status_logs (timestamp, battery, charging, signal, temperature, uptime, ip, location, extra_data) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
-          ).bind(Date.now(), battery, charging, signal, temp, uptime, ip, location, extraData).run();
-        } catch (dbErr) {
-          if (dbErr.message.includes("extra_data")) {
-            await env.DB.prepare("ALTER TABLE status_logs ADD COLUMN extra_data TEXT").run();
-            await env.DB.prepare(
-              "INSERT INTO status_logs (timestamp, battery, charging, signal, temperature, uptime, ip, location, extra_data) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
-            ).bind(Date.now(), battery, charging, signal, temp, uptime, ip, location, extraData).run();
-          } else {
-            throw dbErr;
+        // ── Update Hardware Status (/status) ──────────────────
+        if (url.pathname === "/status") {
+          const { searchParams } = url;
+          if (searchParams.get("key") !== (env.REPORT_KEY || "REPORT_SECRET")) {
+            return renderTactical("UNAUTHORIZED", 401);
           }
+
+          // Dynamically capture all incoming parameters
+          const hardwareData = { updated: Date.now() };
+          for (const [k, v] of searchParams.entries()) {
+            if (k !== "key") hardwareData[k] = v;
+          }
+
+          // ── Persistent Status Merging ──
+          const existingStatusRaw = await env.LOCATION_KV.get("status");
+          let mergedData = { ...hardwareData };
+          if (existingStatusRaw) {
+            try {
+              const existingStatus = JSON.parse(existingStatusRaw);
+              // Merge incoming into existing, ensuring 'updated' is always the newest
+              mergedData = { ...existingStatus, ...hardwareData };
+            } catch (e) { }
+          }
+
+          // ── Clean & Resolve NetMonster Status ──
+          const cleanNetmonster = (s) => {
+            if (!s) return "";
+            const trimmed = s.trim();
+            const lower = trimmed.toLowerCase();
+            if (lower === "netmonster" || lower === "n/a" || lower === "null" || lower === "undefined") {
+              return "";
+            }
+            return trimmed;
+          };
+
+          const s1 = cleanNetmonster(mergedData.netmonster_status);
+          const s2 = cleanNetmonster(mergedData.netmonster_status2);
+
+          const resolvedNetmonster = s1 || s2;
+          if (resolvedNetmonster) {
+            mergedData.netmonster_status = resolvedNetmonster;
+          } else if (mergedData.netmonster_status && cleanNetmonster(mergedData.netmonster_status) === "") {
+            mergedData.netmonster_status = "—";
+          }
+
+          // Persist to D1 for history (using merged data to avoid 0s on partial updates)
+          try {
+            const battery = parseInt(mergedData.battery_level || "0");
+            const battStatus = (mergedData.battery_status || "").toLowerCase().trim();
+            const charging = (battStatus === "on" || battStatus.includes("charging") || mergedData.battery_status === "1") ? 1 : 0;
+
+            const signal = parseInt(mergedData.signal_strength || "0");
+            const rawTemp = mergedData.battery_temperature || "0";
+            const temp = rawTemp.includes("°") ? rawTemp : (rawTemp === "0" ? "0°C" : rawTemp + "°C");
+            const uptime = mergedData.phone_uptime || "Unknown";
+
+            const extraData = JSON.stringify({
+              torch: mergedData.glyphtorch_status,
+              alarm: mergedData.alaram_volume,
+              media: mergedData.media_volume,
+              ringer: mergedData.ringer_volume,
+              notif: mergedData.notification_volume,
+              location: mergedData.location_status,
+              wifi: mergedData.wifi_status,
+              bluetooth: mergedData.bluetooth_status,
+              batt_status: mergedData.battery_status,
+              netmonster: mergedData.netmonster_status
+            });
+
+            try {
+              await env.DB.prepare(
+                "INSERT INTO status_logs (timestamp, battery, charging, signal, temperature, uptime, ip, location, extra_data) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
+              ).bind(Date.now(), battery, charging, signal, temp, uptime, ip, location, extraData).run();
+            } catch (dbErr) {
+              if (dbErr.message.includes("extra_data")) {
+                await env.DB.prepare("ALTER TABLE status_logs ADD COLUMN extra_data TEXT").run();
+                await env.DB.prepare(
+                  "INSERT INTO status_logs (timestamp, battery, charging, signal, temperature, uptime, ip, location, extra_data) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
+                ).bind(Date.now(), battery, charging, signal, temp, uptime, ip, location, extraData).run();
+              } else {
+                throw dbErr;
+              }
+            }
+          } catch (e) {
+            console.error("D1 Hardware Log Error:", e);
+          }
+
+          await env.LOCATION_KV.put("status", JSON.stringify(mergedData));
+          return renderTactical("OK STATUS", 200);
         }
-      } catch (e) {
-        console.error("D1 Hardware Log Error:", e);
-      }
 
-      await env.LOCATION_KV.put("status", JSON.stringify(mergedData));
-      return renderTactical("OK STATUS", 200);
-    }
+        // ── Update Location Link (/report) ──────────────────────
+        if (url.pathname === "/report") {
+          const { searchParams } = url;
+          if (searchParams.get("key") !== (env.REPORT_KEY || "REPORT_SECRET")) {
+            return renderTactical("UNAUTHORIZED", 401);
+          }
 
-    // ── Update Location Link (/report) ──────────────────────
-    if (url.pathname === "/report") {
-      const { searchParams } = url;
-      if (searchParams.get("key") !== (env.REPORT_KEY || "REPORT_SECRET")) {
-        return renderTactical("UNAUTHORIZED", 401);
-      }
+          const link = searchParams.get("link");
+          if (link) {
+            await env.LOCATION_KV.put("location", JSON.stringify({ link, updated: Date.now() }));
+            return renderTactical("OK LOCATION", 200);
+          }
+          return renderTactical("MISSING LINK", 400);
+        }
 
-      const link = searchParams.get("link");
-      if (link) {
-        await env.LOCATION_KV.put("location", JSON.stringify({ link, updated: Date.now() }));
-        return renderTactical("OK LOCATION", 200);
-      }
-      return renderTactical("MISSING LINK", 400);
-    }
+        if (url.pathname === "/poll") {
+          if (!isLoggedIn) return renderUnauthorized();
 
-    if (url.pathname === "/poll") {
-      if (!isLoggedIn) return renderUnauthorized();
-      
-      const [status, location] = await Promise.all([
-        env.LOCATION_KV.get("status", { type: "json" }),
-        env.LOCATION_KV.get("location", { type: "json" })
-      ]);
+          const [status, location] = await Promise.all([
+            env.LOCATION_KV.get("status", { type: "json" }),
+            env.LOCATION_KV.get("location", { type: "json" })
+          ]);
 
-      const accept = request.headers.get("Accept") || "";
-      if (accept.includes("text/html")) {
-        const payload = JSON.stringify({ status, location }, null, 2);
-        return new Response(`<!DOCTYPE html>
+          const accept = request.headers.get("Accept") || "";
+          if (accept.includes("text/html")) {
+            const payload = JSON.stringify({ status, location }, null, 2);
+            return new Response(`<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -484,286 +529,286 @@ export default {
   <pre>${payload}</pre>
 </body>
 </html>`, { headers: { "Content-Type": "text/html; charset=UTF-8" } });
-      }
-
-      return new Response(JSON.stringify({ status, location }), {
-        headers: { "Content-Type": "application/json" }
-      });
-    }
-
-    if (url.pathname === "/control") {
-      if (!isLoggedIn) return renderUnauthorized();
-
-      const cmd = url.searchParams.get("cmd");
-      const key = url.searchParams.get("key"); // This is the MACROS KEY
-      const cmd2 = url.searchParams.get("cmd2");
-      const cmd3 = url.searchParams.get("cmd3");
-      const cmd4 = url.searchParams.get("cmd4");
-      const cmd5 = url.searchParams.get("cmd5");
-      
-      const macroId = env.MACRO_ID || "PASTE_YOUR_ID_FOR_LOCAL_TESTING";
-      let target = `https://trigger.macrodroid.com/${macroId}/control?cmd=${cmd}&key=${key}`;
-      if (cmd2) target += `&cmd2=${encodeURIComponent(cmd2)}`;
-      if (cmd3) target += `&cmd3=${encodeURIComponent(cmd3)}`;
-      if (cmd4) target += `&cmd4=${encodeURIComponent(cmd4)}`;
-      if (cmd5) target += `&cmd5=${encodeURIComponent(cmd5)}`;
-      
-      const response = await fetch(target);
-
-      // Optimistically update KV so the UI doesn't bounce back during next poll
-      if (response.ok && cmd === "set_volume") {
-        try {
-          const existingStatusRaw = await env.LOCATION_KV.get("status");
-          if (existingStatusRaw) {
-            let existingStatus = JSON.parse(existingStatusRaw);
-            if (cmd2) existingStatus.media_volume = cmd2;
-            if (cmd3) existingStatus.ringer_volume = cmd3;
-            if (cmd4) existingStatus.notification_volume = cmd4;
-            if (cmd5) existingStatus.alaram_volume = cmd5;
-            existingStatus.updated = Date.now();
-            await env.LOCATION_KV.put("status", JSON.stringify(existingStatus));
           }
-        } catch (e) {
-          console.error("Failed to optimistic update volumes", e);
-        }
-      }
 
-      return response;
-    }
-
-    if (url.pathname === "/api/macros/execute") {
-      if (!isLoggedIn) return renderUnauthorized();
-      if (request.method !== "POST") return new Response("POST REQUIRED", { status: 405 });
-      
-      try {
-        const { commands, key } = await request.json();
-        if (!commands || !key) return new Response("MISSING PARAMS", { status: 400 });
-        
-        const macroId = env.MACRO_ID || "PASTE_YOUR_ID_FOR_LOCAL_TESTING";
-        const results = [];
-        
-        for (const cmd of commands) {
-          // Add a small delay between internal fetches to avoid rate limits/congestion
-          await new Promise(r => setTimeout(r, 200));
-          const target = `https://trigger.macrodroid.com/${macroId}/control?cmd=${encodeURIComponent(cmd)}&key=${key}`;
-          const res = await fetch(target);
-          results.push({ cmd, ok: res.ok });
-        }
-        
-        return new Response(JSON.stringify({ success: true, results }), {
-          headers: { "Content-Type": "application/json" }
-        });
-      } catch (err) {
-        return new Response(JSON.stringify({ success: false, error: err.message }), {
-          status: 500, headers: { "Content-Type": "application/json" }
-        });
-      }
-    }
-
-    // ── File Vault Storage (/upload) ────────────────────────
-    if (url.pathname === "/upload") {
-      if (request.method !== "POST") {
-        return renderTactical("UPLOAD ENDPOINT ACTIVE (POST REQUIRED)", 405);
-      }
-      try {
-        const { searchParams } = url;
-        const providedKey = searchParams.get("key");
-        const secretKey = env.REPORT_KEY || "REPORT_SECRET";
-
-        if (providedKey !== secretKey) {
-          return renderTactical("UNAUTHORIZED", 401);
+          return new Response(JSON.stringify({ status, location }), {
+            headers: { "Content-Type": "application/json" }
+          });
         }
 
-        const type = searchParams.get("type") || "image";
-        const receivedAt = Date.now(); // Server receipt timestamp
-        const fileId = `${type}_${receivedAt}`;
-        const blob = await request.arrayBuffer();
+        if (url.pathname === "/control") {
+          if (!isLoggedIn) return renderUnauthorized();
 
-        if (!blob || blob.byteLength === 0) {
-          return renderTactical("EMPTY PAYLOAD", 400);
+          const cmd = url.searchParams.get("cmd");
+          const key = url.searchParams.get("key"); // This is the MACROS KEY
+          const cmd2 = url.searchParams.get("cmd2");
+          const cmd3 = url.searchParams.get("cmd3");
+          const cmd4 = url.searchParams.get("cmd4");
+          const cmd5 = url.searchParams.get("cmd5");
+
+          const macroId = env.MACRO_ID || "PASTE_YOUR_ID_FOR_LOCAL_TESTING";
+          let target = `https://trigger.macrodroid.com/${macroId}/control?cmd=${cmd}&key=${key}`;
+          if (cmd2) target += `&cmd2=${encodeURIComponent(cmd2)}`;
+          if (cmd3) target += `&cmd3=${encodeURIComponent(cmd3)}`;
+          if (cmd4) target += `&cmd4=${encodeURIComponent(cmd4)}`;
+          if (cmd5) target += `&cmd5=${encodeURIComponent(cmd5)}`;
+
+          const response = await fetch(target);
+
+          // Optimistically update KV so the UI doesn't bounce back during next poll
+          if (response.ok && cmd === "set_volume") {
+            try {
+              const existingStatusRaw = await env.LOCATION_KV.get("status");
+              if (existingStatusRaw) {
+                let existingStatus = JSON.parse(existingStatusRaw);
+                if (cmd2) existingStatus.media_volume = cmd2;
+                if (cmd3) existingStatus.ringer_volume = cmd3;
+                if (cmd4) existingStatus.notification_volume = cmd4;
+                if (cmd5) existingStatus.alaram_volume = cmd5;
+                existingStatus.updated = Date.now();
+                await env.LOCATION_KV.put("status", JSON.stringify(existingStatus));
+              }
+            } catch (e) {
+              console.error("Failed to optimistic update volumes", e);
+            }
+          }
+
+          return response;
         }
 
-        // Map types to proper mime-types
-        let contentType = "application/octet-stream";
-        if (type === "image") contentType = "image/jpeg";
-        else if (type === "audio") contentType = "audio/aac";
-        else if (type === "video") contentType = "video/mp4";
-        
-        const vaultLink = `/vault/${fileId}`;
-        
-        // Store raw binary data in KV
-        await env.LOCATION_KV.put(`vault_${fileId}`, blob, {
-          metadata: { contentType, receivedAt, size: blob.byteLength }
-        });
+        if (url.pathname === "/api/macros/execute") {
+          if (!isLoggedIn) return renderUnauthorized();
+          if (request.method !== "POST") return new Response("POST REQUIRED", { status: 405 });
 
-        // Index the file in D1 for fast, quota-free listing
-        await env.DB.prepare(
-          "INSERT INTO vault_files (id, type, size, content_type, timestamp) VALUES (?, ?, ?, ?, ?)"
-        ).bind(fileId, type.toUpperCase(), blob.byteLength, contentType, receivedAt).run();
+          try {
+            const { commands, key } = await request.json();
+            if (!commands || !key) return new Response("MISSING PARAMS", { status: 400 });
 
-        // Automatically update the terminal's live polling feed
-        await env.LOCATION_KV.put("location", JSON.stringify({ link: vaultLink, updated: Date.now() }));
+            const macroId = env.MACRO_ID || "PASTE_YOUR_ID_FOR_LOCAL_TESTING";
+            const results = [];
 
-        return renderTactical(vaultLink, 200);
-      } catch (err) {
-        return renderTactical(`UPLOAD CRASH: ${err.message}`, 500);
-      }
-    }
+            for (const cmd of commands) {
+              // Add a small delay between internal fetches to avoid rate limits/congestion
+              await new Promise(r => setTimeout(r, 200));
+              const target = `https://trigger.macrodroid.com/${macroId}/control?cmd=${encodeURIComponent(cmd)}&key=${key}`;
+              const res = await fetch(target);
+              results.push({ cmd, ok: res.ok });
+            }
 
-    // ── File Vault Delete (/vault/delete) ───────────────────
-    if (url.pathname === "/vault/delete") {
-      try {
-        if (!isLoggedIn) return renderUnauthorized();
-        const fileId = url.searchParams.get("id");
-        if (!fileId) return new Response("MISSING ID", { status: 400 });
-        
-        await Promise.all([
-          env.LOCATION_KV.delete(`vault_${fileId}`),
-          env.DB.prepare("DELETE FROM vault_files WHERE id = ?").bind(fileId).run()
-        ]);
-        
-        return new Response("DELETED", { status: 200 });
-      } catch (err) {
-        return new Response(`DELETE CRASH: ${err.message}`, { status: 500 });
-      }
-    }
-
-    if (url.pathname === "/schedule/create") {
-      if (!isLoggedIn) return renderUnauthorized();
-      
-      const cmd = url.searchParams.get("cmd");
-      const cmd2 = url.searchParams.get("cmd2") || "";
-      const key = url.searchParams.get("key") || "";
-      const targetTime = parseInt(url.searchParams.get("time"));
-      
-      if (!cmd || !targetTime) return renderTactical("INVALID PARAMS", 400);
-      if (!key) return renderTactical("MACROS KEY REQUIRED", 400);
-
-      // Rule 1: Max 3 months from now
-      const maxFuture = Date.now() + (90 * 24 * 60 * 60 * 1000);
-      if (targetTime > maxFuture) return renderTactical("EXCEEDS 3-MONTH LIMIT", 400);
-      if (targetTime < Date.now()) return renderTactical("TIME MUST BE IN FUTURE", 400);
-
-      // Rule 2: No 2 triggers at the exact same minute
-      const targetMin = Math.floor(targetTime / 60000) * 60000;
-      try {
-        const existing = await env.DB.prepare(
-          "SELECT id FROM command_schedules WHERE target_time >= ? AND target_time < ? AND status = 'PENDING'"
-        ).bind(targetMin, targetMin + 60000).first();
-        
-        if (existing) return renderTactical("TIME CONFLICT: TRIGGER ALREADY EXISTS", 409);
-
-        await env.DB.prepare(
-          "INSERT INTO command_schedules (command, params, secret_key, target_time, created_at) VALUES (?, ?, ?, ?, ?)"
-        ).bind(cmd, cmd2, key, targetTime, Date.now()).run();
-        return renderTactical("SCHEDULED", 200);
-      } catch (e) {
-        return renderTactical(`DB ERROR: ${e.message}`, 500);
-      }
-    }
-
-    // ── Schedule Cancellation (/schedule/cancel) ────────────
-    if (url.pathname === "/schedule/cancel") {
-      if (!isLoggedIn) return renderUnauthorized();
-      const id = url.searchParams.get("id");
-      if (!id) return renderTactical("MISSING ID", 400);
-      
-      try {
-        await env.DB.prepare("UPDATE command_schedules SET status = 'CANCELLED' WHERE id = ?").bind(id).run();
-        return renderTactical("CANCELLED", 200);
-      } catch (e) {
-        return renderTactical(`DB ERROR: ${e.message}`, 500);
-      }
-    }
-
-    // ── File Vault Retrieval (/vault/:id) ──────────────────
-    if (url.pathname.startsWith("/vault/") && !["/vault/list", "/vault/display", "/vault/auth", "/vault/delete", "/vault/logout"].includes(url.pathname)) {
-      try {
-        if (!isLoggedIn) return renderUnauthorized();
-
-        const vaultPass = (env.VAULT_PASS || env.VALULT_PASS || "").trim();
-        const cookies = request.headers.get("Cookie") || "";
-        const isVaultAuthenticated = cookies.includes("vault_token=authorized");
-
-        if (vaultPass && !isVaultAuthenticated) {
-          return Response.redirect(url.origin + "/vault/auth?next=" + encodeURIComponent(url.pathname), 302);
+            return new Response(JSON.stringify({ success: true, results }), {
+              headers: { "Content-Type": "application/json" }
+            });
+          } catch (err) {
+            return new Response(JSON.stringify({ success: false, error: err.message }), {
+              status: 500, headers: { "Content-Type": "application/json" }
+            });
+          }
         }
 
-        const fileId = url.pathname.replace("/vault/", "");
-        const { value, metadata } = await env.LOCATION_KV.getWithMetadata(`vault_${fileId}`, { type: "arrayBuffer" });
+        // ── File Vault Storage (/upload) ────────────────────────
+        if (url.pathname === "/upload") {
+          if (request.method !== "POST") {
+            return renderTactical("UPLOAD ENDPOINT ACTIVE (POST REQUIRED)", 405);
+          }
+          try {
+            const { searchParams } = url;
+            const providedKey = searchParams.get("key");
+            const secretKey = env.REPORT_KEY || "REPORT_SECRET";
 
-        if (!value) return new Response("FILE NOT FOUND", { status: 404 });
+            if (providedKey !== secretKey) {
+              return renderTactical("UNAUTHORIZED", 401);
+            }
 
-        const totalLength = value.byteLength;
-        const rangeHeader = request.headers.get("Range");
+            const type = searchParams.get("type") || "image";
+            const receivedAt = Date.now(); // Server receipt timestamp
+            const fileId = `${type}_${receivedAt}`;
+            const blob = await request.arrayBuffer();
 
-        if (rangeHeader && rangeHeader.startsWith("bytes=")) {
-          const parts = rangeHeader.replace(/bytes=/, "").split("-");
-          const start = parseInt(parts[0], 10);
-          const end = parts[1] ? parseInt(parts[1], 10) : totalLength - 1;
+            if (!blob || blob.byteLength === 0) {
+              return renderTactical("EMPTY PAYLOAD", 400);
+            }
 
-          if (start >= 0 && end < totalLength && start <= end) {
-            const chunk = value.slice(start, end + 1);
-            return new Response(chunk, {
-              status: 206,
+            // Map types to proper mime-types
+            let contentType = "application/octet-stream";
+            if (type === "image") contentType = "image/jpeg";
+            else if (type === "audio") contentType = "audio/aac";
+            else if (type === "video") contentType = "video/mp4";
+
+            const vaultLink = `/vault/${fileId}`;
+
+            // Store raw binary data in KV
+            await env.LOCATION_KV.put(`vault_${fileId}`, blob, {
+              metadata: { contentType, receivedAt, size: blob.byteLength }
+            });
+
+            // Index the file in D1 for fast, quota-free listing
+            await env.DB.prepare(
+              "INSERT INTO vault_files (id, type, size, content_type, timestamp) VALUES (?, ?, ?, ?, ?)"
+            ).bind(fileId, type.toUpperCase(), blob.byteLength, contentType, receivedAt).run();
+
+            // Automatically update the terminal's live polling feed
+            await env.LOCATION_KV.put("location", JSON.stringify({ link: vaultLink, updated: Date.now() }));
+
+            return renderTactical(vaultLink, 200);
+          } catch (err) {
+            return renderTactical(`UPLOAD CRASH: ${err.message}`, 500);
+          }
+        }
+
+        // ── File Vault Delete (/vault/delete) ───────────────────
+        if (url.pathname === "/vault/delete") {
+          try {
+            if (!isLoggedIn) return renderUnauthorized();
+            const fileId = url.searchParams.get("id");
+            if (!fileId) return new Response("MISSING ID", { status: 400 });
+
+            await Promise.all([
+              env.LOCATION_KV.delete(`vault_${fileId}`),
+              env.DB.prepare("DELETE FROM vault_files WHERE id = ?").bind(fileId).run()
+            ]);
+
+            return new Response("DELETED", { status: 200 });
+          } catch (err) {
+            return new Response(`DELETE CRASH: ${err.message}`, { status: 500 });
+          }
+        }
+
+        if (url.pathname === "/schedule/create") {
+          if (!isLoggedIn) return renderUnauthorized();
+
+          const cmd = url.searchParams.get("cmd");
+          const cmd2 = url.searchParams.get("cmd2") || "";
+          const key = url.searchParams.get("key") || "";
+          const targetTime = parseInt(url.searchParams.get("time"));
+
+          if (!cmd || !targetTime) return renderTactical("INVALID PARAMS", 400);
+          if (!key) return renderTactical("MACROS KEY REQUIRED", 400);
+
+          // Rule 1: Max 3 months from now
+          const maxFuture = Date.now() + (90 * 24 * 60 * 60 * 1000);
+          if (targetTime > maxFuture) return renderTactical("EXCEEDS 3-MONTH LIMIT", 400);
+          if (targetTime < Date.now()) return renderTactical("TIME MUST BE IN FUTURE", 400);
+
+          // Rule 2: No 2 triggers at the exact same minute
+          const targetMin = Math.floor(targetTime / 60000) * 60000;
+          try {
+            const existing = await env.DB.prepare(
+              "SELECT id FROM command_schedules WHERE target_time >= ? AND target_time < ? AND status = 'PENDING'"
+            ).bind(targetMin, targetMin + 60000).first();
+
+            if (existing) return renderTactical("TIME CONFLICT: TRIGGER ALREADY EXISTS", 409);
+
+            await env.DB.prepare(
+              "INSERT INTO command_schedules (command, params, secret_key, target_time, created_at) VALUES (?, ?, ?, ?, ?)"
+            ).bind(cmd, cmd2, key, targetTime, Date.now()).run();
+            return renderTactical("SCHEDULED", 200);
+          } catch (e) {
+            return renderTactical(`DB ERROR: ${e.message}`, 500);
+          }
+        }
+
+        // ── Schedule Cancellation (/schedule/cancel) ────────────
+        if (url.pathname === "/schedule/cancel") {
+          if (!isLoggedIn) return renderUnauthorized();
+          const id = url.searchParams.get("id");
+          if (!id) return renderTactical("MISSING ID", 400);
+
+          try {
+            await env.DB.prepare("UPDATE command_schedules SET status = 'CANCELLED' WHERE id = ?").bind(id).run();
+            return renderTactical("CANCELLED", 200);
+          } catch (e) {
+            return renderTactical(`DB ERROR: ${e.message}`, 500);
+          }
+        }
+
+        // ── File Vault Retrieval (/vault/:id) ──────────────────
+        if (url.pathname.startsWith("/vault/") && !["/vault/list", "/vault/display", "/vault/auth", "/vault/delete", "/vault/logout"].includes(url.pathname)) {
+          try {
+            if (!isLoggedIn) return renderUnauthorized();
+
+            const vaultPass = (env.VAULT_PASS || env.VALULT_PASS || "").trim();
+            const cookies = request.headers.get("Cookie") || "";
+            const isVaultAuthenticated = cookies.includes("vault_token=authorized");
+
+            if (vaultPass && !isVaultAuthenticated) {
+              return Response.redirect(url.origin + "/vault/auth?next=" + encodeURIComponent(url.pathname), 302);
+            }
+
+            const fileId = url.pathname.replace("/vault/", "");
+            const { value, metadata } = await env.LOCATION_KV.getWithMetadata(`vault_${fileId}`, { type: "arrayBuffer" });
+
+            if (!value) return new Response("FILE NOT FOUND", { status: 404 });
+
+            const totalLength = value.byteLength;
+            const rangeHeader = request.headers.get("Range");
+
+            if (rangeHeader && rangeHeader.startsWith("bytes=")) {
+              const parts = rangeHeader.replace(/bytes=/, "").split("-");
+              const start = parseInt(parts[0], 10);
+              const end = parts[1] ? parseInt(parts[1], 10) : totalLength - 1;
+
+              if (start >= 0 && end < totalLength && start <= end) {
+                const chunk = value.slice(start, end + 1);
+                return new Response(chunk, {
+                  status: 206,
+                  headers: {
+                    "Content-Type": metadata?.contentType || "application/octet-stream",
+                    "Content-Disposition": "inline",
+                    "Content-Range": `bytes ${start}-${end}/${totalLength}`,
+                    "Accept-Ranges": "bytes",
+                    "Content-Length": chunk.byteLength.toString(),
+                    "Cache-Control": "public, max-age=3600"
+                  }
+                });
+              }
+            }
+
+            return new Response(value, {
               headers: {
                 "Content-Type": metadata?.contentType || "application/octet-stream",
                 "Content-Disposition": "inline",
-                "Content-Range": `bytes ${start}-${end}/${totalLength}`,
                 "Accept-Ranges": "bytes",
-                "Content-Length": chunk.byteLength.toString(),
+                "Content-Length": totalLength.toString(),
                 "Cache-Control": "public, max-age=3600"
               }
             });
+          } catch (err) {
+            return new Response(`VAULT CRASH: ${err.message}`, { status: 500 });
           }
         }
 
-        return new Response(value, {
-          headers: { 
-            "Content-Type": metadata?.contentType || "application/octet-stream",
-            "Content-Disposition": "inline",
-            "Accept-Ranges": "bytes",
-            "Content-Length": totalLength.toString(),
-            "Cache-Control": "public, max-age=3600"
+        // ── Vault Authentication Gateway (/vault/auth) ──────────
+        if (url.pathname === "/vault/auth") {
+          if (!isLoggedIn) return renderUnauthorized();
+
+          const vaultPass = (env.VAULT_PASS || env.VALULT_PASS || "").trim();
+          const cookies = request.headers.get("Cookie") || "";
+          const isVaultAuthenticated = cookies.includes("vault_token=authorized");
+
+          // Handle Password Submission (POST)
+          if (request.method === "POST") {
+            try {
+              const rawBody = (await request.text()).trim();
+              const pass = atob(rawBody).trim();
+
+              if (vaultPass && pass === vaultPass) {
+                return new Response("OK", {
+                  headers: { "Set-Cookie": "vault_token=authorized; Path=/; HttpOnly; SameSite=Lax; Max-Age=600" }
+                });
+              }
+              return new Response("INVALID", { status: 403 });
+            } catch (err) {
+              return new Response(`AUTH ERROR: ${err.message}`, { status: 500 });
+            }
           }
-        });
-      } catch (err) {
-        return new Response(`VAULT CRASH: ${err.message}`, { status: 500 });
-      }
-    }
 
-    // ── Vault Authentication Gateway (/vault/auth) ──────────
-    if (url.pathname === "/vault/auth") {
-      if (!isLoggedIn) return renderUnauthorized();
-
-      const vaultPass = (env.VAULT_PASS || env.VALULT_PASS || "").trim();
-      const cookies = request.headers.get("Cookie") || "";
-      const isVaultAuthenticated = cookies.includes("vault_token=authorized");
-
-      // Handle Password Submission (POST)
-      if (request.method === "POST") {
-        try {
-          const rawBody = (await request.text()).trim();
-          const pass = atob(rawBody).trim();
-          
-          if (vaultPass && pass === vaultPass) {
-            return new Response("OK", {
-              headers: { "Set-Cookie": "vault_token=authorized; Path=/; HttpOnly; SameSite=Lax; Max-Age=600" }
-            });
+          // Handle Authentication Page (GET)
+          // If already authenticated, redirect to list immediately
+          if (isVaultAuthenticated) {
+            const next = url.searchParams.get("next") || "/vault/list";
+            return Response.redirect(url.origin + next, 302);
           }
-          return new Response("INVALID", { status: 403 });
-        } catch (err) {
-          return new Response(`AUTH ERROR: ${err.message}`, { status: 500 });
-        }
-      }
-
-      // Handle Authentication Page (GET)
-      // If already authenticated, redirect to list immediately
-      if (isVaultAuthenticated) {
-        const next = url.searchParams.get("next") || "/vault/list";
-        return Response.redirect(url.origin + next, 302);
-      }
-      const loginHtml = `<!DOCTYPE html>
+          const loginHtml = `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -825,68 +870,68 @@ export default {
   </script>
 </body>
 </html>`;
-      return new Response(loginHtml, { headers: { "Content-Type": "text/html; charset=UTF-8" } });
-    }
-
-    // ── Vault Logout (/vault/logout) ────────────────────────
-    if (url.pathname === "/vault/logout") {
-      return new Response("", {
-        status: 302,
-        headers: { 
-          "Set-Cookie": "vault_token=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT",
-          "Location": "/vault/list"
-        }
-      });
-    }
-
-    // ── Vault Standalone Display (/vault/display) ───────────
-    if (url.pathname === "/vault/display") {
-      if (!isLoggedIn) return renderUnauthorized();
-      return env.ASSETS.fetch(new Request(url.origin + "/vault-display.html"));
-    }
-
-    // ── File Vault Index (/vault/list) ──────────────────────
-    if (url.pathname === "/vault/list") {
-      try {
-        if (!isLoggedIn) return renderUnauthorized();
-
-        const vaultPass = (env.VAULT_PASS || env.VALULT_PASS || "").trim();
-        const cookies = request.headers.get("Cookie") || "";
-        const isVaultAuthenticated = cookies.includes("vault_token=authorized");
-
-        if (vaultPass && !isVaultAuthenticated) {
-          return Response.redirect(url.origin + "/vault/auth?next=" + encodeURIComponent(url.pathname), 302);
+          return new Response(loginHtml, { headers: { "Content-Type": "text/html; charset=UTF-8" } });
         }
 
-        try {
-          // Fetch file list from D1 SQL Index (Quota-free & Unlimited)
-          const { results: dbFiles } = await env.DB.prepare("SELECT * FROM vault_files ORDER BY timestamp DESC LIMIT 500").all();
-          
-          const rows = dbFiles.map(r => {
-            const date = new Date(r.timestamp);
-            const timeStr = date.toLocaleString('en-US', {
-              timeZone: 'Asia/Kolkata',
-              month: 'short', day: 'numeric',
-              hour: 'numeric', minute: 'numeric', second: 'numeric', hour12: true
-            });
+        // ── Vault Logout (/vault/logout) ────────────────────────
+        if (url.pathname === "/vault/logout") {
+          return new Response("", {
+            status: 302,
+            headers: {
+              "Set-Cookie": "vault_token=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT",
+              "Location": "/vault/list"
+            }
+          });
+        }
 
-            const sizeMB = (r.size / (1024 * 1024)).toFixed(2);
-            const receivedStr = timeStr; // Legacy fallback
-            
-            // Estimated duration
-            let duration = "--";
-            if (r.type === "AUDIO" && r.size > 0) {
-              const secs = Math.round(r.size / (128 * 1024 / 8));
-              duration = secs >= 60 ? `${Math.floor(secs/60)}m ${secs%60}s` : `${secs}s`;
-            } else if (r.type === "VIDEO" && r.size > 0) {
-              const secs = Math.round(r.size / (3 * 1024 * 1024 / 8));
-              duration = secs >= 60 ? `${Math.floor(secs/60)}m ${secs%60}s` : `${secs}s`;
+        // ── Vault Standalone Display (/vault/display) ───────────
+        if (url.pathname === "/vault/display") {
+          if (!isLoggedIn) return renderUnauthorized();
+          return env.ASSETS.fetch(new Request(url.origin + "/vault-display.html"));
+        }
+
+        // ── File Vault Index (/vault/list) ──────────────────────
+        if (url.pathname === "/vault/list") {
+          try {
+            if (!isLoggedIn) return renderUnauthorized();
+
+            const vaultPass = (env.VAULT_PASS || env.VALULT_PASS || "").trim();
+            const cookies = request.headers.get("Cookie") || "";
+            const isVaultAuthenticated = cookies.includes("vault_token=authorized");
+
+            if (vaultPass && !isVaultAuthenticated) {
+              return Response.redirect(url.origin + "/vault/auth?next=" + encodeURIComponent(url.pathname), 302);
             }
 
-            return { id: r.id, typeStr: r.type, timeStr, receivedStr, sizeMB, contentType: r.content_type, duration };
-          });
+            try {
+              // Fetch file list from D1 SQL Index (Quota-free & Unlimited)
+              const { results: dbFiles } = await env.DB.prepare("SELECT * FROM vault_files ORDER BY timestamp DESC LIMIT 500").all();
 
-          let tableRows = rows.map(r => `
+              const rows = dbFiles.map(r => {
+                const date = new Date(r.timestamp);
+                const timeStr = date.toLocaleString('en-US', {
+                  timeZone: 'Asia/Kolkata',
+                  month: 'short', day: 'numeric',
+                  hour: 'numeric', minute: 'numeric', second: 'numeric', hour12: true
+                });
+
+                const sizeMB = (r.size / (1024 * 1024)).toFixed(2);
+                const receivedStr = timeStr; // Legacy fallback
+
+                // Estimated duration
+                let duration = "--";
+                if (r.type === "AUDIO" && r.size > 0) {
+                  const secs = Math.round(r.size / (128 * 1024 / 8));
+                  duration = secs >= 60 ? `${Math.floor(secs / 60)}m ${secs % 60}s` : `${secs}s`;
+                } else if (r.type === "VIDEO" && r.size > 0) {
+                  const secs = Math.round(r.size / (3 * 1024 * 1024 / 8));
+                  duration = secs >= 60 ? `${Math.floor(secs / 60)}m ${secs % 60}s` : `${secs}s`;
+                }
+
+                return { id: r.id, typeStr: r.type, timeStr, receivedStr, sizeMB, contentType: r.content_type, duration };
+              });
+
+              let tableRows = rows.map(r => `
             <tr id="row_${r.id}">
               <td>${r.id.replace(/_/g, ' ')}</td>
               <td>${r.receivedStr}</td>
@@ -900,34 +945,39 @@ export default {
               </td>
             </tr>`).join("");
 
-          let totalMB = 0;
-          rows.forEach(r => {
-            totalMB += parseFloat(r.sizeMB);
-          });
+              let totalMB = 0;
+              rows.forEach(r => {
+                totalMB += parseFloat(r.sizeMB);
+              });
 
-        const html = `<!DOCTYPE html>
+              const html = `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <title>File Vault</title>
   <link rel="icon" type="image/svg+xml" href="/favicon.svg">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=0.3, maximum-scale=5.0">
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; -webkit-user-select: none; }
-    body { background: #06080a; color: #00dca0; font-family: 'Courier New', monospace; padding: 24px; font-size: 13px; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: #06080a; color: #00dca0; font-family: 'Courier New', monospace; padding: 24px 24px 24px 76px; font-size: 13px; }
     h2 { letter-spacing: 5px; font-size: 16px; }
-    .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #00dca0; padding-bottom: 12px; margin-bottom: 25px; padding-left: 75px; margin-top: -4px; }
+    .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #00dca0; padding-bottom: 12px; margin-bottom: 25px; padding-left: 0; margin-top: -4px; }
     .vault-logout { display: inline-block; background: rgba(239,68,68,0.08); color: #f87171; border: 1px solid rgba(239,68,68,0.2); font-size: 10px; padding: 7px 16px; text-decoration: none; font-weight: bold; letter-spacing: 1px; border-radius: 3px; transition: all 0.2s; }
     .vault-logout:hover { background: rgba(239,68,68,0.15); border-color: #f87171; box-shadow: 0 0 15px rgba(239,68,68,0.1); }
     .count { opacity: 0.8; font-size: 11px; }
-    table { width: 100%; border-collapse: collapse; }
-    th { text-align: left; padding: 8px 12px; font-size: 10px; letter-spacing: 2px; color: rgba(0,220,160,0.85); border-bottom: 1px solid rgba(0,220,160,0.15); }
-    td { padding: 10px 12px; border-bottom: 1px solid rgba(0,220,160,0.07); }
+    .table-wrapper { overflow-x: auto; width: 100%; }
+    .table-wrapper::-webkit-scrollbar { height: 4px; }
+    .table-wrapper::-webkit-scrollbar-track { background: rgba(0, 220, 160, 0.05); }
+    .table-wrapper::-webkit-scrollbar-thumb { background: rgba(0, 220, 160, 0.3); border-radius: 2px; }
+    .table-wrapper::-webkit-scrollbar-thumb:hover { background: rgba(0, 220, 160, 0.6); }
+    table { width: max-content; min-width: 100%; table-layout: auto; border-collapse: collapse; }
+    th { text-align: left; padding: 8px 12px; font-size: 10px; letter-spacing: 2px; color: rgba(0,220,160,0.85); border-bottom: 1px solid rgba(0,220,160,0.15); white-space: nowrap; vertical-align: middle; }
+    td { padding: 10px 12px; border-bottom: 1px solid rgba(0,220,160,0.07); white-space: nowrap; vertical-align: middle; }
     tr:hover td { background: rgba(0,220,160,0.03); }
     .type-image { color: #60a5fa; }
     .type-audio { color: #f59e0b; }
     .type-video { color: #f87171; }
-    a { color: #00dca0; text-decoration: none; border: 1px solid rgba(0,220,160,0.4); padding: 3px 8px; border-radius: 3px; font-size: 11px; }
+    a { color: #00dca0; text-decoration: none; border: 1px solid rgba(0,220,160,0.4); padding: 3px 8px; border-radius: 3px; font-size: 11px; display: inline-block; white-space: nowrap; }
     a:hover { background: rgba(0,220,160,0.1); }
     .footer { margin-top: 20px; font-size: 10px; opacity: 0.6; }
     .c-sel { position: relative; display: inline-block; }
@@ -938,7 +988,63 @@ export default {
     .c-sel .opts div { padding: 10px 14px; font-size: 11px; font-weight: bold; cursor: pointer; border-bottom: 1px solid rgba(0,220,160,0.05); color: rgba(0,220,160,0.85); transition: all 0.2s; border-left: 2px solid transparent; }
     .c-sel .opts div:last-child { border-bottom: none; }
     .c-sel .opts div:hover { background: rgba(0,220,160,0.06); color: #fff; border-left-color: #00dca0; }
-    @keyframes fadeUp { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+    @media (max-width: 768px) {
+      body { padding: 12px 12px 12px 64px; }
+      .header {
+        padding-left: 0;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 15px;
+      }
+      .header > div {
+        width: 100%;
+      }
+      .header > div:first-child {
+        display: flex !important;
+        flex-wrap: wrap !important;
+        gap: 8px !important;
+        align-items: center !important;
+      }
+      .header h2 {
+        flex: 1 1 100%;
+        white-space: nowrap !important;
+        font-size: 13px !important;
+        letter-spacing: 2px !important;
+      }
+      .c-sel {
+        flex: 1 1 45%;
+        min-width: 120px;
+      }
+      .c-sel button {
+        width: 100%;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+      .c-sel .opts {
+        width: 100%;
+      }
+      .header > div:last-child {
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: stretch !important;
+        width: 100%;
+      }
+      .vault-logout {
+        width: 100%;
+        text-align: center;
+      }
+      .header > div:last-child > div:last-child {
+        border-top: 1px solid rgba(0, 220, 160, 0.1);
+        padding-top: 8px;
+        margin-top: 5px;
+        width: 100%;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 6px;
+      }
+    }
     ${SHARED_NAV_STYLE}
   </style>
 </head>
@@ -973,20 +1079,22 @@ export default {
       </div>
     </div>
   </div>
-  <table>
-    <thead>
-      <tr>
-        <th>ITEM NAME</th>
-        <th>STORED TIMESTAMP</th>
-        <th>TYPE</th>
-        <th>FORMAT</th>
-        <th>SIZE</th>
-        <th>DURATION</th>
-        <th>ACCESS</th>
-      </tr>
-    </thead>
-    <tbody>${tableRows}</tbody>
-  </table>
+  <div class="table-wrapper">
+    <table>
+      <thead>
+        <tr>
+          <th>ITEM NAME</th>
+          <th>STORED TIMESTAMP</th>
+          <th>TYPE</th>
+          <th>FORMAT</th>
+          <th>SIZE</th>
+          <th>DURATION</th>
+          <th>ACCESS</th>
+        </tr>
+      </thead>
+      <tbody>${tableRows}</tbody>
+    </table>
+  </div>
   <div class="footer">END OF ARCHIVE LOG -- ui.muffinjuice.xyz/vault/list</div>
   <script>
     let curFilter = 'ALL';
@@ -1084,187 +1192,187 @@ export default {
 </body>
 </html>`;
 
-        return new Response(html, { headers: { "Content-Type": "text/html; charset=UTF-8" } });
-      } catch (err) {
-        return new Response(`INDEX_CRASH: ${err.message}`, { status: 500 });
-      }
-    } catch (outerErr) {
-      return new Response(`VAULT_FATAL: ${outerErr.message}`, { status: 500 });
-    }
-  }
-
-    // ── Persistent IP Intelligence Endpoint ──────────────
-    if (url.pathname === "/intel") {
-      if (!isLoggedIn) return renderUnauthorized();
-      const ip = url.searchParams.get("ip");
-      if (!ip) return new Response("MISSING IP", { status: 400 });
-
-      try {
-        const cached = await env.DB.prepare("SELECT * FROM geo_cache WHERE ip = ?").bind(ip).first();
-        if (cached) {
-          return new Response(JSON.stringify({ ...cached, country_name: cached.country, latitude: cached.latitude, longitude: cached.longitude, source: "D1 CACHE" }), {
-            headers: { "Content-Type": "application/json" }
-          });
-        }
-
-        // Strategy: Try multiple providers to avoid rate limits
-        let data = null;
-        let lastError = "";
-
-        // 1. Try ipapi.co
-        try {
-          const resp = await fetch(`https://ipapi.co/${ip}/json/`, { headers: { "User-Agent": "Cloudflare-Worker" } });
-          if (resp.ok && resp.headers.get("content-type")?.includes("application/json")) {
-            const d = await resp.json();
-            if (!d.error) data = { ...d, source: "IPAPI CO" };
-            else lastError = d.reason || "IPAPI Rate Limit";
-          } else {
-            lastError = `IPAPI_${resp.status}`;
-          }
-        } catch (e) { lastError = e.message; }
-
-        // 2. Try ip-api.com (Fallback)
-        if (!data) {
-          try {
-            const resp = await fetch(`http://ip-api.com/json/${ip}`);
-            if (resp.ok) {
-              const d = await resp.json();
-              if (d.status === "success") {
-                data = {
-                  ip: d.query,
-                  org: d.isp || d.org,
-                  city: d.city,
-                  region: d.regionName,
-                  country_name: d.country,
-                  latitude: d.lat,
-                  longitude: d.lon,
-                  source: "IP API COM"
-                };
-              } else lastError = d.message || "IP-API Error";
+              return new Response(html, { headers: { "Content-Type": "text/html; charset=UTF-8" } });
+            } catch (err) {
+              return new Response(`INDEX_CRASH: ${err.message}`, { status: 500 });
             }
-          } catch (e) { lastError = e.message; }
-        }
-
-        if (data) {
-          await env.DB.prepare("INSERT INTO geo_cache (ip, org, city, region, country, latitude, longitude, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?, ?)")
-            .bind(ip, data.org || "Unknown", data.city || "Unknown", data.region || "Unknown", data.country_name || "Unknown", data.latitude || 0, data.longitude || 0, Date.now())
-            .run();
-          return new Response(JSON.stringify({ ...data, source: data.source || "REMOTE PROVIDER" }), {
-            headers: { "Content-Type": "application/json" }
-          });
-        }
-
-        throw new Error(lastError || "Intelligence providers unavailable");
-      } catch (err) {
-        let msg = err.message;
-        if (msg.includes("Unexpected token") || msg.includes("is not valid JSON")) {
-          msg = "Intelligence provider returned invalid data (likely rate limited)";
-        }
-        return new Response(JSON.stringify({ error: true, reason: msg }), { 
-          status: 500, 
-          headers: { "Content-Type": "application/json" } 
-        });
-      }
-    }
-
-    // ── Migration Tool (Hidden) ──────────────────────────
-    if (url.searchParams.get("migrate") === "true") {
-      try {
-        const [hist, noise] = await Promise.all([
-          env.LOCATION_KV.list({ prefix: "hist_", limit: 1000 }),
-          env.LOCATION_KV.list({ prefix: "noise_", limit: 1000 })
-        ]);
-        const logKeys = [...hist.keys, ...noise.keys];
-        let logCount = 0;
-        for (const key of logKeys) {
-          const data = await env.LOCATION_KV.get(key.name, { type: "json" });
-          if (data) {
-            await env.DB.prepare("INSERT INTO logs (timestamp, method, path, status, ip, source, noisy, location) VALUES (?, ?, ?, ?, ?, ?, ?, ?)")
-              .bind(data.time, data.method, data.path, data.status, data.ip, data.source || "LEGACY", data.noisy ? 1 : 0, data.location || "KV DATA")
-              .run();
-            await env.LOCATION_KV.delete(key.name);
-            logCount++;
+          } catch (outerErr) {
+            return new Response(`VAULT_FATAL: ${outerErr.message}`, { status: 500 });
           }
         }
-        const vaultList = await env.LOCATION_KV.list({ prefix: "vault_", limit: 1000 });
-        let vaultCount = 0;
-        for (const key of vaultList.keys) {
-          const { metadata } = await env.LOCATION_KV.getWithMetadata(key.name, { type: "stream" });
-          if (metadata) {
-            const id = key.name.replace("vault_", "");
-            const type = id.split("_")[0].toUpperCase();
-            await env.DB.prepare("INSERT OR IGNORE INTO vault_files (id, type, size, content_type, timestamp) VALUES (?, ?, ?, ?, ?)")
-              .bind(id, type, metadata.size || 0, metadata.contentType || "unknown", metadata.receivedAt || Date.now())
-              .run();
-            vaultCount++;
+
+        // ── Persistent IP Intelligence Endpoint ──────────────
+        if (url.pathname === "/intel") {
+          if (!isLoggedIn) return renderUnauthorized();
+          const ip = url.searchParams.get("ip");
+          if (!ip) return new Response("MISSING IP", { status: 400 });
+
+          try {
+            const cached = await env.DB.prepare("SELECT * FROM geo_cache WHERE ip = ?").bind(ip).first();
+            if (cached) {
+              return new Response(JSON.stringify({ ...cached, country_name: cached.country, latitude: cached.latitude, longitude: cached.longitude, source: "D1 CACHE" }), {
+                headers: { "Content-Type": "application/json" }
+              });
+            }
+
+            // Strategy: Try multiple providers to avoid rate limits
+            let data = null;
+            let lastError = "";
+
+            // 1. Try ipapi.co
+            try {
+              const resp = await fetch(`https://ipapi.co/${ip}/json/`, { headers: { "User-Agent": "Cloudflare-Worker" } });
+              if (resp.ok && resp.headers.get("content-type")?.includes("application/json")) {
+                const d = await resp.json();
+                if (!d.error) data = { ...d, source: "IPAPI CO" };
+                else lastError = d.reason || "IPAPI Rate Limit";
+              } else {
+                lastError = `IPAPI_${resp.status}`;
+              }
+            } catch (e) { lastError = e.message; }
+
+            // 2. Try ip-api.com (Fallback)
+            if (!data) {
+              try {
+                const resp = await fetch(`http://ip-api.com/json/${ip}`);
+                if (resp.ok) {
+                  const d = await resp.json();
+                  if (d.status === "success") {
+                    data = {
+                      ip: d.query,
+                      org: d.isp || d.org,
+                      city: d.city,
+                      region: d.regionName,
+                      country_name: d.country,
+                      latitude: d.lat,
+                      longitude: d.lon,
+                      source: "IP API COM"
+                    };
+                  } else lastError = d.message || "IP-API Error";
+                }
+              } catch (e) { lastError = e.message; }
+            }
+
+            if (data) {
+              await env.DB.prepare("INSERT INTO geo_cache (ip, org, city, region, country, latitude, longitude, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?, ?)")
+                .bind(ip, data.org || "Unknown", data.city || "Unknown", data.region || "Unknown", data.country_name || "Unknown", data.latitude || 0, data.longitude || 0, Date.now())
+                .run();
+              return new Response(JSON.stringify({ ...data, source: data.source || "REMOTE PROVIDER" }), {
+                headers: { "Content-Type": "application/json" }
+              });
+            }
+
+            throw new Error(lastError || "Intelligence providers unavailable");
+          } catch (err) {
+            let msg = err.message;
+            if (msg.includes("Unexpected token") || msg.includes("is not valid JSON")) {
+              msg = "Intelligence provider returned invalid data (likely rate limited)";
+            }
+            return new Response(JSON.stringify({ error: true, reason: msg }), {
+              status: 500,
+              headers: { "Content-Type": "application/json" }
+            });
           }
         }
-        return new Response(`MIGRATION_COMPLETE: Moved ${logCount} logs and indexed ${vaultCount} vault files in D1 SQL.`, { status: 200 });
-      } catch (migErr) {
-        return new Response(`MIGRATION_FAIL: ${migErr.message}`, { status: 500 });
-      }
-    }
 
-    if (url.pathname === "/requests") {
-        if (!isLoggedIn) return renderUnauthorized();
-        
-        const q = url.searchParams.get("q") || "";
-        const offset = parseInt(url.searchParams.get("offset") || "0");
-        const limit = parseInt(url.searchParams.get("limit") || "50");
-
-        // Fetch logs from D1 with optional Deep Search
-        let dbQuery = "SELECT * FROM logs";
-        let countQuery = "SELECT COUNT(*) as count FROM logs";
-        let queryParams = [limit, offset];
-        let countParams = [];
-
-        if (q) {
-          const likeTerm = `%${q}%`;
-          dbQuery += " WHERE path LIKE ? OR ip LIKE ? OR source LIKE ? OR location LIKE ?";
-          countQuery += " WHERE path LIKE ? OR ip LIKE ? OR source LIKE ? OR location LIKE ?";
-          queryParams = [likeTerm, likeTerm, likeTerm, likeTerm, limit, offset];
-          countParams = [likeTerm, likeTerm, likeTerm, likeTerm];
+        // ── Migration Tool (Hidden) ──────────────────────────
+        if (url.searchParams.get("migrate") === "true") {
+          try {
+            const [hist, noise] = await Promise.all([
+              env.LOCATION_KV.list({ prefix: "hist_", limit: 1000 }),
+              env.LOCATION_KV.list({ prefix: "noise_", limit: 1000 })
+            ]);
+            const logKeys = [...hist.keys, ...noise.keys];
+            let logCount = 0;
+            for (const key of logKeys) {
+              const data = await env.LOCATION_KV.get(key.name, { type: "json" });
+              if (data) {
+                await env.DB.prepare("INSERT INTO logs (timestamp, method, path, status, ip, source, noisy, location) VALUES (?, ?, ?, ?, ?, ?, ?, ?)")
+                  .bind(data.time, data.method, data.path, data.status, data.ip, data.source || "LEGACY", data.noisy ? 1 : 0, data.location || "KV DATA")
+                  .run();
+                await env.LOCATION_KV.delete(key.name);
+                logCount++;
+              }
+            }
+            const vaultList = await env.LOCATION_KV.list({ prefix: "vault_", limit: 1000 });
+            let vaultCount = 0;
+            for (const key of vaultList.keys) {
+              const { metadata } = await env.LOCATION_KV.getWithMetadata(key.name, { type: "stream" });
+              if (metadata) {
+                const id = key.name.replace("vault_", "");
+                const type = id.split("_")[0].toUpperCase();
+                await env.DB.prepare("INSERT OR IGNORE INTO vault_files (id, type, size, content_type, timestamp) VALUES (?, ?, ?, ?, ?)")
+                  .bind(id, type, metadata.size || 0, metadata.contentType || "unknown", metadata.receivedAt || Date.now())
+                  .run();
+                vaultCount++;
+              }
+            }
+            return new Response(`MIGRATION_COMPLETE: Moved ${logCount} logs and indexed ${vaultCount} vault files in D1 SQL.`, { status: 200 });
+          } catch (migErr) {
+            return new Response(`MIGRATION_FAIL: ${migErr.message}`, { status: 500 });
+          }
         }
-        
-        dbQuery += " ORDER BY timestamp DESC LIMIT ? OFFSET ?";
 
-        const { results } = await env.DB.prepare(dbQuery).bind(...queryParams).all();
-        const totalLogsRows = await env.DB.prepare(countQuery).bind(...countParams).first("count");
-        const totalLogs = totalLogsRows || 0;
+        if (url.pathname === "/requests") {
+          if (!isLoggedIn) return renderUnauthorized();
 
-        // Optimized One-Pass Processing to save CPU time (Prevents Error 1102)
-        let tableRows = "";
-        let lastDay = "";
-        for (const r of results) {
-          const date = new Date(r.timestamp);
-          const dayStr = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Kolkata', day: 'numeric', month: 'long', year: 'numeric' }).format(date);
-          const timeStr = date.toLocaleString('en-US', { timeZone: 'Asia/Kolkata', hour: 'numeric', minute: 'numeric', second: 'numeric', hour12: true });
+          const q = url.searchParams.get("q") || "";
+          const offset = parseInt(url.searchParams.get("offset") || "0");
+          const limit = parseInt(url.searchParams.get("limit") || "50");
 
-          if (dayStr !== lastDay) {
-            const colspan = 6;
-            tableRows += `<tr class="date-sep"><td colspan="${colspan}">${dayStr}</td></tr>`;
-            lastDay = dayStr;
-          }
-          
-          const isAlert = r.status === 401;
-          const isRedirect = r.status === 302 || r.status === 301;
-          const noisy = !!r.noisy;
-          
-          let statusCol = `<span style="color:${r.status >= 400 ? '#f87171' : '#00dca0'}">${r.status}</span>`;
-          if (isAlert) statusCol = `<span class="status-alert">${r.status}</span>`;
-          else if (isRedirect) statusCol = `<span style="color:#60a5fa; font-weight:bold;">${r.status}</span>`;
+          // Fetch logs from D1 with optional Deep Search
+          let dbQuery = "SELECT * FROM logs";
+          let countQuery = "SELECT COUNT(*) as count FROM logs";
+          let queryParams = [limit, offset];
+          let countParams = [];
 
-          let pathDisplay = r.path;
-          if (isRedirect) {
-            const redirectStyle = 'font-family:\'Share Tech Mono\', monospace;';
-            if (r.path.startsWith("/vault")) pathDisplay += ' <span style="' + redirectStyle + '"> -> /vault/auth</span>';
-            else if (r.path === "/home" || r.path === "/requests") pathDisplay += ' <span style="' + redirectStyle + '"> -> /login</span>';
-            else if (r.path === "/") pathDisplay += ' <span style="' + redirectStyle + '"> -> /home</span>';
+          if (q) {
+            const likeTerm = `%${q}%`;
+            dbQuery += " WHERE path LIKE ? OR ip LIKE ? OR source LIKE ? OR location LIKE ?";
+            countQuery += " WHERE path LIKE ? OR ip LIKE ? OR source LIKE ? OR location LIKE ?";
+            queryParams = [likeTerm, likeTerm, likeTerm, likeTerm, limit, offset];
+            countParams = [likeTerm, likeTerm, likeTerm, likeTerm];
           }
 
-          const locationLabel = (r.location || "GLOBAL").toUpperCase().replace(/_/g, ' ');
-          
-          tableRows += `<tr id="row_${r.id}" class="${isAlert ? 'row-alert' : ''}" data-noisy="${noisy}" data-method="${r.method}" data-ts="${r.timestamp}">
+          dbQuery += " ORDER BY timestamp DESC LIMIT ? OFFSET ?";
+
+          const { results } = await env.DB.prepare(dbQuery).bind(...queryParams).all();
+          const totalLogsRows = await env.DB.prepare(countQuery).bind(...countParams).first("count");
+          const totalLogs = totalLogsRows || 0;
+
+          // Optimized One-Pass Processing to save CPU time (Prevents Error 1102)
+          let tableRows = "";
+          let lastDay = "";
+          for (const r of results) {
+            const date = new Date(r.timestamp);
+            const dayStr = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Kolkata', day: 'numeric', month: 'long', year: 'numeric' }).format(date);
+            const timeStr = date.toLocaleString('en-US', { timeZone: 'Asia/Kolkata', hour: 'numeric', minute: 'numeric', second: 'numeric', hour12: true });
+
+            if (dayStr !== lastDay) {
+              const colspan = 6;
+              tableRows += `<tr class="date-sep"><td colspan="${colspan}">${dayStr}</td></tr>`;
+              lastDay = dayStr;
+            }
+
+            const isAlert = r.status === 401;
+            const isRedirect = r.status === 302 || r.status === 301;
+            const noisy = !!r.noisy;
+
+            let statusCol = `<span style="color:${r.status >= 400 ? '#f87171' : '#00dca0'}">${r.status}</span>`;
+            if (isAlert) statusCol = `<span class="status-alert">${r.status}</span>`;
+            else if (isRedirect) statusCol = `<span style="color:#60a5fa; font-weight:bold;">${r.status}</span>`;
+
+            let pathDisplay = r.path;
+            if (isRedirect) {
+              const redirectStyle = 'font-family:\'Share Tech Mono\', monospace;';
+              if (r.path.startsWith("/vault")) pathDisplay += ' <span style="' + redirectStyle + '"> -> /vault/auth</span>';
+              else if (r.path === "/home" || r.path === "/requests") pathDisplay += ' <span style="' + redirectStyle + '"> -> /login</span>';
+              else if (r.path === "/") pathDisplay += ' <span style="' + redirectStyle + '"> -> /home</span>';
+            }
+
+            const locationLabel = (r.location || "GLOBAL").toUpperCase().replace(/_/g, ' ');
+
+            tableRows += `<tr id="row_${r.id}" class="${isAlert ? 'row-alert' : ''}" data-noisy="${noisy}" data-method="${r.method}" data-ts="${r.timestamp}">
             <td>${timeStr}</td>
             <td>${r.method}</td>
             <td style="color:#fff">${pathDisplay}</td>
@@ -1275,27 +1383,27 @@ export default {
               <span class="ip-link" onclick="showIntel('${r.ip}', event)">${r.ip}</span>
             </td>
           </tr>`;
-        }
+          }
 
-        // Return partial rows for AJAX "Load More"
-        if (url.searchParams.get("partial") === "true") {
-          return new Response(tableRows, { headers: { "Content-Type": "text/html; charset=UTF-8" } });
-        }
+          // Return partial rows for AJAX "Load More"
+          if (url.searchParams.get("partial") === "true") {
+            return new Response(tableRows, { headers: { "Content-Type": "text/html; charset=UTF-8" } });
+          }
 
-        
-        const html = `<!DOCTYPE html>
+
+          const html = `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <title>Request Logs</title>
   <link rel="icon" type="image/svg+xml" href="/favicon.svg">
   <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=0.3, maximum-scale=5.0, user-scalable=yes">
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { background: #06080a; color: #00dca0; font-family: 'Courier New', monospace; padding: 24px; font-size: 13px; user-select: none; -webkit-user-select: none; }
+    body { background: #06080a; color: #00dca0; font-family: 'Courier New', monospace; padding: 24px 24px 24px 76px; font-size: 13px; }
     h2 { letter-spacing: 5px; font-size: 16px; }
-    .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #00dca0; padding-bottom: 12px; margin-bottom: 20px; flex-wrap: wrap; gap: 10px; padding-left: 60px; }
+    .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #00dca0; padding-bottom: 12px; margin-bottom: 20px; flex-wrap: wrap; gap: 10px; padding-left: 0; }
     table { width: 100%; border-collapse: collapse; }
     th { text-align: left; padding: 8px 12px; font-size: 10px; letter-spacing: 2px; color: rgba(0,220,160,0.85); border-bottom: 1px solid rgba(0,220,160,0.15); }
     td { padding: 10px 12px; border-bottom: 1px solid rgba(0,220,160,0.07); }
@@ -1343,6 +1451,75 @@ export default {
       0% { background: rgba(0,220,160,0.3); }
       100% { background: transparent; }
     }
+    @media (max-width: 768px) {
+      body { padding: 12px 12px 12px 64px; }
+      .header {
+        padding-left: 0;
+        display: flex !important;
+        flex-direction: row !important;
+        flex-wrap: wrap !important;
+        justify-content: space-between !important;
+        align-items: center !important;
+        gap: 15px;
+      }
+      .header > div {
+        flex: 1 1 auto;
+      }
+      .header h2 {
+        white-space: nowrap !important;
+        font-size: 13px !important;
+        letter-spacing: 2px !important;
+      }
+      .header > div:last-child {
+        display: flex !important;
+        flex-wrap: wrap !important;
+        gap: 8px !important;
+        align-items: center !important;
+        justify-content: flex-start !important;
+      }
+      .search-wrap {
+        flex: 1 1 auto !important;
+        min-width: 200px !important;
+        margin: 0 !important;
+      }
+      #searchInput {
+        width: 100% !important;
+      }
+      .c-sel {
+        flex: 1 1 auto !important;
+        min-width: 120px !important;
+      }
+      .c-sel button {
+        width: 100%;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+      .c-sel .opts {
+        width: 100%;
+      }
+      .btn-refresh {
+        flex: 1 1 auto !important;
+        min-width: 120px !important;
+        padding: 8px 12px;
+        text-align: center;
+      }
+      .header > div:last-child > div:last-child {
+        flex: 1 1 auto !important;
+        min-width: 180px !important;
+        align-items: center !important;
+        text-align: center !important;
+        margin-left: 0 !important;
+        margin-top: 5px;
+        border-top: 1px solid rgba(0, 220, 160, 0.1);
+        padding-top: 8px;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+      }
+      table { font-size: 11px; }
+      th, td { padding: 10px 18px !important; }
+    }
     ${SHARED_NAV_STYLE}
   </style>
 </head>
@@ -1387,12 +1564,14 @@ export default {
       </div>
     </div>
   </div>
-  <table>
-    <thead>
-      <tr><th>TIMESTAMP</th><th>METHOD</th><th>PATH</th><th>STATUS</th><th>EMERGENCE SOURCE</th><th>IP ADDRESS</th></tr>
-    </thead>
-    <tbody>${tableRows}</tbody>
-  </table>
+  <div class="table-wrapper">
+    <table>
+      <thead>
+        <tr><th>TIMESTAMP</th><th>METHOD</th><th>PATH</th><th>STATUS</th><th>EMERGENCE SOURCE</th><th>IP ADDRESS</th></tr>
+      </thead>
+      <tbody>${tableRows}</tbody>
+    </table>
+  </div>
 
   <div class="load-more-wrap" id="loadMoreWrap" style="${totalLogs <= limit ? 'display:none' : ''}">
     <button class="btn-load-more" id="loadMoreBtn" onclick="loadMore()">LOAD MORE ARCHIVE DATA</button>
@@ -1741,56 +1920,56 @@ export default {
   </script>
 </body>
 </html>`;
-        return new Response(html, { headers: { "Content-Type": "text/html; charset=UTF-8" } });
-      }
-      if (url.pathname === "/statuslogs") {
-        if (!isLoggedIn) return renderUnauthorized();
-        
-        const q = url.searchParams.get("q") || "";
-        const order = url.searchParams.get("order") === "ASC" ? "ASC" : "DESC";
-        const offset = parseInt(url.searchParams.get("offset") || "0");
-        const limit = parseInt(url.searchParams.get("limit") || "50");
-
-        let dbQuery = "SELECT * FROM status_logs";
-        let countQuery = "SELECT COUNT(*) as count FROM status_logs";
-        let queryParams = [limit, offset];
-        let countParams = [];
-
-        if (q) {
-          const likeTerm = `%${q}%`;
-          dbQuery += " WHERE ip LIKE ? OR location LIKE ? OR temperature LIKE ? OR uptime LIKE ?";
-          countQuery += " WHERE ip LIKE ? OR location LIKE ? OR temperature LIKE ? OR uptime LIKE ?";
-          queryParams = [likeTerm, likeTerm, likeTerm, likeTerm, limit, offset];
-          countParams = [likeTerm, likeTerm, likeTerm, likeTerm];
+          return new Response(html, { headers: { "Content-Type": "text/html; charset=UTF-8" } });
         }
-        
-        dbQuery += ` ORDER BY timestamp ${order} LIMIT ? OFFSET ?`;
+        if (url.pathname === "/statuslogs") {
+          if (!isLoggedIn) return renderUnauthorized();
 
-        const { results } = await env.DB.prepare(dbQuery).bind(...queryParams).all();
-        const totalLogsRows = await env.DB.prepare(countQuery).bind(...countParams).first("count");
-        const totalLogs = totalLogsRows || 0;
+          const q = url.searchParams.get("q") || "";
+          const order = url.searchParams.get("order") === "ASC" ? "ASC" : "DESC";
+          const offset = parseInt(url.searchParams.get("offset") || "0");
+          const limit = parseInt(url.searchParams.get("limit") || "50");
 
-        let tableRows = "";
-        let lastDay = "";
-        for (const r of results) {
-          // Robust timestamp handling (seconds vs ms)
-          const ts = (r.timestamp < 10000000000) ? r.timestamp * 1000 : r.timestamp;
-          const date = new Date(ts);
-          const dayStr = date.toLocaleDateString('en-GB', { timeZone: 'Asia/Kolkata', day: 'numeric', month: 'long', year: 'numeric' });
-          const timeStr = date.toLocaleString('en-US', { timeZone: 'Asia/Kolkata', hour: 'numeric', minute: 'numeric', second: 'numeric', hour12: true });
-          
-          if (dayStr !== lastDay) {
-            tableRows += `<tr class="date-sep"><td colspan="6">${dayStr}</td></tr>`;
-            lastDay = dayStr;
+          let dbQuery = "SELECT * FROM status_logs";
+          let countQuery = "SELECT COUNT(*) as count FROM status_logs";
+          let queryParams = [limit, offset];
+          let countParams = [];
+
+          if (q) {
+            const likeTerm = `%${q}%`;
+            dbQuery += " WHERE ip LIKE ? OR location LIKE ? OR temperature LIKE ? OR uptime LIKE ?";
+            countQuery += " WHERE ip LIKE ? OR location LIKE ? OR temperature LIKE ? OR uptime LIKE ?";
+            queryParams = [likeTerm, likeTerm, likeTerm, likeTerm, limit, offset];
+            countParams = [likeTerm, likeTerm, likeTerm, likeTerm];
           }
 
-          // Safe Base64 encoding for Unicode
-          const extraJson = btoa(encodeURIComponent(r.extra_data || "{}"));
+          dbQuery += ` ORDER BY timestamp ${order} LIMIT ? OFFSET ?`;
 
-          const battColor = r.battery < 20 ? '#f87171' : (r.battery < 50 ? '#fbbf24' : '#00dca0');
-          const chargingIcon = r.charging ? '⚡' : '';
-          
-          tableRows += `<tr data-ts="${ts}">
+          const { results } = await env.DB.prepare(dbQuery).bind(...queryParams).all();
+          const totalLogsRows = await env.DB.prepare(countQuery).bind(...countParams).first("count");
+          const totalLogs = totalLogsRows || 0;
+
+          let tableRows = "";
+          let lastDay = "";
+          for (const r of results) {
+            // Robust timestamp handling (seconds vs ms)
+            const ts = (r.timestamp < 10000000000) ? r.timestamp * 1000 : r.timestamp;
+            const date = new Date(ts);
+            const dayStr = date.toLocaleDateString('en-GB', { timeZone: 'Asia/Kolkata', day: 'numeric', month: 'long', year: 'numeric' });
+            const timeStr = date.toLocaleString('en-US', { timeZone: 'Asia/Kolkata', hour: 'numeric', minute: 'numeric', second: 'numeric', hour12: true });
+
+            if (dayStr !== lastDay) {
+              tableRows += `<tr class="date-sep"><td colspan="6">${dayStr}</td></tr>`;
+              lastDay = dayStr;
+            }
+
+            // Safe Base64 encoding for Unicode
+            const extraJson = btoa(encodeURIComponent(r.extra_data || "{}"));
+
+            const battColor = r.battery < 20 ? '#f87171' : (r.battery < 50 ? '#fbbf24' : '#00dca0');
+            const chargingIcon = r.charging ? '⚡' : '';
+
+            tableRows += `<tr data-ts="${ts}">
             <td>${timeStr}</td>
             <td style="font-weight:bold; color:${battColor}">${r.battery}% ${chargingIcon}</td>
             <td style="color:#60a5fa;">${r.signal} dBm</td>
@@ -1799,28 +1978,33 @@ export default {
               <button class="btn-refresh" style="padding: 2px 10px; font-size: 9px;" data-extra='${extraJson}' data-battery="${r.battery}" data-charging="${r.charging ? '1' : '0'}" data-signal="${r.signal}" data-temp="${(r.temperature || '').replace(/_/g, ' ')}" data-uptime="${r.uptime || 'UNKNOWN'}" onclick="showExtra(this, event)">VIEW DETAILS</button>
             </td>
           </tr>`;
-        }
+          }
 
-        if (url.searchParams.get("partial") === "true") {
-          return new Response(tableRows, { headers: { "Content-Type": "text/html; charset=UTF-8" } });
-        }
+          if (url.searchParams.get("partial") === "true") {
+            return new Response(tableRows, { headers: { "Content-Type": "text/html; charset=UTF-8" } });
+          }
 
-        const html = `<!DOCTYPE html>
+          const html = `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <title>Status Logs</title>
   <link rel="icon" type="image/svg+xml" href="/favicon.svg">
   <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=0.3, maximum-scale=5.0, user-scalable=yes">
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { background: #06080a; color: #00dca0; font-family: 'Courier New', monospace; padding: 24px; font-size: 13px; user-select: none; -webkit-user-select: none; }
+    body { background: #06080a; color: #00dca0; font-family: 'Courier New', monospace; padding: 24px 24px 24px 76px; font-size: 13px; }
     h2 { letter-spacing: 5px; font-size: 16px; }
-    .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #00dca0; padding-bottom: 12px; margin-bottom: 20px; flex-wrap: wrap; gap: 10px; padding-left: 60px; }
-    table { width: 100%; border-collapse: collapse; }
-    th { text-align: center; padding: 8px 12px; font-size: 10px; letter-spacing: 2px; color: rgba(0,220,160,0.85); border-bottom: 1px solid rgba(0,220,160,0.15); }
-    td { text-align: center; padding: 10px 12px; border-bottom: 1px solid rgba(0,220,160,0.07); }
+    .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #00dca0; padding-bottom: 12px; margin-bottom: 20px; flex-wrap: wrap; gap: 10px; padding-left: 0; }
+    .table-wrapper { overflow-x: auto; width: 100%; }
+    .table-wrapper::-webkit-scrollbar { height: 4px; }
+    .table-wrapper::-webkit-scrollbar-track { background: rgba(0, 220, 160, 0.05); }
+    .table-wrapper::-webkit-scrollbar-thumb { background: rgba(0, 220, 160, 0.3); border-radius: 2px; }
+    .table-wrapper::-webkit-scrollbar-thumb:hover { background: rgba(0, 220, 160, 0.6); }
+    table { width: max-content; min-width: 100%; table-layout: auto; border-collapse: collapse; }
+    th { text-align: center; padding: 8px 12px; font-size: 10px; letter-spacing: 2px; color: rgba(0,220,160,0.85); border-bottom: 1px solid rgba(0,220,160,0.15); white-space: nowrap; vertical-align: middle; }
+    td { text-align: center; padding: 10px 12px; border-bottom: 1px solid rgba(0,220,160,0.07); white-space: nowrap; vertical-align: middle; }
     tr:hover td { background: rgba(0,220,160,0.03); }
     .date-sep { background: rgba(0,220,160,0.05); }
     .date-sep td { color: rgba(0,220,160,0.6); font-weight: bold; text-align: center; letter-spacing: 4px; font-size: 12px; padding: 8px 0; border-top: 1px solid rgba(0,220,160,0.15); border-bottom: 1px solid rgba(0,220,160,0.15); text-transform: uppercase; }
@@ -1849,11 +2033,73 @@ export default {
     .c-sel .opts div:hover { background: rgba(0,220,160,0.06); color: #fff; border-left-color: #00dca0; }
     @keyframes fadeUp { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
     @media (max-width: 768px) {
-      .header { flex-direction: column; align-items: flex-start; }
-      .search-wrap { margin: 10px 0; width: 100%; }
-      #searchInput { width: 100%; }
+      body { padding: 12px 12px 12px 64px; }
+      .header {
+        padding-left: 0;
+        display: flex !important;
+        flex-direction: row !important;
+        flex-wrap: wrap !important;
+        justify-content: space-between !important;
+        align-items: center !important;
+        gap: 15px;
+      }
+      .header > div {
+        flex: 1 1 auto;
+      }
+      .header h2 {
+        white-space: nowrap !important;
+        font-size: 13px !important;
+        letter-spacing: 2px !important;
+      }
+      .header > div:last-child {
+        display: flex !important;
+        flex-wrap: wrap !important;
+        gap: 8px !important;
+        align-items: center !important;
+        justify-content: flex-start !important;
+      }
+      .search-wrap {
+        flex: 1 1 auto !important;
+        min-width: 200px !important;
+        margin: 0 !important;
+      }
+      #searchInput {
+        width: 100% !important;
+      }
+      .c-sel {
+        flex: 1 1 auto !important;
+        min-width: 120px !important;
+      }
+      .c-sel button {
+        width: 100%;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+      .c-sel .opts {
+        width: 100%;
+      }
+      .btn-refresh {
+        flex: 1 1 auto !important;
+        min-width: 120px !important;
+        padding: 8px 12px;
+        text-align: center;
+      }
+      .header > div:last-child > div:last-child {
+        flex: 1 1 auto !important;
+        min-width: 180px !important;
+        align-items: center !important;
+        text-align: center !important;
+        margin-left: 0 !important;
+        margin-top: 5px;
+        border-top: 1px solid rgba(0, 220, 160, 0.1);
+        padding-top: 8px;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+      }
       table { font-size: 11px; }
-      td, th { padding: 8px 5px; }
+      td, th { padding: 10px 18px !important; }
     }
     ${SHARED_NAV_STYLE}
   </style>
@@ -1884,18 +2130,20 @@ export default {
     </div>
   </div>
 
-  <table>
-    <thead>
-      <tr>
-        <th>TIMESTAMP</th>
-        <th>BATTERY</th>
-        <th>SIGNAL</th>
-        <th>TEMP</th>
-        <th>MORE STATUS</th>
-      </tr>
-    </thead>
-    <tbody>${tableRows}</tbody>
-  </table>
+  <div class="table-wrapper">
+    <table>
+      <thead>
+        <tr>
+          <th>TIMESTAMP</th>
+          <th>BATTERY</th>
+          <th>SIGNAL</th>
+          <th>TEMP</th>
+          <th>MORE STATUS</th>
+        </tr>
+      </thead>
+      <tbody>${tableRows}</tbody>
+    </table>
+  </div>
 
   <div id="loadMoreWrap" class="load-more-wrap" style="display: ${totalLogs > limit ? 'flex' : 'none'}">
     <button id="loadMoreBtn" class="btn-refresh" style="padding: 12px 30px;" onclick="loadMore()">LOAD MORE ARCHIVE DATA</button>
@@ -2128,81 +2376,81 @@ export default {
   </script>
 </body>
 </html>`;
-        return new Response(html, { headers: { "Content-Type": "text/html; charset=UTF-8" } });
-      }
-
-
-    // ── Command Schedule Logs (/schedule/logs) ────────────
-    if (url.pathname === "/schedule/logs") {
-      if (!isLoggedIn) return renderUnauthorized();
-      
-      const q = url.searchParams.get("q") || "";
-      const sort = url.searchParams.get("sort") || "created_at";
-      const order = url.searchParams.get("order") || "DESC";
-      const offset = parseInt(url.searchParams.get("offset") || "0");
-      const limit = parseInt(url.searchParams.get("limit") || "50");
-
-      let dbQuery = "SELECT * FROM command_schedules";
-      let countQuery = "SELECT COUNT(*) as count FROM command_schedules";
-      let queryParams = [];
-      let countParams = [];
-
-      if (q) {
-        const likeTerm = `%${q}%`;
-        dbQuery += " WHERE (command LIKE ? OR params LIKE ? OR status LIKE ?)";
-        countQuery += " WHERE (command LIKE ? OR params LIKE ? OR status LIKE ?)";
-        queryParams = [likeTerm, likeTerm, likeTerm];
-        countParams = [likeTerm, likeTerm, likeTerm];
-      }
-      
-      dbQuery += ` ORDER BY ${sort} ${order} LIMIT ? OFFSET ?`;
-      queryParams.push(limit, offset);
-      
-      const [dbResult, countResult] = await Promise.all([
-        env.DB.prepare(dbQuery).bind(...queryParams).all(),
-        env.DB.prepare(countQuery).bind(...(q ? queryParams.slice(0, 3) : [])).first()
-      ]);
-
-      const totalSchedules = countResult?.count || 0;
-      const schedulesList = dbResult.results;
-
-      let tableRows = "";
-      let lastDay = "";
-      for (const r of schedulesList) {
-        const createdDate = new Date(r.created_at);
-        const dayStr = createdDate.toLocaleDateString('en-GB', { timeZone: 'Asia/Kolkata', day: 'numeric', month: 'long', year: 'numeric' });
-        const createdStr = createdDate.toLocaleString('en-US', { timeZone: 'Asia/Kolkata', hour: 'numeric', minute: 'numeric', hour12: true });
-
-        if (dayStr !== lastDay && sort === 'created_at') {
-          tableRows += `<tr class="date-sep"><td colspan="6">${dayStr}</td></tr>`;
-          lastDay = dayStr;
+          return new Response(html, { headers: { "Content-Type": "text/html; charset=UTF-8" } });
         }
 
-        const targetDate = new Date(r.target_time);
-        const timeStr = targetDate.toLocaleString('en-US', { timeZone: 'Asia/Kolkata', month: 'short', day: 'numeric', hour: 'numeric', minute: 'numeric', second: 'numeric', hour12: true });
 
-        let statusStyle = "";
-        if (r.status === 'PENDING') statusStyle = "color: #f59e0b";
-        else if (r.status === 'EXECUTED') statusStyle = "color: #00dca0";
-        else if (r.status === 'CANCELLED') statusStyle = "color: #94a3b8";
-        else statusStyle = "color: #ef4444";
+        // ── Command Schedule Logs (/schedule/logs) ────────────
+        if (url.pathname === "/schedule/logs") {
+          if (!isLoggedIn) return renderUnauthorized();
 
-        let triggerStatus = "";
-        if (r.status === 'EXECUTED') triggerStatus = '<span style="color:#00dca0; opacity:0.8">[ SENT ]</span>';
-        else if (r.status === 'PENDING') triggerStatus = '<span style="color:#f59e0b; opacity:0.6">[ WAITING ]</span>';
-        else if (r.status === 'CANCELLED') triggerStatus = '<span style="color:#94a3b8; opacity:0.8">[ ABORTED ]</span>';
-        else triggerStatus = '<span style="color:#ef4444">[ FAIL ]</span>';
+          const q = url.searchParams.get("q") || "";
+          const sort = url.searchParams.get("sort") || "created_at";
+          const order = url.searchParams.get("order") || "DESC";
+          const offset = parseInt(url.searchParams.get("offset") || "0");
+          const limit = parseInt(url.searchParams.get("limit") || "50");
 
-        let actionBtn = "";
-        if (r.status === 'PENDING') {
-          actionBtn = `<button class="btn-refresh" style="padding: 2px 8px; font-size: 9px; background: #ef4444; border:none; color: #fff; min-width: 75px;" onclick="cancelSchedule(${r.id}, this)">CANCEL</button>`;
-        } else if (r.log_output) {
-          actionBtn = `<button class="log-btn" style="min-width: 75px;" onclick="showLog(\`${r.log_output.replace(/`/g, '\\`').replace(/\${/g, '\\${')}\`, '${r.command.toUpperCase().replace(/_/g, ' ')}', '${(r.params || "—").replace(/'/g, "\\'").replace(/_/g, " ")}', '${timeStr}', '${r.status}')">VIEW LOG</button>`;
-        } else {
-          actionBtn = `<button class="log-btn" style="min-width: 75px;" disabled>—</button>`;
-        }
+          let dbQuery = "SELECT * FROM command_schedules";
+          let countQuery = "SELECT COUNT(*) as count FROM command_schedules";
+          let queryParams = [];
+          let countParams = [];
 
-        tableRows += `<tr id="sched_${r.id}">
+          if (q) {
+            const likeTerm = `%${q}%`;
+            dbQuery += " WHERE (command LIKE ? OR params LIKE ? OR status LIKE ?)";
+            countQuery += " WHERE (command LIKE ? OR params LIKE ? OR status LIKE ?)";
+            queryParams = [likeTerm, likeTerm, likeTerm];
+            countParams = [likeTerm, likeTerm, likeTerm];
+          }
+
+          dbQuery += ` ORDER BY ${sort} ${order} LIMIT ? OFFSET ?`;
+          queryParams.push(limit, offset);
+
+          const [dbResult, countResult] = await Promise.all([
+            env.DB.prepare(dbQuery).bind(...queryParams).all(),
+            env.DB.prepare(countQuery).bind(...(q ? queryParams.slice(0, 3) : [])).first()
+          ]);
+
+          const totalSchedules = countResult?.count || 0;
+          const schedulesList = dbResult.results;
+
+          let tableRows = "";
+          let lastDay = "";
+          for (const r of schedulesList) {
+            const createdDate = new Date(r.created_at);
+            const dayStr = createdDate.toLocaleDateString('en-GB', { timeZone: 'Asia/Kolkata', day: 'numeric', month: 'long', year: 'numeric' });
+            const createdStr = createdDate.toLocaleString('en-US', { timeZone: 'Asia/Kolkata', hour: 'numeric', minute: 'numeric', hour12: true });
+
+            if (dayStr !== lastDay && sort === 'created_at') {
+              tableRows += `<tr class="date-sep"><td colspan="6">${dayStr}</td></tr>`;
+              lastDay = dayStr;
+            }
+
+            const targetDate = new Date(r.target_time);
+            const timeStr = targetDate.toLocaleString('en-US', { timeZone: 'Asia/Kolkata', month: 'short', day: 'numeric', hour: 'numeric', minute: 'numeric', second: 'numeric', hour12: true });
+
+            let statusStyle = "";
+            if (r.status === 'PENDING') statusStyle = "color: #f59e0b";
+            else if (r.status === 'EXECUTED') statusStyle = "color: #00dca0";
+            else if (r.status === 'CANCELLED') statusStyle = "color: #94a3b8";
+            else statusStyle = "color: #ef4444";
+
+            let triggerStatus = "";
+            if (r.status === 'EXECUTED') triggerStatus = '<span style="color:#00dca0; opacity:0.8">[ SENT ]</span>';
+            else if (r.status === 'PENDING') triggerStatus = '<span style="color:#f59e0b; opacity:0.6">[ WAITING ]</span>';
+            else if (r.status === 'CANCELLED') triggerStatus = '<span style="color:#94a3b8; opacity:0.8">[ ABORTED ]</span>';
+            else triggerStatus = '<span style="color:#ef4444">[ FAIL ]</span>';
+
+            let actionBtn = "";
+            if (r.status === 'PENDING') {
+              actionBtn = `<button class="btn-refresh" style="padding: 2px 8px; font-size: 9px; background: #ef4444; border:none; color: #fff; min-width: 75px;" onclick="cancelSchedule(${r.id}, this)">CANCEL</button>`;
+            } else if (r.log_output) {
+              actionBtn = `<button class="log-btn" style="min-width: 75px;" onclick="showLog(\`${r.log_output.replace(/`/g, '\\`').replace(/\${/g, '\\${')}\`, '${r.command.toUpperCase().replace(/_/g, ' ')}', '${(r.params || "—").replace(/'/g, "\\'").replace(/_/g, " ")}', '${timeStr}', '${r.status}')">VIEW LOG</button>`;
+            } else {
+              actionBtn = `<button class="log-btn" style="min-width: 75px;" disabled>—</button>`;
+            }
+
+            tableRows += `<tr id="sched_${r.id}">
           <td style="color:rgba(0,220,160,0.6)">${createdStr}</td>
           <td style="font-weight:bold; color:#00ffc8">${r.command.replace(/_/g, ' ').toUpperCase()}</td>
           <td>${(r.params || "—").replace(/_/g, ' ')}</td>
@@ -2210,28 +2458,33 @@ export default {
           <td style="${statusStyle}; font-weight:bold; text-align:right">${r.status}</td>
           <td style="text-align:right; padding-right:12px">${actionBtn}</td>
         </tr>`;
-      }
+          }
 
-      if (url.searchParams.get("partial") === "true") {
-        return new Response(tableRows, { headers: { "Content-Type": "text/html" } });
-      }
+          if (url.searchParams.get("partial") === "true") {
+            return new Response(tableRows, { headers: { "Content-Type": "text/html" } });
+          }
 
-      const html = `<!DOCTYPE html>
+          const html = `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8"><title>Schedule Logs</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=0.3, maximum-scale=5.0, user-scalable=yes">
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { background: #06080a; color: #00dca0; font-family: 'Courier New', monospace; padding: 24px; font-size: 13px; }
-    .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #00dca0; padding-bottom: 12px; margin-bottom: 20px; flex-wrap: wrap; gap: 10px; padding-left: 60px; }
-    table { width: 100%; border-collapse: collapse; }
-    th { text-align: left; padding: 8px 12px; font-size: 10px; letter-spacing: 2px; color: rgba(0,220,160,0.85); border-bottom: 1px solid rgba(0,220,160,0.15); }
-    td { padding: 10px 12px; border-bottom: 1px solid rgba(0,220,160,0.07); }
+    body { background: #06080a; color: #00dca0; font-family: 'Courier New', monospace; padding: 24px 24px 24px 76px; font-size: 13px; }
+    .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #00dca0; padding-bottom: 12px; margin-bottom: 20px; flex-wrap: wrap; gap: 10px; padding-left: 0; }
+    .table-wrapper { overflow-x: auto; width: 100%; }
+    .table-wrapper::-webkit-scrollbar { height: 4px; }
+    .table-wrapper::-webkit-scrollbar-track { background: rgba(0, 220, 160, 0.05); }
+    .table-wrapper::-webkit-scrollbar-thumb { background: rgba(0, 220, 160, 0.3); border-radius: 2px; }
+    .table-wrapper::-webkit-scrollbar-thumb:hover { background: rgba(0, 220, 160, 0.6); }
+    table { width: max-content; min-width: 100%; table-layout: auto; border-collapse: collapse; }
+    th { text-align: left; padding: 8px 12px; font-size: 10px; letter-spacing: 2px; color: rgba(0,220,160,0.85); border-bottom: 1px solid rgba(0,220,160,0.15); white-space: nowrap; vertical-align: middle; }
+    td { padding: 10px 12px; border-bottom: 1px solid rgba(0,220,160,0.07); white-space: nowrap; vertical-align: middle; }
     .btn-refresh { background: rgba(0,220,160,0.4); color: #fff; border: 1px solid #00dca0; padding: 5px 15px; border-radius: 3px; font-size: 11px; font-weight: bold; cursor: pointer; transition: all 0.2s; font-family: inherit; }
     .btn-refresh:hover { background: rgba(0,220,160,0.6); color: #000; opacity: 1; }
     #searchInput { background: rgba(0,220,160,0.05); color: #00dca0; border: 1px solid rgba(0,220,160,0.3); padding: 5px 12px 5px 30px; border-radius: 3px; font-size: 11px; font-family: inherit; width: 220px; outline: none; }
-    .search-wrap { position: relative; display: flex; align-items: center; }
+    .search-wrap { position: relative; display: flex; align-items: center; margin-right: 40px; }
     .search-icon { position: absolute; left: 10px; width: 12px; height: 12px; color: #00dca0; opacity: 0.7; pointer-events: none; }
     .date-sep { background: rgba(0,220,160,0.03); }
     .date-sep td { padding: 8px 12px; font-size: 11px; letter-spacing: 2px; color: #00dca0; opacity: 0.8; border-bottom: 1px solid rgba(0,220,160,0.1); font-weight: bold; border-top: 1px solid rgba(0,220,160,0.15); text-align: center; text-transform: uppercase; }
@@ -2258,6 +2511,73 @@ export default {
     .log-btn { background: rgba(0, 220, 160, 0.08); border: 1px solid rgba(0, 220, 160, 0.3); color: var(--teal); padding: 4px 10px; border-radius: 2px; font-size: 9px; cursor: pointer; font-family: var(--mono); transition: all 0.2s; letter-spacing: 1px; white-space: nowrap; }
     .log-btn:hover { background: var(--teal-dim); border-color: var(--teal); box-shadow: 0 0 10px rgba(0, 220, 160, 0.2); }
     .log-btn:disabled { opacity: 0.3; cursor: not-allowed; border-color: rgba(0, 220, 160, 0.1); }
+    @media (max-width: 768px) {
+      body { padding: 12px 12px 12px 64px; }
+      .header {
+        padding-left: 0;
+        display: flex !important;
+        flex-direction: row !important;
+        flex-wrap: wrap !important;
+        justify-content: space-between !important;
+        align-items: center !important;
+        gap: 15px;
+      }
+      .header > div {
+        flex: 1 1 auto;
+      }
+      .header h2 {
+        white-space: nowrap !important;
+        font-size: 13px !important;
+        letter-spacing: 2px !important;
+      }
+      .header > div:last-child {
+        display: flex !important;
+        flex-wrap: wrap !important;
+        gap: 8px !important;
+        align-items: center !important;
+        justify-content: flex-start !important;
+      }
+      .search-wrap {
+        flex: 1 1 auto !important;
+        min-width: 200px !important;
+        margin: 0 !important;
+      }
+      #searchInput {
+        width: 100% !important;
+      }
+      .c-sel {
+        flex: 1 1 auto !important;
+        min-width: 120px !important;
+      }
+      .c-sel button {
+        width: 100%;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+      .c-sel .opts {
+        width: 100%;
+      }
+      .btn-refresh {
+        flex: 1 1 auto !important;
+        min-width: 120px !important;
+        padding: 8px 12px;
+        text-align: center;
+      }
+      .header > div:last-child > span {
+        flex: 1 1 auto !important;
+        min-width: 180px !important;
+        align-items: center !important;
+        text-align: center !important;
+        margin-left: 0 !important;
+        margin-top: 5px;
+        border-top: 1px solid rgba(0, 220, 160, 0.1);
+        padding-top: 8px;
+        display: block;
+      }
+      table { font-size: 11px; }
+      td, th { padding: 10px 18px !important; }
+    }
     ${SHARED_NAV_STYLE}
   </style>
 </head>
@@ -2290,19 +2610,21 @@ export default {
       <span style="font-size:10px; opacity:0.9; font-weight:bold; letter-spacing:1px; margin-left:35px;">TOTAL: ${totalSchedules}</span>
     </div>
   </div>
-  <table>
-    <thead>
-      <tr>
-        <th style="padding-left:12px">CREATED</th>
-        <th>COMMAND</th>
-        <th>PARAMS</th>
-        <th>TARGET TIME</th>
-        <th style="text-align:right">STATUS</th>
-        <th style="text-align:right; padding-right:12px">LOGS</th>
-      </tr>
-    </thead>
-    <tbody>${tableRows}</tbody>
-  </table>
+  <div class="table-wrapper">
+    <table>
+      <thead>
+        <tr>
+          <th style="padding-left:12px">CREATED</th>
+          <th>COMMAND</th>
+          <th>PARAMS</th>
+          <th>TARGET TIME</th>
+          <th style="text-align:right">STATUS</th>
+          <th style="text-align:right; padding-right:12px">LOGS</th>
+        </tr>
+      </thead>
+      <tbody>${tableRows}</tbody>
+    </table>
+  </div>
   <script>
     function toggleSel(id, e) {
       e.stopPropagation();
@@ -2362,15 +2684,15 @@ export default {
     </div>
   </div>
 </body></html>`;
-      return new Response(html, { headers: { "Content-Type": "text/html; charset=UTF-8" } });
-    }
+          return new Response(html, { headers: { "Content-Type": "text/html; charset=UTF-8" } });
+        }
 
-    // Default: Serve Assets
-    return env.ASSETS.fetch(request);
-  };
+        // Default: Serve Assets
+        return env.ASSETS.fetch(request);
+      };
 
 
-    const response = await handleRequest();
+      const response = await handleRequest();
       ctx.waitUntil(logRequest(response.status));
 
       // Universal Favicon Injection — applies to ALL HTML responses
@@ -2410,13 +2732,13 @@ export default {
           // Construct target URL to match manual control exactly
           let target = `https://trigger.macrodroid.com/${macroId}/control?cmd=${item.command}&key=${keyToUse}`;
           if (item.params) target += `&cmd2=${encodeURIComponent(item.params)}`;
-          
+
           const resp = await fetch(target, {
             headers: { "User-Agent": "Tactical-Scheduler/1.0 (Cloudflare-Worker)" }
           });
 
           const logText = await resp.text();
-          
+
           if (resp.ok) {
             await env.DB.prepare("UPDATE command_schedules SET status = 'EXECUTED', log_output = ? WHERE id = ?").bind(logText, item.id).run();
           } else {
