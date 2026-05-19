@@ -217,4 +217,4 @@ npx wrangler deploy
 
 ## License
 
-Personal use and experimentation. Built by [MuffinJuice](https://github.com/gopi470).
+Personal use and experimentation. Built by [gopi470](https://github.com/gopi470).
