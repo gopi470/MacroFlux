@@ -7,13 +7,13 @@
 
 ---
 
-## ⚡ System Overview
+## System Overview
 
 This project provides a professional-grade, cyberpunk-themed dashboard to remotely monitor and control an Android device. It acts as a bridge between **MacroDroid** (on-device automation) and a web-based **Command Center** — deployed entirely as a single **Cloudflare Worker** with zero external backend infrastructure.
 
 What started as a simple toggle controller grew into a full surveillance and telemetry platform with file vaulting, cellular network diagnostics, hardware monitoring, scheduled automation, and a forensic media HUD.
 
-### 🏗️ Architecture
+### Architecture
 
 ```
 ┌─────────────────────────────┐
@@ -46,7 +46,7 @@ What started as a simple toggle controller grew into a full surveillance and tel
 
 ---
 
-## 🔐 Authentication System
+## Authentication System
 
 - **Primary Gateway**: Protected by a global `ACCESS_KEY` secret. Valid auth sets a `session=authorized` cookie (30-min TTL, `SameSite=Lax; Secure`).
 - **Inactivity Guard**: Uses absolute timestamp comparison (`Date.now() - lastInteractionTime`), immune to browser background tab throttling.
@@ -56,7 +56,7 @@ What started as a simple toggle controller grew into a full surveillance and tel
 
 ---
 
-## 🚀 Endpoints & API Reference
+## Endpoints & API Reference
 
 ### User Interface (Authenticated Session)
 
@@ -85,7 +85,7 @@ What started as a simple toggle controller grew into a full surveillance and tel
 
 ---
 
-## 🛠️ Backend Infrastructure
+## Backend Infrastructure
 
 The entire backend is a single monolithic **Cloudflare Worker** (`_worker.js`) handling:
 
@@ -103,7 +103,7 @@ The entire backend is a single monolithic **Cloudflare Worker** (`_worker.js`) h
 
 ---
 
-## 🎨 Frontend Design System
+## Frontend Design System
 
 **Stack**: Vanilla HTML5, CSS3, JavaScript — no frameworks, no bundlers.
 
@@ -126,7 +126,7 @@ The entire backend is a single monolithic **Cloudflare Worker** (`_worker.js`) h
 
 ---
 
-## 📱 Mobile Responsiveness
+## Mobile Responsiveness
 
 All four log dashboards (`/requests`, `/statuslogs`, `/schedule/logs`, `/vault/list`) are fully optimized for mobile:
 
@@ -138,7 +138,7 @@ All four log dashboards (`/requests`, `/statuslogs`, `/schedule/logs`, `/vault/l
 
 ---
 
-## 📊 Database Schema (Cloudflare D1)
+## Database Schema (Cloudflare D1)
 
 | Table | Contents |
 |---|---|
@@ -150,7 +150,7 @@ All four log dashboards (`/requests`, `/statuslogs`, `/schedule/logs`, `/vault/l
 
 ---
 
-## 🗄️ Vault HUD Media Center (`/vault/display`)
+## Vault HUD Media Center (`/vault/display`)
 
 A fully standalone forensic media viewer:
 
@@ -167,7 +167,7 @@ A fully standalone forensic media viewer:
 
 ---
 
-## ⚙️ Setup Instructions
+## Setup Instructions
 
 ### 1. Requirements
 - Cloudflare Account
@@ -201,7 +201,7 @@ npx wrangler deploy
 
 ---
 
-## 🔑 Environment Variables Reference
+## Environment Variables Reference
 
 | Secret | Required | Purpose |
 |---|---|---|
@@ -215,6 +215,6 @@ npx wrangler deploy
 
 ---
 
-## 📜 License
+## License
 
-Personal use and experimentation. Built with 🦾 by [MuffinJuice](https://github.com/gopi470).
+Personal use and experimentation. Built by [MuffinJuice](https://github.com/gopi470).

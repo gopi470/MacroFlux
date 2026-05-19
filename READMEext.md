@@ -4,7 +4,7 @@ This document is a deep-dive reference into the internal logic, algorithms, arch
 
 ---
 
-## 🧠 Advanced Algorithms
+## Advanced Algorithms
 
 ### 1. Log Equalization & Noise Filtering
 
@@ -148,7 +148,7 @@ const scale = clamp((dist / startDist) * startScale, 1.0, 5.0);
 
 ---
 
-## 📅 Task Scheduling Pipeline
+## Task Scheduling Pipeline
 
 ### Execution Flow:
 1. **Creation**: User selects a target time and command in `/schedule`.
@@ -162,7 +162,7 @@ const scale = clamp((dist / startDist) * startScale, 1.0, 5.0);
 
 ---
 
-## 🛡️ Security Architecture
+## Security Architecture
 
 ### Multi-Layer Auth
 
@@ -202,7 +202,7 @@ A full themed HTML page (red/black high-alert style) is served on unauthorized a
 
 ---
 
-## 🎨 Frontend Implementation Details
+## Frontend Implementation Details
 
 ### Shared Navigation Injection (HTMLRewriter)
 
@@ -282,7 +282,7 @@ Auto-refresh on log dashboards does not wipe and reload the entire table:
 
 ---
 
-## 📱 Mobile Table Responsiveness
+## Mobile Table Responsiveness
 
 All four log dashboards share identical responsive CSS architecture:
 
@@ -327,7 +327,7 @@ This allows the user to pinch-zoom out to `0.3x` to view wide tables in a single
 
 ---
 
-## 📊 Database Management
+## Database Management
 
 ### Auto-Cleanup Routine
 
@@ -353,7 +353,7 @@ Log pages process thousands of D1 rows in a single JavaScript iteration:
 
 ---
 
-## 🌍 Browser Intelligence
+## Browser Intelligence
 
 `_worker.js` contains a User-Agent parser stored in the `source` column of `logs`:
 
@@ -363,7 +363,7 @@ Log pages process thousands of D1 rows in a single JavaScript iteration:
 
 ---
 
-## 🛠️ Specialized Utility Systems
+## Specialized Utility Systems
 
 ### Global Backspace Navigation
 
@@ -399,7 +399,7 @@ Used by `/status`, `/report`, `/upload`, and `/schedule/create` to provide consi
 
 ---
 
-## 📡 MacroDroid Integration Reference
+## MacroDroid Integration Reference
 
 ### Hardware Status (`GET /status`)
 
@@ -434,7 +434,7 @@ Body: <raw binary bytes>
 
 ---
 
-## ⚡ Performance Notes
+## Performance Notes
 
 | Concern | Solution |
 |---|---|
@@ -447,7 +447,7 @@ Body: <raw binary bytes>
 
 ---
 
-## ❓ Troubleshooting
+## Troubleshooting
 
 **"Unauthorized" after correct password?**  
 → Check that your browser allows cookies. The auth system depends on `session` cookies.
@@ -469,7 +469,7 @@ Body: <raw binary bytes>
 
 ---
 
-## 📈 Capacity & Limits
+## Capacity & Limits
 
 | Resource | Limit | Notes |
 |---|---|---|
