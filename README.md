@@ -17,8 +17,8 @@ What started as a simple toggle controller grew into a full surveillance and tel
 
 ```
 ┌─────────────────────────────┐
-│     Android Device           │
-│     (MacroDroid)             │
+│     Android Device          │
+│     (MacroDroid)            │
 │  GET /status  ──────────┐   │
 │  GET /report  ──────────┤   │
 │  POST /upload ──────────┤   │
