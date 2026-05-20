@@ -108,6 +108,16 @@
   </div>
 
   <script>
+    // Redirect to home if already authenticated
+    fetch('/api/auth/check')
+      .then(res => res.json())
+      .catch(() => ({ loggedIn: false }))
+      .then(data => {
+        if (data && data.loggedIn) {
+          window.location.replace('/home');
+        }
+      });
+
     // Status helper
     function setStatus(msg, state) {
       const body = document.getElementById("terminalBody");

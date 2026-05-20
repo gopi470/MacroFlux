@@ -40,7 +40,9 @@ CREATE TABLE IF NOT EXISTS status_logs (
   temperature TEXT NOT NULL,
   uptime TEXT NOT NULL,
   ip TEXT NOT NULL,
-  location TEXT NOT NULL
+  location TEXT NOT NULL,
+  extra_data TEXT,
+  command TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_status_timestamp ON status_logs(timestamp DESC);
 

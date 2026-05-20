@@ -907,7 +907,7 @@ function logout() {
   // Clear all session markers and history
   localStorage.removeItem("remote_terminal_history");
   localStorage.removeItem("remote_last_seen");
-  window.location.href = "/login";
+  window.location.href = "/logout";
 }
 
 /* ── Clear Terminal Logs ───────────────────────────────────── */
@@ -995,15 +995,24 @@ function copyLogs() {
   });
 }
 
-// ── 30-Minute Inactivity Guard ───────────────────────────────
+// ── 30-Minute Session Guard (Maintain interactions for polling delay but check absolute session expiry) ───────────────────────────────
 ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart'].forEach(evt => 
   document.addEventListener(evt, () => bumpInteraction(), { passive: true })
 );
 
 setInterval(() => {
-  const idleMs = Date.now() - lastInteractionTime;
-  if (idleMs >= 30 * 60 * 1000) {
-    console.warn("Session expired due to inactivity.");
+  const match = document.cookie.match(/(?:^|; )session_expiry=([^;]*)/);
+  if (match) {
+    const expiryUnix = parseInt(match[1]);
+    if (!isNaN(expiryUnix)) {
+      const nowUnix = Math.floor(Date.now() / 1000);
+      if (nowUnix >= expiryUnix) {
+        console.warn("Session expired (absolute 30m timeout reached)");
+        logout();
+      }
+    }
+  } else {
+    console.warn("Session cookie not found, logging out");
     logout();
   }
 }, 60000); // Check every 60s

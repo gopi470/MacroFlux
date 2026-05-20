@@ -123,6 +123,27 @@ const SHARED_NAV_HTML = `
     window.addEventListener('blur', () => {
       document.body.classList.remove('ctrl-select-mode');
     });
+
+    // Absolute 30-Minute Session Timeout Check
+    function checkSessionExpiry() {
+      const match = document.cookie.match(/(?:^|; )session_expiry=([^;]*)/);
+      if (match) {
+        const expiryUnix = parseInt(match[1]);
+        if (!isNaN(expiryUnix)) {
+          const nowUnix = Math.floor(Date.now() / 1000);
+          if (nowUnix >= expiryUnix) {
+            console.warn("Session expired (absolute 30m timeout reached)");
+            window.location.href = "/logout";
+          }
+        }
+      } else {
+        // If nav is present but cookie is missing, we are on a protected page so force logout
+        console.warn("Session cookie not found, redirecting to logout");
+        window.location.href = "/logout";
+      }
+    }
+    checkSessionExpiry();
+    setInterval(checkSessionExpiry, 5000);
   </script>
 
 `;
@@ -173,7 +194,7 @@ export default {
       const url = new URL(request.url);
       const cookie = request.headers.get("Cookie") || "";
       const jwtSecret = env.JWT_SECRET || env.ACCESS_KEY;
-      const sessionCookie = cookie.split('; ').find(row => row.startsWith('session='))?.split('=')[1];
+      const sessionCookie = cookie.split(';').map(c => c.trim()).find(row => row.startsWith('session='))?.split('=')[1];
       const decodedToken = sessionCookie ? await jwtUtils.verify(sessionCookie, jwtSecret) : null;
       const isLoggedIn = !!decodedToken;
 
@@ -264,25 +285,39 @@ export default {
           return Response.redirect(url.origin + "/home", 302);
         }
 
+        // Auth status endpoint for client check
+        if (url.pathname === "/api/auth/check") {
+          return new Response(JSON.stringify({ loggedIn: isLoggedIn }), {
+            headers: { 
+              "Content-Type": "application/json",
+              "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate"
+            }
+          });
+        }
+
         // 1. Handle Login Request
         if (url.pathname === "/login") {
           const key = url.searchParams.get("key");
           const secretKey = env.ACCESS_KEY;
 
           if (key === secretKey) {
-            // Issue a 24-hour JWT
+            // Issue a 30-minute JWT
             const token = await jwtUtils.sign({
               sub: "admin",
               iat: Math.floor(Date.now() / 1000),
-              exp: Math.floor(Date.now() / 1000) + (3600 * 24)
+              exp: Math.floor(Date.now() / 1000) + 1800
             }, jwtSecret);
+
+            const sessionExpiry = Math.floor(Date.now() / 1000) + 1800;
+
+            const headers = new Headers();
+            headers.append("Location", "/home?login=success");
+            headers.append("Set-Cookie", `session=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=1800; Secure`);
+            headers.append("Set-Cookie", `session_expiry=${sessionExpiry}; Path=/; SameSite=Lax; Max-Age=1800; Secure`);
 
             return new Response(null, {
               status: 302,
-              headers: {
-                "Location": "/home?login=success",
-                "Set-Cookie": `session=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=86400; Secure`
-              }
+              headers: headers
             });
           }
           return Response.redirect(url.origin + "/?error=1", 302);
@@ -290,12 +325,13 @@ export default {
 
         // 2. Handle Logout
         if (url.pathname === "/logout") {
+          const headers = new Headers();
+          headers.append("Location", "/");
+          headers.append("Set-Cookie", "session=; Path=/; Max-Age=0");
+          headers.append("Set-Cookie", "session_expiry=; Path=/; Max-Age=0");
           return new Response(null, {
             status: 302,
-            headers: {
-              "Location": "/",
-              "Set-Cookie": "session=; Path=/; Max-Age=0"
-            }
+            headers: headers
           });
         }
 
@@ -464,16 +500,36 @@ export default {
               netmonster: mergedData.netmonster_status
             });
 
+            let commandToStore = searchParams.get("command") || searchParams.get("cmd") || "";
+            if (!commandToStore) {
+              const lastCmdRaw = await env.LOCATION_KV.get("last_sent_command");
+              if (lastCmdRaw) {
+                try {
+                  const lastCmd = JSON.parse(lastCmdRaw);
+                  if (Date.now() - lastCmd.timestamp < 60000) {
+                    commandToStore = lastCmd.command;
+                    await env.LOCATION_KV.delete("last_sent_command");
+                  }
+                } catch (e) {}
+              }
+            }
+
             try {
               await env.DB.prepare(
-                "INSERT INTO status_logs (timestamp, battery, charging, signal, temperature, uptime, ip, location, extra_data) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
-              ).bind(Date.now(), battery, charging, signal, temp, uptime, ip, location, extraData).run();
+                "INSERT INTO status_logs (timestamp, battery, charging, signal, temperature, uptime, ip, location, extra_data, command) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+              ).bind(Date.now(), battery, charging, signal, temp, uptime, ip, location, extraData, commandToStore).run();
             } catch (dbErr) {
-              if (dbErr.message.includes("extra_data")) {
-                await env.DB.prepare("ALTER TABLE status_logs ADD COLUMN extra_data TEXT").run();
+              if (dbErr.message.includes("no such column") || dbErr.message.includes("extra_data") || dbErr.message.includes("command")) {
+                try {
+                  await env.DB.prepare("ALTER TABLE status_logs ADD COLUMN extra_data TEXT").run();
+                } catch (e) {}
+                try {
+                  await env.DB.prepare("ALTER TABLE status_logs ADD COLUMN command TEXT").run();
+                } catch (e) {}
+                
                 await env.DB.prepare(
-                  "INSERT INTO status_logs (timestamp, battery, charging, signal, temperature, uptime, ip, location, extra_data) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
-                ).bind(Date.now(), battery, charging, signal, temp, uptime, ip, location, extraData).run();
+                  "INSERT INTO status_logs (timestamp, battery, charging, signal, temperature, uptime, ip, location, extra_data, command) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+                ).bind(Date.now(), battery, charging, signal, temp, uptime, ip, location, extraData, commandToStore).run();
               } else {
                 throw dbErr;
               }
@@ -555,6 +611,23 @@ export default {
 
           const response = await fetch(target);
 
+          if (response.ok) {
+            let commandDesc = cmd;
+            if (cmd === "set_volume") {
+              commandDesc = `set_volume (media: ${cmd2 || 0}, ringer: ${cmd3 || 0}, notif: ${cmd4 || 0}, alarm: ${cmd5 || 0})`;
+            } else if (cmd2) {
+              commandDesc = `${cmd} (${cmd2})`;
+            }
+            try {
+              await env.LOCATION_KV.put("last_sent_command", JSON.stringify({
+                command: commandDesc,
+                timestamp: Date.now()
+              }));
+            } catch (kvErr) {
+              console.error("Failed to write last_sent_command to KV", kvErr);
+            }
+          }
+
           // Optimistically update KV so the UI doesn't bounce back during next poll
           if (response.ok && cmd === "set_volume") {
             try {
@@ -593,6 +666,18 @@ export default {
               const target = `https://trigger.macrodroid.com/${macroId}/control?cmd=${encodeURIComponent(cmd)}&key=${key}`;
               const res = await fetch(target);
               results.push({ cmd, ok: res.ok });
+            }
+
+            const okCmds = results.filter(r => r.ok).map(r => r.cmd);
+            if (okCmds.length > 0) {
+              try {
+                await env.LOCATION_KV.put("last_sent_command", JSON.stringify({
+                  command: okCmds.join(", "),
+                  timestamp: Date.now()
+                }));
+              } catch (kvErr) {
+                console.error("Failed to write last_sent_command to KV", kvErr);
+              }
             }
 
             return new Response(JSON.stringify({ success: true, results }), {
@@ -1937,10 +2022,10 @@ export default {
 
           if (q) {
             const likeTerm = `%${q}%`;
-            dbQuery += " WHERE ip LIKE ? OR location LIKE ? OR temperature LIKE ? OR uptime LIKE ?";
-            countQuery += " WHERE ip LIKE ? OR location LIKE ? OR temperature LIKE ? OR uptime LIKE ?";
-            queryParams = [likeTerm, likeTerm, likeTerm, likeTerm, limit, offset];
-            countParams = [likeTerm, likeTerm, likeTerm, likeTerm];
+            dbQuery += " WHERE ip LIKE ? OR location LIKE ? OR temperature LIKE ? OR uptime LIKE ? OR command LIKE ?";
+            countQuery += " WHERE ip LIKE ? OR location LIKE ? OR temperature LIKE ? OR uptime LIKE ? OR command LIKE ?";
+            queryParams = [likeTerm, likeTerm, likeTerm, likeTerm, likeTerm, limit, offset];
+            countParams = [likeTerm, likeTerm, likeTerm, likeTerm, likeTerm];
           }
 
           dbQuery += ` ORDER BY timestamp ${order} LIMIT ? OFFSET ?`;
@@ -1968,9 +2053,11 @@ export default {
 
             const battColor = r.battery < 20 ? '#f87171' : (r.battery < 50 ? '#fbbf24' : '#00dca0');
             const chargingIcon = r.charging ? '⚡' : '';
+            const commandVal = r.command ? r.command.replace(/_/g, ' ').toUpperCase() : '—';
 
             tableRows += `<tr data-ts="${ts}">
             <td>${timeStr}</td>
+            <td style="font-weight:bold; color:#00ffc8">${commandVal}</td>
             <td style="font-weight:bold; color:${battColor}">${r.battery}% ${chargingIcon}</td>
             <td style="color:#60a5fa;">${r.signal} dBm</td>
             <td style="color:#fb923c;">${(r.temperature || "").replace(/_/g, ' ')}</td>
@@ -2135,6 +2222,7 @@ export default {
       <thead>
         <tr>
           <th>TIMESTAMP</th>
+          <th>COMMANDS</th>
           <th>BATTERY</th>
           <th>SIGNAL</th>
           <th>TEMP</th>
@@ -2739,8 +2827,19 @@ export default {
 
           const logText = await resp.text();
 
-          if (resp.ok) {
+           if (resp.ok) {
             await env.DB.prepare("UPDATE command_schedules SET status = 'EXECUTED', log_output = ? WHERE id = ?").bind(logText, item.id).run();
+
+            // Record scheduled command sent to Macrodroid
+            const commandDesc = item.params ? `${item.command} (${item.params})` : item.command;
+            try {
+              await env.LOCATION_KV.put("last_sent_command", JSON.stringify({
+                command: commandDesc,
+                timestamp: Date.now()
+              }));
+            } catch (kvErr) {
+              console.error("Failed to write scheduled command to KV", kvErr);
+            }
           } else {
             console.error(`Trigger Failed [${resp.status}]: ${logText}`);
             await env.DB.prepare("UPDATE command_schedules SET status = 'FAILED', log_output = ? WHERE id = ?").bind(`[${resp.status}] ${logText}`, item.id).run();
