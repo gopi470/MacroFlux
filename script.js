@@ -1001,7 +1001,7 @@ function copyLogs() {
 );
 
 setInterval(() => {
-  const match = document.cookie.match(/(?:^|; )session_expiry=([^;]*)/);
+  const match = document.cookie.match(/(?:^|; )__Host-session_expiry=([^;]*)/);
   if (match) {
     const expiryUnix = parseInt(match[1]);
     if (!isNaN(expiryUnix)) {

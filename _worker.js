@@ -126,7 +126,7 @@ const SHARED_NAV_HTML = `
 
     // Absolute 30-Minute Session Timeout Check
     function checkSessionExpiry() {
-      const match = document.cookie.match(/(?:^|; )session_expiry=([^;]*)/);
+      const match = document.cookie.match(/(?:^|; )__Host-session_expiry=([^;]*)/);
       if (match) {
         const expiryUnix = parseInt(match[1]);
         if (!isNaN(expiryUnix)) {
@@ -193,8 +193,28 @@ export default {
     try {
       const url = new URL(request.url);
       const cookie = request.headers.get("Cookie") || "";
-      const jwtSecret = env.JWT_SECRET || env.ACCESS_KEY;
-      const sessionCookie = cookie.split(';').map(c => c.trim()).find(row => row.startsWith('session='))?.split('=')[1];
+      
+      let jwtSecret = env.JWT_SECRET;
+      if (!jwtSecret) {
+        if (env.LOCATION_KV) {
+          jwtSecret = await env.LOCATION_KV.get("system_jwt_secret_fallback");
+          if (!jwtSecret) {
+            const array = new Uint8Array(32);
+            crypto.getRandomValues(array);
+            jwtSecret = Array.from(array, byte => byte.toString(16).padStart(2, '0')).join('');
+            await env.LOCATION_KV.put("system_jwt_secret_fallback", jwtSecret);
+          }
+        } else {
+          if (!globalThis.system_jwt_secret_fallback) {
+            const array = new Uint8Array(32);
+            crypto.getRandomValues(array);
+            globalThis.system_jwt_secret_fallback = Array.from(array, byte => byte.toString(16).padStart(2, '0')).join('');
+          }
+          jwtSecret = globalThis.system_jwt_secret_fallback;
+        }
+      }
+
+      const sessionCookie = cookie.split(';').map(c => c.trim()).find(row => row.startsWith('__Host-session='))?.split('=')[1];
       const decodedToken = sessionCookie ? await jwtUtils.verify(sessionCookie, jwtSecret) : null;
       const isLoggedIn = !!decodedToken;
 
@@ -287,7 +307,30 @@ export default {
 
         // Auth status endpoint for client check
         if (url.pathname === "/api/auth/check") {
-          return new Response(JSON.stringify({ loggedIn: isLoggedIn }), {
+          const attemptsKey = `login_attempts:${ip}`;
+          let attempts = 0;
+          let expiresAt = 0;
+          if (env.LOCATION_KV) {
+            const val = await env.LOCATION_KV.get(attemptsKey);
+            if (val) {
+              try {
+                const data = JSON.parse(val);
+                attempts = data.count || 0;
+                expiresAt = data.expiresAt || 0;
+              } catch (e) {
+                attempts = parseInt(val) || 0;
+              }
+            }
+          }
+
+          const rateLimited = (attempts >= 5);
+          const remainingSeconds = rateLimited ? Math.max(0, Math.ceil((expiresAt - Date.now()) / 1000)) : 0;
+
+          return new Response(JSON.stringify({
+            loggedIn: isLoggedIn,
+            rateLimited: rateLimited,
+            seconds: remainingSeconds
+          }), {
             headers: { 
               "Content-Type": "application/json",
               "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate"
@@ -300,7 +343,31 @@ export default {
           const key = url.searchParams.get("key");
           const secretKey = env.ACCESS_KEY;
 
+          const attemptsKey = `login_attempts:${ip}`;
+          let attempts = 0;
+          let expiresAt = 0;
+          if (env.LOCATION_KV) {
+            const val = await env.LOCATION_KV.get(attemptsKey);
+            if (val) {
+              try {
+                const data = JSON.parse(val);
+                attempts = data.count || 0;
+                expiresAt = data.expiresAt || 0;
+              } catch (e) {
+                attempts = parseInt(val) || 0;
+              }
+            }
+          }
+
+          if (attempts >= 5) {
+            const remainingSeconds = Math.max(0, Math.ceil((expiresAt - Date.now()) / 1000));
+            return Response.redirect(url.origin + "/?error=rate_limit&seconds=" + remainingSeconds, 302);
+          }
+
           if (key === secretKey) {
+            if (env.LOCATION_KV) {
+              await env.LOCATION_KV.delete(attemptsKey);
+            }
             // Issue a 30-minute JWT
             const token = await jwtUtils.sign({
               sub: "admin",
@@ -312,13 +379,19 @@ export default {
 
             const headers = new Headers();
             headers.append("Location", "/home?login=success");
-            headers.append("Set-Cookie", `session=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=1800; Secure`);
-            headers.append("Set-Cookie", `session_expiry=${sessionExpiry}; Path=/; SameSite=Lax; Max-Age=1800; Secure`);
+            headers.append("Set-Cookie", `__Host-session=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=1800; Secure`);
+            headers.append("Set-Cookie", `__Host-session_expiry=${sessionExpiry}; Path=/; SameSite=Lax; Max-Age=1800; Secure`);
 
             return new Response(null, {
               status: 302,
               headers: headers
             });
+          }
+
+          if (env.LOCATION_KV) {
+            attempts += 1;
+            const newExpiry = expiresAt || (Date.now() + 900 * 1000);
+            await env.LOCATION_KV.put(attemptsKey, JSON.stringify({ count: attempts, expiresAt: newExpiry }), { expirationTtl: 900 });
           }
           return Response.redirect(url.origin + "/?error=1", 302);
         }
@@ -327,8 +400,8 @@ export default {
         if (url.pathname === "/logout") {
           const headers = new Headers();
           headers.append("Location", "/");
-          headers.append("Set-Cookie", "session=; Path=/; Max-Age=0");
-          headers.append("Set-Cookie", "session_expiry=; Path=/; Max-Age=0");
+          headers.append("Set-Cookie", "__Host-session=; Path=/; Max-Age=0; Secure");
+          headers.append("Set-Cookie", "__Host-session_expiry=; Path=/; Max-Age=0; Secure");
           return new Response(null, {
             status: 302,
             headers: headers
@@ -514,26 +587,9 @@ export default {
               }
             }
 
-            try {
-              await env.DB.prepare(
-                "INSERT INTO status_logs (timestamp, battery, charging, signal, temperature, uptime, ip, location, extra_data, command) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
-              ).bind(Date.now(), battery, charging, signal, temp, uptime, ip, location, extraData, commandToStore).run();
-            } catch (dbErr) {
-              if (dbErr.message.includes("no such column") || dbErr.message.includes("extra_data") || dbErr.message.includes("command")) {
-                try {
-                  await env.DB.prepare("ALTER TABLE status_logs ADD COLUMN extra_data TEXT").run();
-                } catch (e) {}
-                try {
-                  await env.DB.prepare("ALTER TABLE status_logs ADD COLUMN command TEXT").run();
-                } catch (e) {}
-                
-                await env.DB.prepare(
-                  "INSERT INTO status_logs (timestamp, battery, charging, signal, temperature, uptime, ip, location, extra_data, command) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
-                ).bind(Date.now(), battery, charging, signal, temp, uptime, ip, location, extraData, commandToStore).run();
-              } else {
-                throw dbErr;
-              }
-            }
+            await env.DB.prepare(
+              "INSERT INTO status_logs (timestamp, battery, charging, signal, temperature, uptime, ip, location, extra_data, command) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+            ).bind(Date.now(), battery, charging, signal, temp, uptime, ip, location, extraData, commandToStore).run();
           } catch (e) {
             console.error("D1 Hardware Log Error:", e);
           }
@@ -811,9 +867,9 @@ export default {
           try {
             if (!isLoggedIn) return renderUnauthorized();
 
-            const vaultPass = (env.VAULT_PASS || env.VALULT_PASS || "").trim();
+            const vaultPass = (env.VAULT_PASS || "").trim();
             const cookies = request.headers.get("Cookie") || "";
-            const isVaultAuthenticated = cookies.includes("vault_token=authorized");
+            const isVaultAuthenticated = cookies.includes("__Host-vault_token=authorized");
 
             if (vaultPass && !isVaultAuthenticated) {
               return Response.redirect(url.origin + "/vault/auth?next=" + encodeURIComponent(url.pathname), 302);
@@ -866,9 +922,9 @@ export default {
         if (url.pathname === "/vault/auth") {
           if (!isLoggedIn) return renderUnauthorized();
 
-          const vaultPass = (env.VAULT_PASS || env.VALULT_PASS || "").trim();
+          const vaultPass = (env.VAULT_PASS || "").trim();
           const cookies = request.headers.get("Cookie") || "";
-          const isVaultAuthenticated = cookies.includes("vault_token=authorized");
+          const isVaultAuthenticated = cookies.includes("__Host-vault_token=authorized");
 
           // Handle Password Submission (POST)
           if (request.method === "POST") {
@@ -878,7 +934,7 @@ export default {
 
               if (vaultPass && pass === vaultPass) {
                 return new Response("OK", {
-                  headers: { "Set-Cookie": "vault_token=authorized; Path=/; HttpOnly; SameSite=Lax; Max-Age=600" }
+                  headers: { "Set-Cookie": "__Host-vault_token=authorized; Path=/; HttpOnly; SameSite=Lax; Max-Age=600; Secure" }
                 });
               }
               return new Response("INVALID", { status: 403 });
@@ -963,7 +1019,7 @@ export default {
           return new Response("", {
             status: 302,
             headers: {
-              "Set-Cookie": "vault_token=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT",
+              "Set-Cookie": "__Host-vault_token=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Secure",
               "Location": "/vault/list"
             }
           });
@@ -980,9 +1036,9 @@ export default {
           try {
             if (!isLoggedIn) return renderUnauthorized();
 
-            const vaultPass = (env.VAULT_PASS || env.VALULT_PASS || "").trim();
+            const vaultPass = (env.VAULT_PASS || "").trim();
             const cookies = request.headers.get("Cookie") || "";
-            const isVaultAuthenticated = cookies.includes("vault_token=authorized");
+            const isVaultAuthenticated = cookies.includes("__Host-vault_token=authorized");
 
             if (vaultPass && !isVaultAuthenticated) {
               return Response.redirect(url.origin + "/vault/auth?next=" + encodeURIComponent(url.pathname), 302);
@@ -2473,8 +2529,9 @@ export default {
           if (!isLoggedIn) return renderUnauthorized();
 
           const q = url.searchParams.get("q") || "";
-          const sort = url.searchParams.get("sort") || "created_at";
-          const order = url.searchParams.get("order") || "DESC";
+          const allowedSort = ["created_at", "target_time"];
+          const sort = allowedSort.includes(url.searchParams.get("sort")) ? url.searchParams.get("sort") : "created_at";
+          const order = url.searchParams.get("order") === "ASC" ? "ASC" : "DESC";
           const offset = parseInt(url.searchParams.get("offset") || "0");
           const limit = parseInt(url.searchParams.get("limit") || "50");
 

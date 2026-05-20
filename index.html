@@ -108,13 +108,78 @@
   </div>
 
   <script>
-    // Redirect to home if already authenticated
+    let isRateLimitedActive = false;
+
+    function triggerRateLimit(seconds) {
+      if (isRateLimitedActive || seconds <= 0) return;
+      isRateLimitedActive = true;
+
+      const inputEl = document.getElementById('accessKey');
+      const btn = document.getElementById('loginBtn');
+      
+      inputEl.disabled = true;
+      btn.disabled = true;
+      inputEl.placeholder = "LOCKED...";
+
+      const container = document.querySelector('.container');
+      container.style.animation = "shake 0.38s cubic-bezier(0.36, 0.07, 0.19, 0.97)";
+
+      let activeRateLimitLine = null;
+      function setRateLimitStatus(msg) {
+        const body = document.getElementById("terminalBody");
+        const dot = document.getElementById("dot");
+        dot.className = "status-dot error";
+
+        if (activeRateLimitLine) {
+          activeRateLimitLine.querySelector('.t-text').textContent = msg;
+        } else {
+          const line = document.createElement("div");
+          line.className = "t-line";
+
+          const span = document.createElement("span");
+          span.className = "t-text err";
+          span.textContent = msg;
+
+          line.innerHTML = `<span class="t-prompt">›</span>`;
+          line.appendChild(span);
+          body.appendChild(line);
+          activeRateLimitLine = line;
+        }
+        body.scrollTop = body.scrollHeight;
+      }
+
+      const timer = setInterval(() => {
+        if (seconds <= 0) {
+          clearInterval(timer);
+          isRateLimitedActive = false;
+          inputEl.disabled = false;
+          btn.disabled = false;
+          inputEl.placeholder = "ENTER ACCESS KEY...";
+          setStatus("UNLOCKED — READY", "ok");
+        } else {
+          const m = Math.floor(seconds / 60);
+          const s = (seconds % 60).toString().padStart(2, '0');
+          setRateLimitStatus(`TOO MANY ATTEMPTS — LOCKED FOR ${m}:${s}`);
+          seconds--;
+        }
+      }, 1000);
+
+      // Initial call
+      const mVal = Math.floor(seconds / 60);
+      const sVal = (seconds % 60).toString().padStart(2, '0');
+      setRateLimitStatus(`TOO MANY ATTEMPTS — LOCKED FOR ${mVal}:${sVal}`);
+      seconds--;
+    }
+
+    // Redirect to home if already authenticated, or show rate limit status
     fetch('/api/auth/check')
       .then(res => res.json())
       .catch(() => ({ loggedIn: false }))
       .then(data => {
         if (data && data.loggedIn) {
           window.location.replace('/home');
+        } else if (data && data.rateLimited) {
+          triggerRateLimit(data.seconds);
         }
       });
 
@@ -185,7 +250,10 @@
 
     // Show error if redirected back with error
     const urlParams = new URLSearchParams(window.location.search);
-    if (urlParams.has('error')) {
+    if (urlParams.get('error') === 'rate_limit') {
+      let seconds = parseInt(urlParams.get('seconds')) || 900;
+      triggerRateLimit(seconds);
+    } else if (urlParams.has('error')) {
       setStatus("ACCESS DENIED — INVALID CREDENTIALS", "err");
       // Shake effect
       const container = document.querySelector('.container');
