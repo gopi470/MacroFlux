@@ -841,7 +841,8 @@ textarea:disabled,
   line-height: 1.4;
   letter-spacing: 0.04em; color: var(--text-muted);
   flex: 1; transition: color .25s ease;
-  word-break: break-all;
+  overflow-wrap: break-word;
+  word-break: normal;
 }
 .t-text.ok   { color: var(--teal); }
 .t-text.err  { color: var(--red); }
@@ -1201,13 +1202,15 @@ textarea:disabled,
 }
 .sidebar-label {
   font-family: var(--mono);
-  font-size: 10px;
-  color: var(--text-label);
+  font-size: 11px;
+  color: var(--teal);
   letter-spacing: 2px;
   text-transform: uppercase;
   margin-bottom: 12px;
   display: block;
-  opacity: 0.8;
+  font-weight: 700;
+  opacity: 1;
+  text-shadow: 0 0 8px rgba(0, 220, 160, 0.35);
 }
 
 /* ── Volume Sliders (Refined Android 16 Style) ─────────────── */
@@ -1454,13 +1457,17 @@ textarea:disabled,
   font-size: 12px;
   width: 100%;
 }
+.comms-input::placeholder {
+  color: rgba(180, 230, 215, 0.55);
+  letter-spacing: 0.05em;
+}
 .comms-input:focus {
   outline: none; border-color: var(--teal);
 }
 .comms-send {
   background: var(--teal);
   color: #000;
-  border: none;
+  border: 1px solid transparent;
   border-radius: 4px;
   padding: 10px;
   font-family: var(--mono);
@@ -1474,8 +1481,9 @@ textarea:disabled,
   transition: all 0.2s;
 }
 .comms-send:hover {
-  background: #fff;
-  box-shadow: 0 0 15px var(--teal-glow);
+  background: rgba(0, 220, 160, 0.12);
+  color: var(--teal);
+  border: 1px solid rgba(0, 220, 160, 0.4);
 }
 
 
@@ -1652,6 +1660,76 @@ body.ctrl-select-mode * {
   cursor: auto !important;
 }
 
+/* ── Tile Edit Mode Styles ──────────────────────────────────── */
+.sidebar-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+.sidebar-header-row .sidebar-label {
+  margin-bottom: 0;
+}
+.sidebar-edit-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s var(--ease);
+  border-radius: 4px;
+  width: 24px;
+  height: 24px;
+}
+.sidebar-edit-btn:hover {
+  color: var(--teal);
+  background: rgba(0, 220, 160, 0.1);
+  box-shadow: 0 0 8px var(--teal-glow);
+}
+.sidebar-edit-btn.active {
+  color: var(--teal);
+  background: rgba(0, 220, 160, 0.2);
+  border: 1px solid rgba(0, 220, 160, 0.3);
+  box-shadow: 0 0 10px var(--teal-glow);
+}
+.sidebar-edit-btn.active .edit-icon {
+  display: none !important;
+}
+.sidebar-edit-btn.active .save-icon {
+  display: block !important;
+}
 
+/* Wiggle animation for editing */
+@keyframes tileWiggle {
+  0% { transform: rotate(-0.3deg); }
+  50% { transform: rotate(0.3deg); }
+  100% { transform: rotate(-0.3deg); }
+}
 
-
+.tile-editing .trigger-btn:not(.dragging),
+.tile-editing .control-item:not(.dragging) {
+  animation: tileWiggle 0.38s ease-in-out infinite;
+  border: 1px dashed rgba(0, 220, 160, 0.5) !important;
+  background: rgba(0, 220, 160, 0.08) !important;
+  cursor: grab !important;
+  user-select: none;
+  touch-action: none; /* Disable panning while dragging on touch screens */
+}
+
+/* Dragging state */
+.trigger-btn.dragging,
+.control-item.dragging {
+  cursor: grabbing !important;
+  opacity: 0.95;
+  transform: scale(1.05) translateZ(0) !important;
+  border-color: var(--teal) !important;
+  background: var(--teal-dim) !important;
+  box-shadow: 0 0 20px rgba(0, 220, 160, 0.4) !important;
+  z-index: 99;
+  position: relative;
+  touch-action: none;
+  animation: none !important;
+}

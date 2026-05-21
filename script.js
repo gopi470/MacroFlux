@@ -1046,6 +1046,30 @@ function toggleLeftSidebar() {
   }
 }
 
+// Close sidebars when clicking outside of them
+document.addEventListener('click', (e) => {
+  const rightSidebar = document.getElementById("systemSidebar");
+  const rightHandle = document.getElementById("sidebarHandle");
+  const leftSidebar = document.getElementById("leftSidebar");
+  const leftHandle = document.getElementById("leftSidebarHandle");
+
+  if (rightSidebar && rightSidebar.classList.contains("open")) {
+    if (!rightSidebar.contains(e.target) && (!rightHandle || !rightHandle.contains(e.target))) {
+      rightSidebar.classList.remove("open");
+      if (rightHandle) rightHandle.classList.remove("open");
+      document.body.classList.remove("sidebar-active");
+    }
+  }
+
+  if (leftSidebar && leftSidebar.classList.contains("open")) {
+    if (!leftSidebar.contains(e.target) && (!leftHandle || !leftHandle.contains(e.target))) {
+      leftSidebar.classList.remove("open");
+      if (leftHandle) leftHandle.classList.remove("open");
+      document.body.classList.remove("left-sidebar-active");
+    }
+  }
+});
+
 
 async function toggleSystemSetting(setting, isEnabled) {
   const key = document.getElementById("key").value.trim();
@@ -1111,6 +1135,7 @@ async function triggerImmediate(cmd) {
   }
 
   const displayNames = {
+    'test': 'TEST STATUS',
     'lock': 'LOCK DEVICE',
     'location_share': 'LIVE GPS SYNC',
     'location_share_recent': 'RECENT GPS SYNC',
@@ -1519,6 +1544,128 @@ handleIncomingLocation();
 startPolling();
 checkInitialLogin();
 setupVolumeDragging();
+
+/* ── Tile Rearrangement & Edit Mode ────────────────────────── */
+let dragEl = null;
+
+function initTileDragAndDrop(gridId, storageKey) {
+  const grid = document.getElementById(gridId);
+  if (!grid) return;
+
+  // Load layout on load
+  loadTileOrder(gridId, storageKey);
+
+  // Prevent inline onclick events from firing when in edit mode
+  grid.addEventListener('click', (e) => {
+    if (grid.classList.contains('tile-editing')) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+  }, true); // Capture phase to intercept inline click handlers
+
+  grid.addEventListener('pointerdown', (e) => {
+    if (!grid.classList.contains('tile-editing')) return;
+    const tile = e.target.closest('.trigger-btn, .control-item');
+    if (!tile) return;
+
+    dragEl = tile;
+    tile.classList.add('dragging');
+    tile.setPointerCapture(e.pointerId);
+    e.preventDefault();
+  });
+
+  grid.addEventListener('pointermove', (e) => {
+    if (!dragEl) return;
+    const x = e.clientX;
+    const y = e.clientY;
+
+    const elem = document.elementFromPoint(x, y);
+    if (!elem) return;
+
+    const overTile = elem.closest('.trigger-btn, .control-item');
+    if (overTile && overTile !== dragEl && overTile.parentNode === grid) {
+      const children = Array.from(grid.children);
+      const dragIndex = children.indexOf(dragEl);
+      const overIndex = children.indexOf(overTile);
+
+      if (dragIndex < overIndex) {
+        grid.insertBefore(dragEl, overTile.nextSibling);
+      } else {
+        grid.insertBefore(dragEl, overTile);
+      }
+    }
+  });
+
+  const endDrag = (e) => {
+    if (!dragEl) return;
+    dragEl.classList.remove('dragging');
+    try {
+      dragEl.releasePointerCapture(e.pointerId);
+    } catch(err) {}
+    dragEl = null;
+
+    saveTileOrder(gridId, storageKey);
+  };
+
+  grid.addEventListener('pointerup', endDrag);
+  grid.addEventListener('pointercancel', endDrag);
+}
+
+function loadTileOrder(gridId, storageKey) {
+  const grid = document.getElementById(gridId);
+  const saved = localStorage.getItem(storageKey);
+  if (grid && saved) {
+    const ids = JSON.parse(saved);
+    const tiles = Array.from(grid.children);
+    ids.forEach(id => {
+      const tile = tiles.find(t => t.getAttribute('data-tile-id') === id);
+      if (tile) {
+        grid.appendChild(tile);
+      }
+    });
+  }
+}
+
+function saveTileOrder(gridId, storageKey) {
+  const grid = document.getElementById(gridId);
+  if (!grid) return;
+  const ids = Array.from(grid.children)
+    .map(t => t.getAttribute('data-tile-id'))
+    .filter(id => id);
+  localStorage.setItem(storageKey, JSON.stringify(ids));
+}
+
+function toggleTileEditMode(type) {
+  let gridId, btnId;
+  if (type === 'tactical') {
+    gridId = 'tacticalGrid';
+    btnId = 'editBtn_tactical';
+  } else if (type === 'comms') {
+    gridId = 'commsGrid';
+    btnId = 'editBtn_comms';
+  } else if (type === 'system') {
+    gridId = 'systemStatesGrid';
+    btnId = 'editBtn_system';
+  }
+  
+  const grid = document.getElementById(gridId);
+  const btn = document.getElementById(btnId);
+  
+  if (!grid || !btn) return;
+  
+  const isEditing = grid.classList.toggle('tile-editing');
+  btn.classList.toggle('active', isEditing);
+  
+  if (isEditing) {
+    setStatus(`${type.toUpperCase()} TILE EDIT ACTIVE — DRAG TO REARRANGE`, "busy");
+  } else {
+    setStatus("LAYOUT SAVED", "ok");
+  }
+}
+
+initTileDragAndDrop('systemStatesGrid', 'remote_system_tile_order');
+initTileDragAndDrop('tacticalGrid', 'remote_tactical_tile_order');
+initTileDragAndDrop('commsGrid', 'remote_comms_tile_order');
 
 // Toggle selection mode via Ctrl key
 document.addEventListener('keydown', (e) => {
