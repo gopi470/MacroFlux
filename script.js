@@ -900,15 +900,27 @@ document.getElementById("cmd2").addEventListener("input", function() {
   this.style.height = (this.scrollHeight) + "px";
 });
 
-/* ── Parallax Grid ─────────────────────────────────────────── */
-if (window.innerWidth > 768) {
-  document.addEventListener('mousemove', (e) => {
-    const x = (e.clientX - window.innerWidth / 2) / 45;
-    const y = (e.clientY - window.innerHeight / 2) / 45;
-    const grid = document.querySelector('.bg-grid');
-    if (grid) grid.style.transform = `translate(${x}px, ${y}px)`;
-  });
+/* ── Background Theme Init ──────────────────────────────────── */
+if (typeof BgThemes !== 'undefined') {
+  BgThemes.init();
+
+  // Update button label to show current theme name
+  function updateBgLabel() {
+    const btn = document.getElementById('bgThemeLabel');
+    if (!btn) return;
+    const all = BgThemes.getAll();
+    const cur = BgThemes.getCurrentId();
+    const theme = all.find(t => t.id === cur);
+    if (theme) btn.textContent = theme.label.toUpperCase();
+  }
+
+  // Patch cycle to also update label
+  const _origCycle = BgThemes.cycle.bind(BgThemes);
+  BgThemes.cycle = function() { _origCycle(); updateBgLabel(); };
+
+  updateBgLabel();
 }
+
 
 function logout() {
   // Clear all session markers and history
