@@ -170,7 +170,8 @@ async function startPolling() {
           // If we are waiting for a FRESH report (timestamp must be newer than when we requested)
           if (isWaitingForFreshData && waitingForType === "netmonster" && s.updated > referenceTime) {
             isWaitingForFreshData = false;
-            setStatus(s.netmonster_status.toUpperCase(), "telemetry");
+            const updatedTime = new Date(s.updated).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            setStatus(s.netmonster_status.toUpperCase(), "telemetry", null, null, updatedTime);
           }
         }
 
@@ -338,14 +339,14 @@ async function processTerminalQueue() {
   if (item.type === "location") {
     await renderLocation(item.link, item.time, false);
   } else {
-    await renderStatus(item.msg, item.state, item.time, false, item.details, item.cmdKey, item.sig, item.bat);
+    await renderStatus(item.msg, item.state, item.time, false, item.details, item.cmdKey, item.sig, item.bat, item.updatedTime);
   }
   
   isTerminalTyping = false;
   processTerminalQueue();
 }
 
-function renderStatus(msg, state, time, skipTyping = false, details = null, cmdKey = null, sig = null, bat = null) {
+function renderStatus(msg, state, time, skipTyping = false, details = null, cmdKey = null, sig = null, bat = null, updatedTime = null) {
   return new Promise((resolve) => {
     const body = document.getElementById("terminalBody");
     const line = document.createElement("div");
@@ -363,6 +364,9 @@ function renderStatus(msg, state, time, skipTyping = false, details = null, cmdK
     
     if (skipTyping) {
       textEl.textContent = msg;
+      if (updatedTime) {
+        textEl.innerHTML += ` <span class="update-badge">[UPDATED: ${updatedTime}]</span>`;
+      }
       if (details) {
         const errId = "err_" + Math.random().toString(36).substr(2, 9);
         errorDetails[errId] = { details, time, msg, cmdKey, sig, bat };
@@ -380,6 +384,9 @@ function renderStatus(msg, state, time, skipTyping = false, details = null, cmdK
         body.scrollTop = body.scrollHeight;
         if (i >= msg.length) {
           clearInterval(timer);
+          if (updatedTime) {
+            textEl.innerHTML += ` <span class="update-badge">[UPDATED: ${updatedTime}]</span>`;
+          }
           if (details) {
             const errId = "err_" + Math.random().toString(36).substr(2, 9);
             errorDetails[errId] = { details, time, msg, cmdKey, sig, bat };
@@ -449,13 +456,13 @@ function renderLocation(link, time, skipTyping = false) {
   });
 }
 
-function setStatus(msg, state, details = null, cmdKey = null) {
+function setStatus(msg, state, details = null, cmdKey = null, updatedTime = null) {
   const time = getTimestamp();
   const sig = document.getElementById("sigVal")?.textContent?.trim() || "N/A";
   const bat = document.getElementById("batVal")?.textContent?.trim() || "N/A";
   
-  terminalQueue.push({ type: "status", msg, state, time, details, cmdKey, sig, bat });
-  saveLog({ type: "status", msg, state, time, details, cmdKey, sig, bat });
+  terminalQueue.push({ type: "status", msg, state, time, details, cmdKey, sig, bat, updatedTime });
+  saveLog({ type: "status", msg, state, time, details, cmdKey, sig, bat, updatedTime });
   processTerminalQueue();
 }
 
@@ -470,7 +477,7 @@ function loadHistory() {
   const history = JSON.parse(localStorage.getItem("remote_terminal_history") || "[]");
   history.forEach(item => {
     if (item.type === "location") renderLocation(item.link, item.time, true);
-    else renderStatus(item.msg, item.state, item.time, true, item.details, item.cmdKey, item.sig, item.bat);
+    else renderStatus(item.msg, item.state, item.time, true, item.details, item.cmdKey, item.sig, item.bat, item.updatedTime);
   });
 }
 
@@ -1150,18 +1157,20 @@ async function triggerImmediate(cmd) {
 
   const isLocationCmd = ["location_share_recent", "location_share"].includes(cmd);
   const isMediaCmd = ["photo_click", "photo_front", "videorecording_on", "microphone_record"].includes(cmd);
+  const isNetMonsterCmd = cmd === "netmonster";
 
-  if (isLocationCmd || isMediaCmd) {
+  if (isLocationCmd || isMediaCmd || isNetMonsterCmd) {
     const thisRequestId = ++currentRequestId;
     isWaitingForFreshData = true;
     lastActivePollingCmd = pollingName;
-    waitingForType = isLocationCmd ? "location" : "media"; 
-    referenceTime = lastLocationTime; 
+    waitingForType = isLocationCmd ? "location" : (isNetMonsterCmd ? "netmonster" : "media"); 
+    referenceTime = isLocationCmd ? lastLocationTime : Date.now(); 
 
     let durationLabel = "";
     if (cmd === "photo_click" || cmd === "photo_front") durationLabel = " (up to 3m)";
     else if (cmd === "microphone_record") durationLabel = " (30s)";
     else if (cmd === "videorecording_on") durationLabel = " (15s)";
+    else if (isNetMonsterCmd) durationLabel = " (15s)";
 
     setStatus(`REQUESTING ${pollingName}${durationLabel} ...`, "busy");
 
@@ -1170,6 +1179,7 @@ async function triggerImmediate(cmd) {
     else if (cmd === "photo_click" || cmd === "photo_front") timeoutMs = 180000;
     else if (cmd === "microphone_record") timeoutMs = 120000;
     else if (cmd === "videorecording_on") timeoutMs = 150000;
+    else if (isNetMonsterCmd) timeoutMs = 35000;
 
     setTimeout(() => {
       if (isWaitingForFreshData && currentRequestId === thisRequestId) {
@@ -1197,7 +1207,7 @@ async function triggerImmediate(cmd) {
     const isSuccess = text.toLowerCase().includes("ok") || text.toLowerCase().includes("success");
     const time = getTimestamp();
 
-    if (!isLocationCmd && !isMediaCmd) {
+    if (!isLocationCmd && !isMediaCmd && !isNetMonsterCmd) {
       if (isSuccess) {
         setStatus(`${pollingName} SUCCESS`, "ok");
         updateLastSuccess(cmd, time);
@@ -1206,7 +1216,7 @@ async function triggerImmediate(cmd) {
       }
     }
   } catch (e) {
-    if (!isLocationCmd && !isMediaCmd) {
+    if (!isLocationCmd && !isMediaCmd && !isNetMonsterCmd) {
       setStatus(`${pollingName} NETWORK ERROR`, "err", e.message, cmd);
     }
   }

@@ -858,6 +858,15 @@ textarea:disabled,
   text-shadow: 0 0 5px var(--teal-glow);
 }
 
+.update-badge {
+  font-family: var(--ui);
+  font-size: 8px;
+  color: rgba(255, 255, 255, 0.4);
+  letter-spacing: 0.5px;
+  margin-left: 6px;
+  font-weight: normal;
+  text-shadow: none;
+}
 .err-details-btn {
   display: inline-block;
   margin-left: 6px;
