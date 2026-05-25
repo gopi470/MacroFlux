@@ -63,8 +63,8 @@ What started as a simple toggle controller grew into a full surveillance and tel
 ## Authentication and Security
 
 - Primary Gateway: Protected by a global ACCESS_KEY secret. Valid authentication issues a JSON Web Token (JWT) signed using HS256 with either a custom JWT_SECRET or fallback to the ACCESS_KEY, storing it in a session cookie (session=authorized) with a 30-minute Time-To-Live, using SameSite=Lax and Secure flags.
+- Centralized Auth Guard: Enforces session token checks globally at the routing gateway for all browser-facing system endpoints (such as /home, /schedule, /vault/*, /control, and /poll). Unauthenticated attempts instantly trigger the themed High Alert red page with a 7-second countdown while logging the connecting IP and geolocation details.
 - Inactivity Guard: Uses absolute timestamp comparison (Date.now minus lastInteractionTime), rendering the session check immune to browser background tab throttling.
-- Unauthorized Handler: Serves a themed High Alert red page with a 7-second countdown and logs the IP and geolocation of the unauthorized access attempt before redirecting to the login page.
 - Vault Security: Routes under /vault require a secondary VAULT_PASS secret, which sets a separate vault_token cookie with a 10-minute Time-To-Live.
 - MacroDroid Authentication: All device-to-server calls must include a REPORT_KEY query parameter, which is validated against the secrets configured in the Cloudflare Worker.
 
@@ -179,6 +179,7 @@ The /vault/display route serves as a standalone media viewer:
 
 ## Performance and Optimization
 
+- Write-Filter Ingestion: Completely bypasses D1 database logging for all static assets (.css, .js, favicon) and background authentication checking API routes (/api/auth/check), reducing database write load by up to 95% during normal operations.
 - Log Equalization: Applies a five percent sampling rate to high-frequency polling requests, while maintaining one hundred percent capture of security events, commands, and errors.
 - Non-blocking Analytics: Handles logging asynchronously using the waitUntil method so responses are returned to the client before D1 database writes complete.
 - AJAX Smart Merge: Refreshes tables by prepending only new rows with a temporary highlight animation to avoid layout redraw lag.

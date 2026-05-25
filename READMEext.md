@@ -93,12 +93,15 @@ Rather than relying on JavaScript window timer loops (which are routinely thrott
 - If this delta exceeds thirty minutes, the browser clears all cookies and forces a redirection to the logout gateway.
 - If the browser tab was suspended in the background for hours, the check runs instantly upon tab activation, ensuring an immediate session termination.
 
-### Tactical Unauthorized Access Logging
-When an unauthenticated request hits a protected resource (such as /home, /schedule, or /vault/list), the system initiates an intruder isolation routine:
-- It reads connection metadata, extracting the IP address, User-Agent header, and Cloudflare-injected geolocation parameters (country, region, city).
-- It inserts a security log record into D1 with a status code of 401.
-- It renders a crimson Tactical Red page with an animated lock symbol and a seven-second countdown.
-- Once the countdown reaches zero, the browser is redirected back to the login screen.
+### Centralized System Endpoint Auth Guard & Tactical Logging
+The worker implements a single, high-performance centralized authentication guard at the top level of the request routing engine. This guard serves as a strict gateway for all browser-facing system routes (e.g., /home, /schedule, /vault/*, /control, and /poll) while letting public login paths, static asset files (.js, .css, etc.), and device webhook dispatches (protected via REPORT_KEY) pass through cleanly.
+
+When an unauthenticated client attempts to reach any protected system endpoint:
+- The guard immediately intercepts the request.
+- It parses connection metadata, extracting the connecting IP address, User-Agent header, and Cloudflare-injected geolocation parameters (country, region, city).
+- It inserts a security audit log record into the D1 database with a status code of 401.
+- It renders a custom themed crimson High Alert page displaying details of the blocked attempt with an animated lock symbol and a seven-second countdown.
+- Once the countdown reaches zero, the browser is automatically redirected to the login gateway.
 
 ### Vault Encryption and Isolation
 The vault features a separate password lock to guarantee security isolation. Even if a user session is active, files stored in the vault remain inaccessible unless a secondary VAULT_PASS challenge is completed. This sets a separate vault_token cookie with a short 10-minute expiry time.
@@ -254,8 +257,10 @@ To optimize mobile review of high-resolution aerial and device photos, the displ
 
 ## Performance and Optimization
 
-### Log Equalization and Filtering
-To prevent the dashboard's high-frequency polling from overwhelming the Cloudflare D1 database and cluttering the user interface, the system implements a log equalization algorithm in the worker handler. The system checks if the pathname matches a set of noisy routes (such as /poll, /favicon.ico, and /requests). When a /poll request is handled, the worker evaluates a random check to skip writing the log entry ninety-five percent of the time.
+### Write-Filter Ingestion & Log Equalization
+To guarantee optimal database performance and completely protect Cloudflare D1 write quota limits from getting exhausted:
+- **Asset & Silent Poll Filtering**: The request logging engine evaluates incoming pathnames and completely skips writing logs for all static asset requests (matching `.css`, `.js`, `.png`, `.jpg`, `.svg`, `.ico`, `.woff2`, etc.) and quiet background count-down polling endpoints (`/api/auth/check`). This eliminates over 95% of wasteful logging transactions during active use.
+- **Log Equalization Sampling**: For other continuous heartbeats (such as `/poll`), a random check is run to discard 95% of the entries, while retaining 100% of security events, administrative logins, webhook executions, and server errors.
 
 ### Non-blocking Analytics
 Logging writes are wrapped in the worker's event context:

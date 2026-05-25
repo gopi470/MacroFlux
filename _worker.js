@@ -223,6 +223,12 @@ export default {
           if (url.searchParams.get("nosave") === "1") return;
           if (url.pathname === "/statuslogs") return; // Never log status logs page visits
 
+          // Prevent D1 write flooding by completely skipping static asset requests
+          const isAsset = /\.(css|js|png|jpg|jpeg|gif|svg|ico|json|woff2?|ttf|map)$/i.test(url.pathname);
+          if (isAsset) return;
+
+          // Never write D1 logs for background authentication/countdown heartbeats
+          if (url.pathname === "/api/auth/check") return;
 
           const isNoisy = ["/poll", "/favicon.ico", "/requests"].includes(url.pathname);
 
@@ -503,6 +509,22 @@ export default {
             '  </script>' +
             '</body></html>', { status: 401, headers: { "Content-Type": "text/html; charset=UTF-8" } });
         };
+
+        // ── Centralized System Endpoint Auth Guard ─────────────────────────
+        // Public routes: always accessible without a session
+        const PUBLIC_ROUTES = new Set(["/", "/index.html", "/login", "/logout", "/api/auth/check"]);
+        // Device routes: use secret REPORT_KEY instead of a session cookie (called by Android device)
+        const DEVICE_KEY_ROUTES = new Set(["/status", "/report", "/upload"]);
+
+        const isPublicRoute   = PUBLIC_ROUTES.has(url.pathname);
+        const isDeviceRoute   = DEVICE_KEY_ROUTES.has(url.pathname);
+        const isStaticAsset   = /\.(css|js|png|jpg|jpeg|gif|svg|ico|woff2?|ttf|map)$/i.test(url.pathname);
+
+        // Block all unrecognised system routes for unauthenticated users
+        if (!isPublicRoute && !isDeviceRoute && !isStaticAsset && !isLoggedIn) {
+          return renderUnauthorized();
+        }
+        // ──────────────────────────────────────────────────────────────────
 
         // ── Update Hardware Status (/status) ──────────────────
         if (url.pathname === "/status") {
