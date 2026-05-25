@@ -292,9 +292,12 @@ export default {
             location
           ).run();
 
-          // Auto-cleanup (Keep last 2000 logs)
+          // Auto-cleanup (Allocate 500 logs size to blocked logs and 1500 to general logs)
           if (Math.random() < 0.05) {
-            ctx.waitUntil(env.DB.prepare("DELETE FROM logs WHERE id IN (SELECT id FROM logs ORDER BY timestamp DESC LIMIT -1 OFFSET 2000)").run());
+            ctx.waitUntil(Promise.all([
+              env.DB.prepare("DELETE FROM logs WHERE status != 401 AND id IN (SELECT id FROM logs WHERE status != 401 ORDER BY timestamp DESC LIMIT -1 OFFSET 1500)").run(),
+              env.DB.prepare("DELETE FROM logs WHERE status = 401 AND id IN (SELECT id FROM logs WHERE status = 401 ORDER BY timestamp DESC LIMIT -1 OFFSET 500)").run()
+            ]));
           }
         } catch (e) {
           console.error("LOG_FAIL:", e.message);
@@ -1535,7 +1538,7 @@ export default {
 
             const locationLabel = (r.location || "GLOBAL").toUpperCase().replace(/_/g, ' ');
 
-            tableRows += `<tr id="row_${r.id}" class="${isAlert ? 'row-alert' : ''}" data-noisy="${noisy}" data-method="${r.method}" data-ts="${r.timestamp}">
+            tableRows += `<tr id="row_${r.id}" class="${isAlert ? 'row-alert' : ''}" data-noisy="${noisy}" data-method="${r.method}" data-ts="${r.timestamp}" data-status="${r.status}">
             <td>${timeStr}</td>
             <td>${r.method}</td>
             <td style="color:#fff">${pathDisplay}</td>
@@ -1702,6 +1705,7 @@ export default {
         <div class="opts">
           <div onclick="setShow('DEFAULT', 'Default')">Default</div>
           <div onclick="setShow('HIDDEN', 'Hidden')">Hidden</div>
+          <div onclick="setShow('BLOCKED', 'Blocked')">Blocked</div>
           <div onclick="setShow('ALL', 'All')">All</div>
         </div>
       </div>
@@ -2039,11 +2043,14 @@ export default {
       const filteredRows = rows.filter(r => {
         const method = r.dataset.method;
         const isNoisy = r.dataset.noisy === 'true';
+        const status = parseInt(r.dataset.status) || 200;
+        const isBlocked = status === 401;
         const rowText = r.innerText.toLowerCase();
         
         let showMatch = false;
-        if (curShow === 'DEFAULT' && !isNoisy) showMatch = true;
-        if (curShow === 'HIDDEN' && isNoisy) showMatch = true;
+        if (curShow === 'DEFAULT' && !isNoisy && !isBlocked) showMatch = true;
+        if (curShow === 'HIDDEN' && isNoisy && !isBlocked) showMatch = true;
+        if (curShow === 'BLOCKED' && isBlocked) showMatch = true;
         if (curShow === 'ALL') showMatch = true;
 
         const searchMatch = !searchTerm || rowText.includes(searchTerm);
