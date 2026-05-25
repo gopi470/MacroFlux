@@ -279,6 +279,17 @@ export default {
           const cf = request.cf || {};
           const location = cf.country ? `${cf.city || "Unknown"}, ${cf.region || "Unknown"}, ${cf.country}` : "Global";
 
+          // Bot probe detection: HEAD requests or common scanner file patterns = noisy bot 401
+          // These are logged as noisy=1 so they appear in the Blocked section, not Default.
+          // Normal browser unauthorized access (GET to /home, /poll etc.) stays noisy=0 in Default.
+          const isBotProbe = statusCode === 401 && (
+            request.method === "HEAD" ||
+            /\.(zip|tar|gz|bak|sql|env|xml|txt|cfg|conf|log|old|orig|backup|rar|7z|php|asp|aspx|jsp)$/i.test(url.pathname) ||
+            /\/(robots|sitemap|xmlrpc|wp-|admin|phpmyadmin|\.git|\.env)/i.test(url.pathname)
+          );
+
+          const finalNoisy = isNoisy || isBotProbe;
+
           await env.DB.prepare(
             "INSERT INTO logs (timestamp, method, path, status, ip, source, noisy, location) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
           ).bind(
@@ -288,7 +299,7 @@ export default {
             statusCode,
             request.headers.get("cf-connecting-ip") || "0.0.0.0",
             source,
-            isNoisy ? 1 : 0,
+            finalNoisy ? 1 : 0,
             location
           ).run();
 
@@ -1486,22 +1497,37 @@ export default {
           const q = url.searchParams.get("q") || "";
           const offset = parseInt(url.searchParams.get("offset") || "0");
           const limit = parseInt(url.searchParams.get("limit") || "50");
+          const filterMode = url.searchParams.get("filter") || ""; // 'blocked' | 'hidden' | ''
 
-          // Fetch logs from D1 with optional Deep Search
-          let dbQuery = "SELECT * FROM logs";
-          let countQuery = "SELECT COUNT(*) as count FROM logs";
-          let queryParams = [limit, offset];
+          // Fetch logs from D1 with optional Deep Search and server-side section filter
+          let whereClauses = [];
+          let queryParams = [];
           let countParams = [];
+
+          if (filterMode === "blocked") {
+            // Blocked = bot probe 401s (status=401 AND noisy=1)
+            whereClauses.push("status = 401");
+            whereClauses.push("noisy = 1");
+          } else if (filterMode === "hidden") {
+            // Hidden = noisy polling/internal requests that are NOT bot probes
+            whereClauses.push("status != 401");
+            whereClauses.push("noisy = 1");
+          } else if (filterMode === "default") {
+            // Default = all non-noisy rows (includes normal browser 401s like hitting /home unauthenticated)
+            whereClauses.push("noisy = 0");
+          }
 
           if (q) {
             const likeTerm = `%${q}%`;
-            dbQuery += " WHERE path LIKE ? OR ip LIKE ? OR source LIKE ? OR location LIKE ?";
-            countQuery += " WHERE path LIKE ? OR ip LIKE ? OR source LIKE ? OR location LIKE ?";
-            queryParams = [likeTerm, likeTerm, likeTerm, likeTerm, limit, offset];
-            countParams = [likeTerm, likeTerm, likeTerm, likeTerm];
+            whereClauses.push("(path LIKE ? OR ip LIKE ? OR source LIKE ? OR location LIKE ?)");
+            queryParams.push(likeTerm, likeTerm, likeTerm, likeTerm);
+            countParams.push(likeTerm, likeTerm, likeTerm, likeTerm);
           }
 
-          dbQuery += " ORDER BY timestamp DESC LIMIT ? OFFSET ?";
+          const whereStr = whereClauses.length ? " WHERE " + whereClauses.join(" AND ") : "";
+          const dbQuery = "SELECT * FROM logs" + whereStr + " ORDER BY timestamp DESC LIMIT ? OFFSET ?";
+          const countQuery = "SELECT COUNT(*) as count FROM logs" + whereStr;
+          queryParams.push(limit, offset);
 
           const { results } = await env.DB.prepare(dbQuery).bind(...queryParams).all();
           const totalLogsRows = await env.DB.prepare(countQuery).bind(...countParams).first("count");
@@ -1773,7 +1799,9 @@ export default {
       btn.innerText = 'FETCHING ARCHIVE...';
 
       try {
-        const resp = await fetch("/requests?offset=" + curOffset + "&q=" + encodeURIComponent(q) + "&partial=true");
+        const filterParam = curShow === 'BLOCKED' ? 'blocked' : curShow === 'HIDDEN' ? 'hidden' : curShow === 'DEFAULT' ? 'default' : '';
+        const filterStr = filterParam ? '&filter=' + filterParam : '';
+        const resp = await fetch("/requests?offset=" + curOffset + "&q=" + encodeURIComponent(q) + filterStr + "&partial=true");
         if (!resp.ok) throw new Error('FAIL');
         const html = await resp.text();
         
@@ -2029,7 +2057,45 @@ export default {
     function setShow(val, lbl) {
       curShow = val;
       document.getElementById('showLbl').innerText = lbl;
-      applyFilters();
+      // BLOCKED and HIDDEN need a server-side fetch since the 401 entries
+      // may not exist within the currently loaded 50-row DOM window.
+      if (val === 'BLOCKED' || val === 'HIDDEN' || val === 'DEFAULT') {
+        fetchFiltered(val.toLowerCase());
+      } else {
+        applyFilters();
+      }
+    }
+
+    async function fetchFiltered(filterParam) {
+      const btn = document.getElementById('refreshBtn');
+      const q = document.getElementById('searchInput').value.trim();
+      btn.classList.add('refreshing');
+      btn.innerText = 'LOADING...';
+      curOffset = 0;
+      try {
+        const resp = await fetch('/requests?filter=' + filterParam + (q ? '&q=' + encodeURIComponent(q) : ''));
+        if (!resp.ok) throw new Error('FAIL');
+        const text = await resp.text();
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(text, 'text/html');
+        const newTbody = doc.querySelector('tbody');
+        const newCap = doc.getElementById('capText');
+        const newLoadMore = doc.getElementById('loadMoreWrap');
+        if (newTbody) {
+          document.querySelector('tbody').innerHTML = newTbody.innerHTML;
+          if (newCap) document.getElementById('capText').innerText = newCap.innerText;
+          if (newLoadMore) document.getElementById('loadMoreWrap').style.display = newLoadMore.style.display;
+          const capMatch = (newCap ? newCap.innerText : '').match(/(\d+)/);
+          if (capMatch) TOTAL_CAPACITY = parseInt(capMatch[1]);
+          applyFilters();
+          updateSyncTime();
+        }
+      } catch(e) {
+        console.error('Filter fetch error:', e);
+      } finally {
+        btn.classList.remove('refreshing');
+        btn.innerText = 'REFRESH';
+      }
     }
 
     function applyFilters() {
