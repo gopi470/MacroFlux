@@ -292,10 +292,11 @@ export default {
             location
           ).run();
 
-          // Auto-cleanup (Allocate 500 logs size to blocked logs and 1500 to general logs)
+          // Auto-cleanup: 3-tier quota — 2200 Default, 300 Hidden, 500 Blocked (total 3000)
           if (Math.random() < 0.05) {
             ctx.waitUntil(Promise.all([
-              env.DB.prepare("DELETE FROM logs WHERE status != 401 AND id IN (SELECT id FROM logs WHERE status != 401 ORDER BY timestamp DESC LIMIT -1 OFFSET 1500)").run(),
+              env.DB.prepare("DELETE FROM logs WHERE status != 401 AND noisy = 0 AND id IN (SELECT id FROM logs WHERE status != 401 AND noisy = 0 ORDER BY timestamp DESC LIMIT -1 OFFSET 2200)").run(),
+              env.DB.prepare("DELETE FROM logs WHERE status != 401 AND noisy = 1 AND id IN (SELECT id FROM logs WHERE status != 401 AND noisy = 1 ORDER BY timestamp DESC LIMIT -1 OFFSET 300)").run(),
               env.DB.prepare("DELETE FROM logs WHERE status = 401 AND id IN (SELECT id FROM logs WHERE status = 401 ORDER BY timestamp DESC LIMIT -1 OFFSET 500)").run()
             ]));
           }
@@ -1726,7 +1727,7 @@ export default {
       </div>
       <button class="btn-refresh" id="refreshBtn" onclick="refreshLogs()">REFRESH</button>
       <div style="display:flex; flex-direction:column; align-items:flex-end; gap:4px; text-align:right; margin-left:8px;">
-        <div id="capText" style="font-size: 11px; font-weight: bold; color: rgba(0,220,160,0.8); letter-spacing: 1px;">CAPACITY: ${totalLogs} / 2000</div>
+        <div id="capText" style="font-size: 11px; font-weight: bold; color: rgba(0,220,160,0.8); letter-spacing: 1px;">CAPACITY: ${totalLogs} / 3000</div>
         <div id="syncText" style="font-size: 8px; color: rgba(0,220,160,0.7); letter-spacing: 1px; font-weight: bold;">LAST SYNC: NEVER</div>
       </div>
     </div>
