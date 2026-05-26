@@ -1009,6 +1009,13 @@ export default {
     button:hover { background: #e11d48; box-shadow: 0 0 12px rgba(255, 62, 62, 0.3); transform: translateY(-1px); }
     button:active { transform: translateY(0); }
     .err { color: #ff3e3e; font-size: 9px; margin-top: 15px; display: none; font-weight: bold; letter-spacing: 1px; }
+    @media (max-width: 768px) {
+      html, body {
+        overflow: hidden !important;
+        height: 100% !important;
+        overscroll-behavior: none !important;
+      }
+    }
   </style>
 </head>
 <body>
