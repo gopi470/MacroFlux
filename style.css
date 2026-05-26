@@ -1028,7 +1028,21 @@ textarea:disabled,
 @media (max-width: 768px) {
 
   .terminal-body {
-    max-height: 250px;
+    min-height: 90px;
+    max-height: 160px;
+  }
+
+  /* Fix: position: fixed removes container from document flow,
+     making it immune to keyboard-triggered viewport reflows.
+     CSS translate (separate property) centers it without
+     conflicting with the panelIn transform animation. */
+  .container {
+    position: fixed !important;
+    top: 52%;
+    left: 50%;
+    translate: -50% -50%;
+    margin-top: 0 !important;
+    will-change: transform;
   }
 
   .t-text.ok, .t-text.busy, .t-text.err {
@@ -1037,7 +1051,7 @@ textarea:disabled,
   
   .bg-grid { 
     opacity: 0.1; 
-    animation: none !important; /* Static wallpaper on mobile */
+    animation: none !important;
     background-position: center center !important;
   }
   
@@ -1046,8 +1060,8 @@ textarea:disabled,
 
 @media (max-width: 400px) {
   .container { 
-    padding: 18px 16px; 
-    margin-top: -12vh; 
+    padding: 18px 16px;
+    top: 50%;
     backdrop-filter: blur(8px) saturate(1.1);
     -webkit-backdrop-filter: blur(8px) saturate(1.1);
   }

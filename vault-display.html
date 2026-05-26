@@ -22,6 +22,90 @@
       background-image: radial-gradient(circle at center, #02120b 0%, #000 100%);
     }
 
+    @media (max-width: 768px) {
+      body {
+        overflow-y: auto !important;
+        overflow-x: hidden !important;
+        align-items: flex-start;
+        padding: 10px 0 30px 0;
+      }
+      .vault-hud-panel {
+        height: auto !important;
+        min-height: unset !important;
+        width: 96vw !important;
+      }
+      .vault-media-area {
+        overflow-y: visible !important;
+        padding: 14px !important;
+      }
+      /* Footer: stack vertically, OPEN RAW full width */
+      .vault-hud-footer {
+        flex-direction: column !important;
+        align-items: stretch !important;
+        gap: 8px !important;
+        padding: 10px 14px !important;
+      }
+      .vault-raw-btn {
+        text-align: center;
+        padding: 10px !important;
+        font-size: 11px !important;
+      }
+      /* Hide redundant "SECURE CONNECTION" label on mobile */
+      #vaultHudFooterRight {
+        display: none !important;
+      }
+      /* File label: smaller text, no wrap */
+      #vaultHudFooterLeft {
+        font-size: 9px !important;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .vault-controls {
+        grid-template-columns: 1fr !important;
+        gap: 16px !important;
+      }
+      #ctrlHudGroup {
+        grid-column: span 1 !important;
+      }
+      /* Title bar layout refactor for mobile */
+      .vault-hud-header {
+        display: grid !important;
+        grid-template-areas: 
+          "label close"
+          "meta close";
+        grid-template-columns: 1fr auto;
+        row-gap: 4px;
+        column-gap: 12px;
+        align-items: center;
+        padding: 12px 14px !important;
+      }
+      .vault-hud-label {
+        grid-area: label;
+        gap: 6px !important;
+      }
+      .vault-hud-title {
+        font-size: 12px !important;
+        letter-spacing: 1px !important;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .vault-hud-meta {
+        grid-area: meta;
+        font-size: 9px !important;
+        letter-spacing: 0.5px !important;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        opacity: 0.75;
+      }
+      .vault-hud-close {
+        grid-area: close;
+        align-self: center;
+      }
+    }
+
     /* Ctrl key override for normal text selection */
     body.ctrl-select-mode,
     body.ctrl-select-mode * {
@@ -117,6 +201,7 @@
     .vault-frame-corner.br { bottom: 12px; right: 12px; border-width: 0 2px 2px 0; }
 
     .vault-controls { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; padding: 10px 0; }
+    #ctrlHudGroup { grid-column: span 2; }
     .vault-ctrl-group { display: flex; flex-direction: column; gap: 8px; }
     .vault-ctrl-label {
       font-family: var(--mono); font-size: 10px; letter-spacing: 1.5px;
@@ -382,6 +467,47 @@
       -webkit-user-select: text !important;
       cursor: auto !important;
     }
+
+    /* ── Mobile: Forensic Scan Section Fix ─────────────────── */
+    @media (max-width: 768px) {
+      #exifMetadataGrid {
+        grid-template-columns: 1fr !important;
+        gap: 10px !important;
+        font-size: 10px !important;
+        padding: 10px 12px !important;
+      }
+
+      #exifMetadataGrid div {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        line-height: 1.5;
+      }
+
+      #exifGpsContainer {
+        grid-column: span 1 !important;
+        display: flex !important;
+        flex-direction: column;
+        gap: 6px;
+        word-break: break-word;
+      }
+
+      #exifGpsContainer span,
+      #exifGpsContainer a {
+        display: block;
+        margin-left: 0 !important;
+      }
+
+      #exifMapLink {
+        align-self: flex-start;
+        margin-top: 4px !important;
+      }
+
+      #vaultExifScanner > div:first-child {
+        font-size: 9px !important;
+        letter-spacing: 1.5px !important;
+      }
+    }
   </style>
 </head>
 <body>
@@ -421,12 +547,14 @@
           <input type="range" id="filterSaturate" class="vault-slider" min="0" max="300" value="100" oninput="applyPhotoFilters()">
         </div>
         <div class="vault-ctrl-group">
-          <label class="vault-ctrl-label">SURVEILLANCE HUD CONTROL</label>
-          <div style="display: flex; gap: 8px; align-items: center; width: 100%;">
-            <button class="vault-filter-btn" style="padding: 6px 8px; min-width: 50px; font-size: 10px;" onclick="rotatePhoto()">⟳ 90°</button>
-            <button class="vault-filter-btn" style="padding: 6px 8px; min-width: 50px; font-size: 10px;" onclick="flipPhoto()">⇄ FLIP</button>
-            <span style="font-family: var(--mono); font-size: 9px; opacity: 0.6; margin-left: 2px;">ZOOM:</span>
-            <input type="range" id="intelZoom" class="vault-slider" min="100" max="500" value="100" style="flex: 1;" oninput="applyPhotoFilters()">
+          <label class="vault-ctrl-label">ZOOM</label>
+          <input type="range" id="intelZoom" class="vault-slider" min="100" max="500" value="100" oninput="applyPhotoFilters()">
+        </div>
+        <div class="vault-ctrl-group" id="ctrlHudGroup">
+          <label class="vault-ctrl-label">HUD CONTROL</label>
+          <div style="display: flex; gap: 8px; width: 100%;">
+            <button class="vault-filter-btn" style="flex: 1; padding: 8px; font-size: 10px;" onclick="rotatePhoto()">⟳ 90°</button>
+            <button class="vault-filter-btn" style="flex: 1; padding: 8px; font-size: 10px;" onclick="flipPhoto()">⇄ FLIP</button>
           </div>
         </div>
       </div>
@@ -436,13 +564,13 @@
         <div style="font-family: var(--mono); font-size: 10px; color: var(--teal); letter-spacing: 2px; margin-bottom: 8px; font-weight: bold;">
           [ FORENSIC INTELLIGENCE SCAN ]
         </div>
-        <div id="exifMetadataGrid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-family: var(--mono); font-size: 11px; background: rgba(0, 220, 160, 0.02); border: 1px solid rgba(0, 220, 160, 0.1); border-radius: 4px; padding: 12px 18px; box-sizing: border-box;">
-          <div><span style="opacity: 0.5;">FILE DETAILS:</span> <span id="exifFile">READING...</span></div>
-          <div><span style="opacity: 0.5;">RESOLUTION:</span> <span id="exifResolution">PENDING...</span></div>
-          <div><span style="opacity: 0.5;">CAMERA CAPTURED (EXIF):</span> <span id="exifCaptured" style="color: var(--amber);">READING...</span></div>
-          <div><span style="opacity: 0.5;">SYSTEM UPLOAD TIME:</span> <span id="exifUploaded">READING...</span></div>
+        <div id="exifMetadataGrid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-family: var(--mono); font-size: 11px; color: var(--teal); background: rgba(0, 220, 160, 0.02); border: 1px solid rgba(0, 220, 160, 0.1); border-radius: 4px; padding: 12px 18px; box-sizing: border-box;">
+          <div><span style="color: rgba(0,220,160,0.5);">FILE DETAILS:</span> <span id="exifFile" style="color: var(--teal);">READING...</span></div>
+          <div><span style="color: rgba(0,220,160,0.5);">RESOLUTION:</span> <span id="exifResolution" style="color: var(--teal);">PENDING...</span></div>
+          <div><span style="color: rgba(0,220,160,0.5);">CAMERA CAPTURED (EXIF):</span> <span id="exifCaptured" style="color: var(--amber);">READING...</span></div>
+          <div><span style="color: rgba(0,220,160,0.5);">SYSTEM UPLOAD TIME:</span> <span id="exifUploaded" style="color: var(--teal);">READING...</span></div>
           <div id="exifGpsContainer" style="grid-column: span 2; display: none; margin-top: 5px; border-top: 1px solid rgba(0, 220, 160, 0.08); padding-top: 8px;">
-            <span style="color: #ef4444; font-weight: bold;">[!] GEOLOCATION VECTOR EXTRAPOLATED:</span>
+            <span style="color: #ef4444; font-weight: bold;">⊕ GPS DATA:</span>
             <span id="exifGpsCoords" style="color: #fff; margin-left: 6px;"></span>
             <a id="exifMapLink" href="#" target="_blank" style="margin-left: 12px; border: 1px solid #ef4444; color: #ef4444; background: rgba(239, 68, 68, 0.07); padding: 2px 6px; border-radius: 2px; text-decoration: none; font-size: 10px;">PLOT LOCATION</a>
           </div>
