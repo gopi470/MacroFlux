@@ -190,6 +190,81 @@ const jwtUtils = {
 
 export default {
   async fetch(request, env, ctx) {
+    // Configuration Validation (Error Toleration)
+    const missingBindings = [];
+    if (!env.DB) missingBindings.push("DB (D1 SQL Database)");
+    if (!env.LOCATION_KV) missingBindings.push("LOCATION_KV (KV Namespace)");
+    if (!env.ASSETS) missingBindings.push("ASSETS (Static Assets Fetcher)");
+
+    const missingSecrets = [];
+    if (!env.ACCESS_KEY || env.ACCESS_KEY.trim() === "" || env.ACCESS_KEY === "your_access_key_here") {
+      missingSecrets.push({ name: "ACCESS_KEY", cmd: "wrangler secret put ACCESS_KEY", desc: "Primary password for logging into the dashboard" });
+    }
+    if (!env.REPORT_KEY || env.REPORT_KEY.trim() === "" || env.REPORT_KEY === "your_report_key_here") {
+      missingSecrets.push({ name: "REPORT_KEY", cmd: "wrangler secret put REPORT_KEY", desc: "Token required by your phone to send status reports" });
+    }
+    if (!env.VAULT_PASS || env.VAULT_PASS.trim() === "" || env.VAULT_PASS === "your_vault_pass_here") {
+      missingSecrets.push({ name: "VAULT_PASS", cmd: "wrangler secret put VAULT_PASS", desc: "Secondary password for decrypting the File Vault" });
+    }
+    if (!env.MACRO_ID || env.MACRO_ID.trim() === "" || env.MACRO_ID === "your_macro_id_here") {
+      missingSecrets.push({ name: "MACRO_ID", cmd: "wrangler secret put MACRO_ID", desc: "Unique MacroDroid Webhook ID for remote command triggers" });
+    }
+
+    if (missingBindings.length > 0 || missingSecrets.length > 0) {
+      let bindingRows = missingBindings.map(b => `<div class="err-row">❌ ${b} <span class="badge badge-err">MISSING BINDING</span></div>`).join("");
+      let secretRows = missingSecrets.map(s => `
+        <div class="err-row">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <span>❌ ${s.name} - <span style="opacity:0.7;">${s.desc}</span></span>
+            <span class="badge badge-warn">MISSING SECRET</span>
+          </div>
+          <div class="cmd-box">
+            <code>${s.cmd}</code>
+            <button onclick="navigator.clipboard.writeText('${s.cmd}'); alert('Copied!')">COPY</button>
+          </div>
+        </div>
+      `).join("");
+
+      return new Response(`<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>System Setup Status</title>
+  <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@500;700&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: #020608; color: #ef4444; font-family: 'Share Tech Mono', monospace; display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 20px; }
+    .card { border: 1px solid rgba(239, 68, 68, 0.2); padding: 40px; background: rgba(239, 68, 68, 0.02); max-width: 600px; width: 100%; border-radius: 4px; box-shadow: 0 0 30px rgba(239, 68, 68, 0.05); }
+    h1 { font-size: 20px; letter-spacing: 2px; margin-bottom: 25px; text-transform: uppercase; font-weight: normal; color: #fff; text-align: center; border-bottom: 1px solid rgba(239, 68, 68, 0.15); padding-bottom: 15px; }
+    .section-title { font-family: 'Rajdhani', sans-serif; font-weight: 700; font-size: 14px; letter-spacing: 1px; color: #00dca0; text-transform: uppercase; margin: 20px 0 10px 0; }
+    .err-row { margin-bottom: 18px; padding-bottom: 12px; border-bottom: 1px solid rgba(239, 68, 68, 0.05); font-size: 12px; }
+    .badge { font-size: 9px; padding: 2px 6px; border-radius: 2px; font-weight: bold; }
+    .badge-err { background: rgba(239, 68, 68, 0.15); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.3); }
+    .badge-warn { background: rgba(245, 158, 11, 0.15); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.3); }
+    .cmd-box { display: flex; background: rgba(0, 0, 0, 0.4); padding: 8px 12px; border-radius: 3px; border: 1px solid rgba(239, 68, 68, 0.1); margin-top: 6px; justify-content: space-between; align-items: center; }
+    .cmd-box code { color: #00dca0; font-size: 11px; }
+    .cmd-box button { background: rgba(0, 220, 160, 0.1); color: #00dca0; border: 1px solid rgba(0, 220, 160, 0.2); font-family: inherit; font-size: 9px; padding: 3px 8px; border-radius: 2px; cursor: pointer; transition: all 0.2s; }
+    .cmd-box button:hover { background: #00dca0; color: #000; }
+    .tip { font-size: 11px; color: #888; text-align: center; margin-top: 25px; line-height: 1.5; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>⚠️ SYSTEM CONFIGURATION INCOMPLETE</h1>
+    
+    ${bindingRows ? `<div class="section-title">Database & KV Bindings</div>${bindingRows}` : ""}
+    ${secretRows ? `<div class="section-title">Required Environment Secrets</div>${secretRows}` : ""}
+    
+    <div class="tip">
+      For local development, copy <code>.env.example</code> to <code>.env</code> and fill in your values.<br>
+      For production deployment, run the command(s) above to configure the secrets in your Cloudflare dashboard.
+    </div>
+  </div>
+</body>
+</html>`, { status: 500, headers: { "Content-Type": "text/html; charset=UTF-8" } });
+    }
+
     try {
       const url = new URL(request.url);
       const cookie = request.headers.get("Cookie") || "";
