@@ -59,7 +59,11 @@ Run this command to create your active configuration file:
   ```powershell
   Copy-Item wrangler.jsonc.example wrangler.jsonc
   ```
-* **Mac / Linux / Command Prompt:**
+* **Windows (Command Prompt / CMD):**
+  ```cmd
+  copy wrangler.jsonc.example wrangler.jsonc
+  ```
+* **Mac / Linux:**
   ```bash
   cp wrangler.jsonc.example wrangler.jsonc
   ```
