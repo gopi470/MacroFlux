@@ -12,20 +12,12 @@ Live Instance: https://your-custom-domain.com
 2. [System Architecture](#system-architecture)
 3. [Authentication and Security](#authentication-and-security)
 4. [Endpoints and API Reference](#endpoints-and-api-reference)
-5. [Backend Infrastructure](#backend-infrastructure)
-6. [Frontend Design System](#frontend-design-system)
-7. [Mobile Responsiveness](#mobile-responsiveness)
-8. [Database Schema](#database-schema)
-9. [Task Scheduling Pipeline](#task-scheduling-pipeline)
-10. [Vault HUD and Media Processing](#vault-hud-and-media-processing)
-11. [Performance and Optimization](#performance-and-optimization)
-12. [Browser Intelligence and Device Detection](#browser-intelligence-and-device-detection)
-13. [Setup Instructions](#setup-instructions)
-14. [Environment Variables Reference](#environment-variables-reference)
-15. [Common Troubleshooting](#common-troubleshooting)
-16. [Project File Directory](#project-file-directory)
-17. [Future Expansion Ideas](#future-expansion-ideas)
-18. [License](#license)
+5. [System Specifications](#system-specifications)
+6. [Setup Instructions](#setup-instructions)
+7. [Environment Variables Reference](#environment-variables-reference)
+8. [Common Troubleshooting](#common-troubleshooting)
+9. [Project File Directory](#project-file-directory)
+10. [License](#license)
 
 ---
 
@@ -99,103 +91,17 @@ What started as a simple toggle controller grew into a full surveillance and tel
 
 ---
 
-## Backend Infrastructure
+## System Specifications
 
-The backend is a single monolithic Cloudflare Worker handling all server-side logic:
+For deep-dives into the codebase technical design, edge-processing algorithms, database operations, security mechanisms, and developer reference patterns, please consult the dedicated [READMEext.md](READMEext.md) (Extended Technical Documentation).
 
-- Dynamic Routing: A custom request handler processes API calls and renders all HTML pages server-side as template literals.
-- HTMLRewriter Injection: A shared cyberpunk navigation menu and styles are injected into static assets (home.html, schedule.html, etc.) via HTMLRewriter to avoid duplication.
-- Key-Value Status Merging: Incoming /status parameters are merged on top of the stored Key-Value object. A single-parameter NetMonster update will not overwrite battery or volume data.
-- NetMonster Dual-Parameter Filtering: Accepts both netmonster_status and netmonster_status2 parameters as safety fallbacks. Sanitizes generic placeholders (such as NETMONSTER, N/A, null) and resolves the first valid value before storage.
-- Unicode-Safe Base64 Encoding: Encodes strings on the server and decodes on the client using URL encoding and base64 transforms to safely store cell tower symbols (such as bullet points) in the D1 database.
-- HTTP 206 Range Request Slicing: Slices Key-Value binary assets (video and audio) at exact byte offsets and serves them with partial content headers for mobile media seeking.
-
----
-
-## Frontend Design System
-
-The frontend utilizes vanilla HTML5, CSS3, and JavaScript without external frameworks or bundlers.
-
-- Theming: Uses deep black (#06080a), tactical teal (#00dca0), and alert red (#ef4444) themes.
-- Typography: Utilizes Share Tech Mono for the terminal aesthetic and Rajdhani for UI labels.
-- Visuals: Implements glassmorphism panels, neon glow shadows, and animated teal accents.
-
-Key UI Systems:
-- Control Select Bypass: Allows the user to hold the Ctrl key to temporarily enable text selection across all panels.
-- Drag-to-Slide Volumes: Maps mouse and touch drag events on vertical volume bars.
-- Backspace Navigation: Intercepts the backspace key to act as a browser Back button when not typing in a form field.
-- Floating Sync Button: Displays active status polling with a rotating CSS spin animation.
-
----
-
-## Mobile Responsiveness
-
-All log dashboards (/requests, /statuslogs, /schedule/logs, /vault/list) are optimized for mobile viewports:
-
-- Horizontal Table Scroll: Tables are wrapped in a scrollable container with customized scrollbars.
-- Synchronized Column Widths: Table layout is set to auto with no-wrap rules on table header and body cells, keeping widths aligned.
-- Fluid Header Flex: The header container uses flexbox wrapping to dynamically unwrap control elements side-by-side on zoom-out or landscape rotation.
-- Single-Line Header Titles: Prevents text wrapping on titles and scales down font sizes on mobile devices.
-- Pinch-Zoom-Out Support: Viewport meta tags configure initial-scale, minimum-scale, and maximum-scale settings without using width=device-width, enabling zoom-out support down to 0.3x.
-
----
-
-## Database Schema
-
-The database schema is implemented using Cloudflare D1 tables:
-
-- logs: Records every HTTP request, storing the timestamp, method, path, status code, IP address, client source, and location.
-- status_logs: Stores hardware heartbeat data including battery percentage, temperature, signal strength, uptime, and extra status JSON.
-- command_schedules: Manages queued tasks, storing the command, target execution time, status, and output log.
-- geo_cache: Caches IP geolocation details to minimize redundant external API lookups.
-- vault_files: Indexes vault file metadata, tracking the unique file ID, type, size, content-type, and creation timestamps.
-
----
-
-## Task Scheduling Pipeline
-
-- Cron Jobs: Fires every minute to query D1 for pending commands.
-- Queued Commands: The scheduler manages tasks stored in the command_schedules table with execution targets.
-- Execution States: Updates target tasks from PENDING to either EXECUTED or FAILED depending on response status.
-- Retry Logic: Fails securely and records MacroDroid output logs into D1 database columns for debugging.
-- Automation Lifecycle: Connects scheduling updates to D1 execution routines, notifying database logs of scheduled tasks.
-
----
-
-## Vault HUD and Media Processing
-
-The /vault/display route serves as a standalone media viewer:
-
-- EXIF Parser: A client-side JPEG/TIFF binary parser that extracts GPS coordinates, camera model, and capture date.
-- GPS Plotting: Translates rational EXIF coordinates to decimal format to display locations on Google Maps.
-- Audio Waveform: Decodes raw PCM audio using the browser's OfflineAudioContext to render authentic amplitude waveforms on a canvas.
-- Pinch-to-Zoom: Supports multi-touch pinch gestures on mobile and Ctrl+Wheel trackpad scrolling on desktop up to 500% zoom.
-- Fullscreen: Integrates key controls to toggle fullscreen mode.
-- Transform Controls: Supports 90-degree rotation and horizontal mirror flipping.
-- Grab-to-Pan: Allows click-and-drag panning across zoomed media.
-- Spacebar Control: Instantly toggles play and pause states for audio and video media.
-
----
-
-## Performance and Optimization
-
-- Write-Filter Ingestion: Completely bypasses D1 database logging for all static assets (.css, .js, favicon) and background authentication checking API routes (/api/auth/check), reducing database write load by up to 95% during normal operations.
-- Log Equalization: Applies a five percent sampling rate to high-frequency polling requests, while maintaining one hundred percent capture of security events, commands, and errors.
-- Non-blocking Analytics: Handles logging asynchronously using the waitUntil method so responses are returned to the client before D1 database writes complete.
-- AJAX Smart Merge: Refreshes tables by prepending only new rows with a temporary highlight animation to avoid layout redraw lag.
-- Adaptive Polling: Cadence dynamically scales from 2 seconds (post-action) to 5 seconds (active) and up to 30 seconds (idle) to conserve device resources and bandwidth.
-- Cleanup Routines: Performs database cleanup checks periodically to keep logging tables under two thousand rows.
-
----
-
-## Browser Intelligence and Device Detection
-
-- User-Agent Parsing: Evaluates client user agents to capture and log operating system and browser details.
-- Client Hints: Extracts platform and architecture values from user-agent client hints where supported.
-- Device Classification: Classifies incoming requests as desktop, tablet, or specific mobile device models.
-- Browser-Specific Handling: Applies CSS selectors and touch handlers to account for differences between Chrome, Safari, and other mobile rendering engines.
-
----
+### Core Subsystems
+* **Backend Infrastructure**: Serverless execution on Cloudflare Workers edge network (V8 isolate).
+* **Database Schema**: Dynamic, high-performance structured SQLite tables managed by Cloudflare D1.
+* **Authentication**: Multi-tier security using HMAC SHA-256 (HS256) JSON Web Tokens (JWT) and cookies.
+* **Task Scheduling**: Auto-running Cron execution queues mapping to device triggers.
+* **Vault Processing**: Local client-side EXIF rendering, custom HTML5 audio PCM decoders, and mobile pinch-to-zoom handlers.
+* **Performance Tuning**: DB write-bypass filters and log equalization algorithms.
 
 ## Setup Instructions
 
