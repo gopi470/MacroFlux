@@ -18,9 +18,9 @@
 
     /* Modern Theme Overrides */
     body.theme-modern {
-      background-image: radial-gradient(circle at center, #111 0%, #000 100%) !important;
+      background-image: radial-gradient(circle at center, #111 0%, #030303 100%) !important;
       --teal: #ffffff !important;
-      --amber: #a3a3a3 !important;
+      --amber: #e5e5e5 !important;
     }
     body.theme-modern .vault-hud-panel {
       background: rgba(10, 10, 10, 0.95) !important;
@@ -32,7 +32,12 @@
       border-bottom-color: rgba(255, 255, 255, 0.12) !important;
     }
     body.theme-modern .vault-scanlines {
-      display: none !important;
+      background: linear-gradient(
+        rgba(18, 16, 16, 0) 50%, 
+        rgba(255, 255, 255, 0.08) 50%
+      ) !important;
+      background-size: 100% 4px !important;
+      opacity: 0.8 !important;
     }
     body.theme-modern .vault-hud-footer {
       border-top-color: rgba(255, 255, 255, 0.1) !important;

@@ -1,6 +1,6 @@
 (function() {
   // 1. Immediately apply theme to avoid flash of unstyled content
-  const theme = localStorage.getItem("theme") || "modern";
+  const theme = localStorage.getItem("theme") || "cyberpunk";
   document.documentElement.classList.add("theme-" + theme);
 
   // 2. Inject styles for the toggle button
@@ -44,7 +44,7 @@
 
   // 3. Once DOM is ready, add body class and theme toggle button
   document.addEventListener("DOMContentLoaded", () => {
-    const activeTheme = localStorage.getItem("theme") || "modern";
+    const activeTheme = localStorage.getItem("theme") || "cyberpunk";
     document.body.classList.add("theme-" + activeTheme);
 
     // Don't inject toggle if it already exists or if we are not in a standard body
@@ -69,8 +69,8 @@
     `;
 
     btn.onclick = function() {
-      const current = localStorage.getItem("theme") || "modern";
-      const next = current === "modern" ? "cyberpunk" : "modern";
+      const current = localStorage.getItem("theme") || "cyberpunk";
+      const next = current === "cyberpunk" ? "modern" : "cyberpunk";
       localStorage.setItem("theme", next);
       
       document.documentElement.classList.remove("theme-modern", "theme-cyberpunk");

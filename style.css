@@ -35,51 +35,118 @@ input, textarea, [contenteditable="true"], .stealth-input {
 
 /* ── Theme 2 (Modern Black + White) Overrides ─────────────────── */
 html.theme-modern, body.theme-modern {
-  --bg:          #000000;
-  --panel:       rgba(10, 10, 10, 0.85);
-  --border:      rgba(255, 255, 255, 0.12);
-  --border-hi:   rgba(255, 255, 255, 0.35);
+  --bg:          #030303;
+  --panel:       rgba(10, 10, 10, 0.88);
+  --border:      rgba(255, 255, 255, 0.14);
+  --border-hi:   rgba(255, 255, 255, 0.45);
 
   --teal:        #ffffff;
-  --teal-dim:    rgba(255, 255, 255, 0.08);
-  --teal-glow:   rgba(255, 255, 255, 0.12);
-  --amber:       #a3a3a3;
-  --red:         #ef4444;
+  --teal-dim:    rgba(255, 255, 255, 0.10);
+  --teal-glow:   rgba(255, 255, 255, 0.35);
+  --amber:       #e5e5e5;
+  --red:         #ff4a4a;
 
-  --text:        #ffffff;
+  --text:        #f3f4f6;
   --text-muted:  rgba(255, 255, 255, 0.55);
   --text-label:  rgba(255, 255, 255, 0.45);
 }
 
+/* Grayscale/Silver effect on scanlines, grid and vignette */
 body.theme-modern .scanline {
-  display: none !important;
+  background: linear-gradient(
+    to bottom,
+    rgba(255, 255, 255, 0),
+    rgba(255, 255, 255, 0) 50%,
+    rgba(255, 255, 255, 0.04) 50%,
+    rgba(255, 255, 255, 0.04)
+  ) !important;
+  background-size: 100% 4px !important;
+  opacity: 0.85 !important;
 }
 
+body.theme-modern .bg-grid {
+  background-size: 40px 40px !important;
+  background-image: 
+    linear-gradient(to right, rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.02) 1px, transparent 1px) !important;
+}
+
+/* Dynamically convert green moving particles to glowing white/silver embers */
 body.theme-modern #particleCanvas {
-  display: none !important;
+  filter: grayscale(1) brightness(2.5) contrast(1.2) opacity(0.35) !important;
 }
 
 body.theme-modern .bg-vignette {
   background: 
-    radial-gradient(ellipse 60% 55% at 50% 50%, rgba(255, 255, 255, 0.05), transparent 70%),
-    radial-gradient(ellipse 100% 100% at 50% 50%, transparent 55%, rgba(0,0,0,0.98)) !important;
+    radial-gradient(ellipse 65% 60% at 50% 50%, rgba(255, 255, 255, 0.02), transparent 75%),
+    radial-gradient(ellipse 100% 100% at 50% 50%, transparent 45%, rgba(0, 0, 0, 0.98)) !important;
 }
 
 body.theme-modern .noise {
-  opacity: 0.015 !important;
+  opacity: 0.025 !important;
 }
 
-body.theme-modern .dd-trigger.open,
-body.theme-modern .dd-menu,
-body.theme-modern .dd-search-wrap {
-  background: #0d0d0d !important;
-  border-color: rgba(255, 255, 255, 0.3) !important;
+/* Glassmorphic glows on containers/panels */
+body.theme-modern .container {
+  box-shadow: 0 0 45px rgba(255, 255, 255, 0.03), inset 0 0 20px rgba(255, 255, 255, 0.02) !important;
+  border-color: rgba(255, 255, 255, 0.18) !important;
 }
 
-body.theme-modern #ddSearch {
-  background: rgba(255, 255, 255, 0.05) !important;
-  border-color: rgba(255, 255, 255, 0.15) !important;
+body.theme-modern .panel-header {
+  border-bottom-color: rgba(255, 255, 255, 0.18) !important;
+}
+
+body.theme-modern .panel-title {
+  text-shadow: 0 0 8px rgba(255, 255, 255, 0.5) !important;
   color: #ffffff !important;
+}
+
+body.theme-modern .divider {
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.25), transparent) !important;
+}
+
+body.theme-modern .exec-btn {
+  background: rgba(255, 255, 255, 0.04) !important;
+  border-color: rgba(255, 255, 255, 0.25) !important;
+  color: #ffffff !important;
+  text-shadow: 0 0 4px rgba(255, 255, 255, 0.4) !important;
+}
+
+body.theme-modern .exec-btn:hover {
+  background: rgba(255, 255, 255, 0.1) !important;
+  border-color: #ffffff !important;
+  box-shadow: 0 0 15px rgba(255, 255, 255, 0.2) !important;
+}
+
+body.theme-modern .terminal {
+  border-color: rgba(255, 255, 255, 0.15) !important;
+  box-shadow: 0 0 20px rgba(255, 255, 255, 0.02) !important;
+}
+
+body.theme-modern .terminal-bar {
+  background: rgba(255, 255, 255, 0.03) !important;
+  border-bottom-color: rgba(255, 255, 255, 0.12) !important;
+}
+
+body.theme-modern .terminal-body {
+  background: rgba(5, 5, 5, 0.65) !important;
+}
+
+body.theme-modern .dd-trigger {
+  background: rgba(255, 255, 255, 0.02) !important;
+  border-color: rgba(255, 255, 255, 0.15) !important;
+}
+
+body.theme-modern .dd-trigger:hover,
+body.theme-modern .dd-trigger.open {
+  background: rgba(255, 255, 255, 0.06) !important;
+  border-color: #ffffff !important;
+}
+
+body.theme-modern .dd-menu {
+  background: #0a0a0a !important;
+  border-color: rgba(255, 255, 255, 0.25) !important;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.95), 0 0 1px rgba(255, 255, 255, 0.3) !important;
 }
 
 body.theme-modern .dd-item:hover,
@@ -90,11 +157,7 @@ body.theme-modern .dd-item.focused {
 
 body.theme-modern .hw-status-bar {
   background: rgba(255, 255, 255, 0.02) !important;
-  border-color: rgba(255, 255, 255, 0.1) !important;
-}
-
-body.theme-modern .terminal-body {
-  background: rgba(10, 10, 10, 0.6) !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
 }
 
 /* ── Background ─────────────────────────────────────────────── */
