@@ -9,15 +9,16 @@ Live Instance: https://your-custom-domain.com
 
 ## Table of Contents
 1. [System Overview](#system-overview)
-2. [System Architecture](#system-architecture)
-3. [Authentication and Security](#authentication-and-security)
-4. [Endpoints and API Reference](#endpoints-and-api-reference)
-5. [System Specifications](#system-specifications)
-6. [Setup Instructions](#setup-instructions)
-7. [Environment Variables Reference](#environment-variables-reference)
-8. [Common Troubleshooting](#common-troubleshooting)
-9. [Project File Directory](#project-file-directory)
-10. [License](#license)
+2. [Quick Start / Setup Guide](#quick-start--setup-guide)
+3. [System Architecture](#system-architecture)
+4. [Authentication and Security](#authentication-and-security)
+5. [Endpoints and API Reference](#endpoints-and-api-reference)
+6. [System Specifications](#system-specifications)
+7. [Setup Instructions](#setup-instructions)
+8. [Environment Variables Reference](#environment-variables-reference)
+9. [Common Troubleshooting](#common-troubleshooting)
+10. [Project File Directory](#project-file-directory)
+11. [License](#license)
 
 ---
 
@@ -26,6 +27,13 @@ Live Instance: https://your-custom-domain.com
 This project provides a professional-grade, cyberpunk-themed dashboard to remotely monitor and control an Android device. It acts as a bridge between MacroDroid (on-device automation) and a web-based Command Center, deployed entirely as a single Cloudflare Worker with zero external backend infrastructure.
 
 What started as a simple toggle controller grew into a full surveillance and telemetry platform with file vaulting, cellular network diagnostics, hardware monitoring, scheduled automation, and a media HUD.
+
+---
+
+## Quick Start / Setup Guide
+
+> [!IMPORTANT]
+> To get started quickly with deploying the Cloudflare Worker, provisioning the D1 SQL database, and setting up MacroDroid on your Android device, please refer to the step-by-step **[setup.md](setup.md)** guide.
 
 ---
 
