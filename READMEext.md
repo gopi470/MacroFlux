@@ -132,6 +132,14 @@ The vault features a separate password lock to guarantee security isolation. Eve
 
 ## Backend Infrastructure
 
+### Configuration Validation & Error Toleration System
+To prevent server-side crashes during deployment and simplify onboarding for new users:
+1. On every incoming request, the worker first executes a configuration validation check.
+2. It verifies that required database bindings (`DB`, `LOCATION_KV`, `ASSETS`) are initialized.
+3. It validates that the required production secrets (`ACCESS_KEY`, `REPORT_KEY`, `VAULT_PASS`, `MACRO_ID`) are configured and do not match the default placeholder strings from the template.
+4. If any binding or secret is missing or unconfigured, the worker halts standard request processing and serves a beautifully styled tactical red diagnostics page (`System Setup Status`).
+5. This page displays the specific missing items along with the exact terminal command required to configure them (e.g. `wrangler secret put ACCESS_KEY`) and copy-to-clipboard functionality.
+
 ### Key-Value Status Merging Pipeline
 When the worker receives status parameters from the device, it avoids standard flat object replacement:
 1. It fetches the existing status JSON string from LOCATION_KV.
