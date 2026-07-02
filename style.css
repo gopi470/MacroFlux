@@ -33,6 +33,70 @@ input, textarea, [contenteditable="true"], .stealth-input {
   --ease:        cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+/* ── Theme 2 (Modern Black + White) Overrides ─────────────────── */
+html.theme-modern, body.theme-modern {
+  --bg:          #000000;
+  --panel:       rgba(10, 10, 10, 0.85);
+  --border:      rgba(255, 255, 255, 0.12);
+  --border-hi:   rgba(255, 255, 255, 0.35);
+
+  --teal:        #ffffff;
+  --teal-dim:    rgba(255, 255, 255, 0.08);
+  --teal-glow:   rgba(255, 255, 255, 0.12);
+  --amber:       #a3a3a3;
+  --red:         #ef4444;
+
+  --text:        #ffffff;
+  --text-muted:  rgba(255, 255, 255, 0.55);
+  --text-label:  rgba(255, 255, 255, 0.45);
+}
+
+body.theme-modern .scanline {
+  display: none !important;
+}
+
+body.theme-modern #particleCanvas {
+  display: none !important;
+}
+
+body.theme-modern .bg-vignette {
+  background: 
+    radial-gradient(ellipse 60% 55% at 50% 50%, rgba(255, 255, 255, 0.05), transparent 70%),
+    radial-gradient(ellipse 100% 100% at 50% 50%, transparent 55%, rgba(0,0,0,0.98)) !important;
+}
+
+body.theme-modern .noise {
+  opacity: 0.015 !important;
+}
+
+body.theme-modern .dd-trigger.open,
+body.theme-modern .dd-menu,
+body.theme-modern .dd-search-wrap {
+  background: #0d0d0d !important;
+  border-color: rgba(255, 255, 255, 0.3) !important;
+}
+
+body.theme-modern #ddSearch {
+  background: rgba(255, 255, 255, 0.05) !important;
+  border-color: rgba(255, 255, 255, 0.15) !important;
+  color: #ffffff !important;
+}
+
+body.theme-modern .dd-item:hover,
+body.theme-modern .dd-item.focused {
+  background: rgba(255, 255, 255, 0.08) !important;
+  border-left-color: #ffffff !important;
+}
+
+body.theme-modern .hw-status-bar {
+  background: rgba(255, 255, 255, 0.02) !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+body.theme-modern .terminal-body {
+  background: rgba(10, 10, 10, 0.6) !important;
+}
+
 /* ── Background ─────────────────────────────────────────────── */
 html {
   scrollbar-gutter: stable;
