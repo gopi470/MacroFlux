@@ -8,14 +8,6 @@ const BgThemes = (() => {
   const STORAGE_KEY = 'remote_bg_theme';
   const DEFAULT     = 'grid'; // Grid Matrix is the safe fallback
 
-  function getTealRgb() {
-    return getComputedStyle(document.documentElement).getPropertyValue('--teal-rgb').trim() || '0, 220, 160';
-  }
-
-  function getLeadRgb() {
-    return getComputedStyle(document.documentElement).getPropertyValue('--lead-rgb').trim() || '120, 255, 230';
-  }
-
   const themes   = [];
   let current    = null;
   let raf        = null;
@@ -93,7 +85,7 @@ const BgThemes = (() => {
     return [...themes];
   }
 
-  return { register, init, switchTo, cycle, getCurrentId, getAll, getTealRgb, getLeadRgb };
+  return { register, init, switchTo, cycle, getCurrentId, getAll };
 })();
 
 
@@ -170,7 +162,7 @@ BgThemes.register({
 
     ctx.save();
     ctx.translate(px, py);
-    ctx.strokeStyle = `rgba(${BgThemes.getTealRgb()}, ${0.10 * pulse})`;
+    ctx.strokeStyle = `rgba(0, 220, 160, ${0.10 * pulse})`;
     ctx.lineWidth   = 1;
 
     // Horizontal lines
@@ -329,7 +321,7 @@ BgThemes.register({
         const dist = Math.sqrt(dx * dx + dy * dy);
         if (dist < CONNECTION_DIST) {
           ctx.beginPath();
-          ctx.strokeStyle = `rgba(${BgThemes.getTealRgb()},${LINE_ALPHA_MAX * (1 - dist / CONNECTION_DIST)})`;
+          ctx.strokeStyle = `rgba(0,220,160,${LINE_ALPHA_MAX * (1 - dist / CONNECTION_DIST)})`;
           ctx.lineWidth   = 0.5;
           ctx.moveTo(nodes[i].x, nodes[i].y);
           ctx.lineTo(nodes[j].x, nodes[j].y);
@@ -346,7 +338,7 @@ BgThemes.register({
         const dist = Math.sqrt(dx * dx + dy * dy);
         if (dist < CURSOR_DIST) {
           ctx.beginPath();
-          ctx.strokeStyle = `rgba(${BgThemes.getTealRgb()},${CURSOR_LINE_ALPHA * (1 - dist / CURSOR_DIST)})`;
+          ctx.strokeStyle = `rgba(0,220,160,${CURSOR_LINE_ALPHA * (1 - dist / CURSOR_DIST)})`;
           ctx.lineWidth   = 0.7;
           ctx.moveTo(n.x, n.y);
           ctx.lineTo(this._mouse.x, this._mouse.y);
@@ -359,7 +351,7 @@ BgThemes.register({
     nodes.forEach(n => {
       ctx.beginPath();
       ctx.arc(n.x, n.y, n.r, 0, Math.PI * 2);
-      ctx.fillStyle = `rgba(${BgThemes.getTealRgb()},${n.alpha})`;
+      ctx.fillStyle = `rgba(0,220,160,${n.alpha})`;
       ctx.fill();
     });
   },
@@ -507,13 +499,13 @@ BgThemes.register({
 
     this._cells.forEach(cell => {
       if (cell.currentAlpha > 0.002) {
-        ctx.strokeStyle = `rgba(${BgThemes.getTealRgb()}, ${cell.currentAlpha})`;
+        ctx.strokeStyle = `rgba(0, 220, 160, ${cell.currentAlpha})`;
         ctx.lineWidth = 0.7;
         this._drawHex(ctx, cell.cx, cell.cy, cell.r);
         ctx.stroke();
 
         if (cell.currentAlpha > 0.04) {
-          ctx.fillStyle = `rgba(${BgThemes.getTealRgb()}, ${(cell.currentAlpha - 0.02) * 0.10})`;
+          ctx.fillStyle = `rgba(0, 220, 160, ${(cell.currentAlpha - 0.02) * 0.10})`;
           ctx.fill();
         }
       }
@@ -695,7 +687,7 @@ BgThemes.register({
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
     // Draw base paths in low opacity
-    ctx.strokeStyle = `rgba(${BgThemes.getTealRgb()}, 0.14)`;
+    ctx.strokeStyle = 'rgba(0, 220, 160, 0.14)';
     ctx.lineWidth = 1.0;
     this._paths.forEach(path => {
       ctx.beginPath();
@@ -706,7 +698,7 @@ BgThemes.register({
       ctx.stroke();
 
       // End points (pads)
-      ctx.fillStyle = `rgba(${BgThemes.getTealRgb()}, 0.28)`;
+      ctx.fillStyle = 'rgba(0, 220, 160, 0.28)';
       ctx.beginPath();
       ctx.arc(path[0].x, path[0].y, 2.5, 0, Math.PI * 2);
       ctx.fill();
@@ -720,9 +712,9 @@ BgThemes.register({
       const startGrad = Math.max(0, ripple.r - 40);
       const endGrad = ripple.r + 40;
       const grad = ctx.createRadialGradient(ripple.x, ripple.y, startGrad, ripple.x, ripple.y, endGrad);
-      grad.addColorStop(0, `rgba(${BgThemes.getTealRgb()}, 0)`);
-      grad.addColorStop(0.5, `rgba(${BgThemes.getTealRgb()}, 0.95)`);
-      grad.addColorStop(1, `rgba(${BgThemes.getTealRgb()}, 0)`);
+      grad.addColorStop(0, 'rgba(0, 220, 160, 0)');
+      grad.addColorStop(0.5, 'rgba(0, 220, 160, 0.95)');
+      grad.addColorStop(1, 'rgba(0, 220, 160, 0)');
 
       ctx.strokeStyle = grad;
       ctx.lineWidth = 2.4;
@@ -742,7 +734,7 @@ BgThemes.register({
           const dist = Math.sqrt(dx * dx + dy * dy);
           if (dist > ripple.r - 40 && dist < ripple.r + 40) {
             const factor = 1 - Math.abs(dist - ripple.r) / 40;
-            ctx.fillStyle = `rgba(${BgThemes.getTealRgb()}, ${factor * 1.0})`;
+            ctx.fillStyle = `rgba(0, 220, 160, ${factor * 1.0})`;
             ctx.beginPath();
             ctx.arc(pt.x, pt.y, 3.5, 0, Math.PI * 2);
             ctx.fill();
@@ -752,7 +744,7 @@ BgThemes.register({
     });
 
     // Draw packets
-    ctx.fillStyle = `rgba(${BgThemes.getTealRgb()}, 0.95)`;
+    ctx.fillStyle = 'rgba(0, 220, 160, 0.95)';
     this._packets.forEach(p => {
       const path = this._paths[p.pathIdx];
       const p1 = path[p.segmentIdx];
@@ -916,9 +908,9 @@ BgThemes.register({
         const alpha = col.opacity * fadeRatio;
 
         if (i === 0) {
-          ctx.fillStyle = `rgba(${BgThemes.getLeadRgb()}, ${alpha * 2.8})`;
+          ctx.fillStyle = `rgba(120, 255, 230, ${alpha * 2.8})`;
         } else {
-          ctx.fillStyle = `rgba(${BgThemes.getTealRgb()}, ${alpha * 1.6})`;
+          ctx.fillStyle = `rgba(0, 220, 160, ${alpha * 1.6})`;
         }
 
         ctx.fillText(col.chars[i], col.x, charY);

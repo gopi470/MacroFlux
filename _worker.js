@@ -2,9 +2,6 @@ const SHARED_NAV_STYLE = `
   :root {
     --teal: #00dca0;
     --teal-dim: rgba(0, 220, 160, 0.16);
-    --teal-glow: rgba(0, 220, 160, 0.15);
-    --teal-rgb: 0, 220, 160;
-    --lead-rgb: 120, 255, 230;
     --border: rgba(0, 220, 160, 0.2);
     --border-hi: rgba(0, 220, 160, 0.4);
     --panel: rgba(5, 26, 20, 0.95);
@@ -12,119 +9,6 @@ const SHARED_NAV_STYLE = `
     --mono: 'Share Tech Mono', monospace;
     --ui: 'Rajdhani', sans-serif;
     --ease: cubic-bezier(0.23, 1, 0.32, 1);
-  }
-  
-  /* Modern Black + White Theme Overrides */
-  html.theme-modern, body.theme-modern {
-    --teal: #ffffff;
-    --teal-dim: rgba(255, 255, 255, 0.12);
-    --teal-glow: rgba(255, 255, 255, 0.35);
-    --teal-rgb: 255, 255, 255;
-    --lead-rgb: 255, 255, 255;
-    --border: rgba(255, 255, 255, 0.15);
-    --border-hi: rgba(255, 255, 255, 0.4);
-    --panel: rgba(15, 15, 15, 0.9);
-    --bg: #030303;
-    --text: #ffffff;
-    --text-muted: rgba(255, 255, 255, 0.55);
-    --text-label: rgba(255, 255, 255, 0.45);
-  }
-  
-  body.theme-modern {
-    background: var(--bg) !important;
-    color: var(--text) !important;
-  }
-  body.theme-modern a {
-    color: var(--teal) !important;
-    border-color: var(--border-hi) !important;
-  }
-  body.theme-modern .header {
-    border-bottom-color: var(--teal) !important;
-  }
-  body.theme-modern .c-sel button {
-    background: var(--teal-dim) !important;
-    color: var(--teal) !important;
-    border-color: var(--border) !important;
-  }
-  body.theme-modern .c-sel .opts {
-    background: #0a0a0a !important;
-    border-color: var(--border-hi) !important;
-  }
-  body.theme-modern .c-sel .opts div {
-    color: var(--text-muted) !important;
-    border-bottom-color: var(--border) !important;
-  }
-  body.theme-modern .c-sel .opts div:hover {
-    background: var(--teal-dim) !important;
-    color: #fff !important;
-    border-left-color: var(--teal) !important;
-  }
-  body.theme-modern th {
-    color: var(--text-label) !important;
-    border-bottom-color: var(--border-hi) !important;
-  }
-  body.theme-modern td {
-    border-bottom-color: var(--border) !important;
-  }
-  body.theme-modern tr:hover td {
-    background: var(--teal-dim) !important;
-  }
-  body.theme-modern .vault-logout {
-    background: rgba(239, 68, 68, 0.08) !important;
-    color: #f87171 !important;
-    border-color: rgba(239, 68, 68, 0.2) !important;
-  }
-  body.theme-modern .date-sep {
-    background: rgba(255, 255, 255, 0.05) !important;
-  }
-  body.theme-modern .date-sep td {
-    color: rgba(255, 255, 255, 0.6) !important;
-    border-top-color: rgba(255, 255, 255, 0.15) !important;
-    border-bottom-color: rgba(255, 255, 255, 0.15) !important;
-  }
-  body.theme-modern .btn-refresh {
-    background: rgba(255, 255, 255, 0.2) !important;
-    border-color: #ffffff !important;
-  }
-  body.theme-modern .btn-refresh:hover {
-    background: #ffffff !important;
-    color: #000000 !important;
-  }
-  body.theme-modern #searchInput {
-    background: rgba(255, 255, 255, 0.05) !important;
-    color: #ffffff !important;
-    border-color: rgba(255, 255, 255, 0.3) !important;
-  }
-  body.theme-modern #searchInput:focus {
-    border-color: #ffffff !important;
-    background: rgba(255, 255, 255, 0.1) !important;
-  }
-  body.theme-modern .search-icon {
-    color: #ffffff !important;
-  }
-  body.theme-modern .btn-load-more {
-    color: #ffffff !important;
-    border-color: rgba(255, 255, 255, 0.4) !important;
-  }
-  body.theme-modern .btn-load-more:hover {
-    border-color: #ffffff !important;
-    box-shadow: 0 0 15px rgba(255, 255, 255, 0.1) !important;
-  }
-  body.theme-modern .ip-link {
-    text-decoration-color: rgba(255, 255, 255, 0.2) !important;
-  }
-  body.theme-modern .ip-link:hover {
-    color: #ffffff !important;
-    text-decoration-color: #ffffff !important;
-  }
-  body.theme-modern .intel-content {
-    background: #0a0a0a !important;
-    border-color: var(--border-hi) !important;
-    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.9), 0 0 20px rgba(255, 255, 255, 0.1) !important;
-  }
-  body.theme-modern .intel-header {
-    background: rgba(255, 255, 255, 0.03) !important;
-    border-bottom-color: rgba(255, 255, 255, 0.2) !important;
   }
   .top-left-menu { position: fixed; top: 20px; left: 20px; z-index: 2000; }
   .nav-btn {
@@ -3134,21 +3018,14 @@ export default {
       const response = await handleRequest();
       ctx.waitUntil(logRequest(response.status));
 
-      // Universal Favicon and Theme Loader Injection — applies to ALL HTML responses
+      // Universal Favicon Injection — applies to ALL HTML responses
       const ct = response.headers.get("content-type") || "";
       if (ct.includes("text/html")) {
-        let original = await response.text();
+        const original = await response.text();
         const faviconTag = '<link rel="icon" type="image/svg+xml" href="/favicon.svg">';
-        const themeScriptTag = '<script src="/theme.js"></script>';
-        
-        let injected = original;
-        if (!original.includes('rel="icon"')) {
-          injected = injected.replace(/<head([^>]*)>/i, `<head$1>\n  ${faviconTag}`);
-        }
-        if (!original.includes('/theme.js')) {
-          injected = injected.replace(/<head([^>]*)>/i, `<head$1>\n  ${themeScriptTag}`);
-        }
-        
+        const injected = original.includes('rel="icon"')
+          ? original
+          : original.replace(/<head([^>]*)>/i, `<head$1>\n  ${faviconTag}`);
         return new Response(injected, {
           status: response.status,
           headers: { "Content-Type": "text/html; charset=UTF-8" }
