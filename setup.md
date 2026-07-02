@@ -164,7 +164,7 @@ wrangler deploy
 ```
 *What this does:* Uploads the code to Cloudflare. 
 
-Once finished, the terminal will output your live URL (e.g., `https://remote-control-ui.your-subdomain.workers.dev`). Write this URL down! You will need it to connect your phone.
+Once finished, the terminal will output your live URL (e.g., `https://MacroFlux.your-subdomain.workers.dev`). Write this URL down! You will need it to connect your phone.
 
 ---
 
@@ -179,7 +179,7 @@ To connect your phone, we will use the pre-built macro template included in the 
 4. Tap **Templates** -> **Import/Export** (or tap the **+** button -> **Import Macro**).
 5. Choose the `Webhook_Master_Control__2.macro` file you transferred.
 6. Once imported, click the **Local Variables** section inside the macro and update these three variables:
-   * `url`: Set this to your deployed Cloudflare URL (e.g., `https://remote-control-ui.your-subdomain.workers.dev`). (Do not add a trailing slash at the end).
+   * `url`: Set this to your deployed Cloudflare URL (e.g., `https://MacroFlux.your-subdomain.workers.dev`). (Do not add a trailing slash at the end).
    * `report_key`: Set this to the exact same phrase you configured in the server secret `REPORT_KEY`.
    * `macro_id`: Look at the top trigger in your imported MacroDroid macro named "Webhook (incoming)". Copy the unique ID string shown there, and paste it here. *(Also run `wrangler secret put MACRO_ID` in your PC terminal to configure it on Cloudflare).*
 7. Save the macro by tapping the checkmark/save icon at the bottom right.
