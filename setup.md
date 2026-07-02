@@ -55,13 +55,13 @@ wrangler login
 
 ### Step 3: Copy Configuration File
 Run this command to create your active configuration file:
-* **Windows (PowerShell):**
-  ```powershell
-  Copy-Item wrangler.jsonc.example wrangler.jsonc
-  ```
 * **Windows (Command Prompt / CMD):**
   ```cmd
   copy wrangler.jsonc.example wrangler.jsonc
+  ```
+* **Windows (PowerShell):**
+  ```powershell
+  Copy-Item wrangler.jsonc.example wrangler.jsonc
   ```
 * **Mac / Linux:**
   ```bash
