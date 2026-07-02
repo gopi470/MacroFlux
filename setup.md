@@ -26,7 +26,15 @@ Before starting, make sure you have:
 
 ## 2. Cloudflare Infrastructure Provisioning
 
-First, open your terminal and navigate to the project directory where you downloaded the MacroFlux files. (e.g., type `cd C:\path\to\MacroFlux`).
+First, open your terminal and run the following command to download (clone) the project files to your computer:
+```bash
+git clone https://github.com/gopi470/MacroFlux.git
+```
+
+Then, navigate into the project directory:
+```bash
+cd MacroFlux
+```
 
 ### Step 1: Install Wrangler
 Wrangler is the official Cloudflare tool used to deploy your project. Run this command:
