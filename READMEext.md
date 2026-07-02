@@ -303,24 +303,8 @@ This details exactly what hardware and client software was used to access the co
 
 ## Setup Instructions
 
-### Prerequisites
-- A Cloudflare account with a D1 database and KV namespace provisioned.
-- Node.js and the Wrangler CLI tool installed locally.
-- MacroDroid configured on the target Android device.
+For a detailed step-by-step setup guide on provisioning Cloudflare Workers, D1 database, KV namespaces, environment secrets, and configuring the MacroDroid automation on your Android device, please refer to the dedicated [setup.md](setup.md) guide.
 
-### Environment Provisioning
-- Run the command: wrangler d1 create remote_control_ui
-- Run the command: wrangler kv:namespace create LOCATION_KV
-- Initialize the database schema: wrangler d1 execute remote_control_ui --remote --file=schema.sql
-
-### Secrets Configuration
-- Run the command: wrangler secret put ACCESS_KEY
-- Run the command: wrangler secret put REPORT_KEY
-- Run the command: wrangler secret put VAULT_PASS
-- Run the command: wrangler secret put MACRO_ID
-
-### Production Deployment
-- Deploy the worker globally: wrangler deploy
 
 ### MacroDroid Integration Blueprint
 To establish communication between the Android hardware and the Cloudflare Edge Worker, configure the MacroDroid tasks according to the following specifications:
@@ -409,4 +393,4 @@ To establish communication between the Android hardware and the Cloudflare Edge 
 
 ## License
 
-Personal use and experimentation. Built by [gopi470](https://github.com/gopi470).
+MIT License. See [LICENSE](LICENSE) for details. Built by [gopi470](https://github.com/gopi470).

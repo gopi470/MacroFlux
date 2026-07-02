@@ -1,0 +1,9 @@
+# Local Environment Variables for wrangler dev
+# Copy this file to .dev.vars and fill in your actual values.
+# .dev.vars is gitignored and will not be committed.
+
+ACCESS_KEY=your_access_key_here
+REPORT_KEY=your_report_key_here
+VAULT_PASS=your_vault_pass_here
+MACRO_ID=your_macro_id_here
+# JWT_SECRET=your_jwt_secret_here

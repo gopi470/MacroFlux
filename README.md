@@ -3,7 +3,7 @@
 Tactical Android Command and Control Interface
 Real-time device monitoring and automation powered by Cloudflare Workers, D1 SQL, KV Storage, and MacroDroid.
 
-Live Instance: https://ui.muffinjuice.xyz
+Live Instance: https://your-custom-domain.com
 
 ---
 
@@ -199,24 +199,8 @@ The /vault/display route serves as a standalone media viewer:
 
 ## Setup Instructions
 
-To deploy this system, ensure the following requirements are met:
-- A Cloudflare account.
-- Node.js and the Wrangler command line utility installed globally.
-- MacroDroid installed on the target Android device.
+For a detailed step-by-step setup guide on provisioning Cloudflare Workers, D1 database, KV namespaces, environment secrets, and configuring the MacroDroid automation on your Android device, please refer to the dedicated [setup.md](setup.md) guide.
 
-Provisioning the environment:
-- Create the D1 Database by running the command: wrangler d1 create remote_control_ui
-- Create the Key-Value Namespace by running the command: wrangler kv:namespace create LOCATION_KV
-- Apply the database schema by running the command: wrangler d1 execute remote_control_ui --remote --file=schema.sql
-
-Configuring secrets:
-- Set the dashboard login password by running the command: wrangler secret put ACCESS_KEY
-- Set the MacroDroid authentication key by running the command: wrangler secret put REPORT_KEY
-- Set the file vault password by running the command: wrangler secret put VAULT_PASS
-- Set the MacroDroid Webhook ID by running the command: wrangler secret put MACRO_ID
-
-Deploying to production:
-- Publish the application by running the command: wrangler deploy
 
 ---
 
@@ -271,4 +255,4 @@ Deploying to production:
 
 ## License
 
-Personal use and experimentation. Built by [gopi470](https://github.com/gopi470).
+MIT License. See [LICENSE](LICENSE) for details. Built by [gopi470](https://github.com/gopi470).

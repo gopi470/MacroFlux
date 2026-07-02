@@ -9,25 +9,25 @@
   "kv_namespaces": [
     {
       "binding": "LOCATION_KV",
-      "id": "ba4cf777253743638f718b522d73c3db"
+      "id": "YOUR_KV_NAMESPACE_ID"
     }
   ],
   "assets": {
     "directory": ".",
     "binding": "ASSETS"
   },
-  "routes": [
-    {
-      "pattern": "ui.muffinjuice.xyz",
-      "zone_name": "muffinjuice.xyz",
-      "custom_domain": true
-    }
-  ],
+  // "routes": [
+  //   {
+  //     "pattern": "your-subdomain.yourdomain.com",
+  //     "zone_name": "yourdomain.com",
+  //     "custom_domain": true
+  //   }
+  // ],
   "d1_databases": [
     {
       "binding": "DB",
       "database_name": "remote_control_ui",
-      "database_id": "ff16c34b-2448-425b-a350-194284b70939"
+      "database_id": "YOUR_D1_DATABASE_ID"
     }
   ],
   "triggers": {

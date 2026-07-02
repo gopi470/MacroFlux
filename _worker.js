@@ -1280,7 +1280,7 @@ export default {
       <tbody>${tableRows}</tbody>
     </table>
   </div>
-  <div class="footer">END OF ARCHIVE LOG -- ui.muffinjuice.xyz/vault/list</div>
+  <div class="footer">END OF ARCHIVE LOG -- ${url.host}/vault/list</div>
   <script>
     let curFilter = 'ALL';
     let curSort = 'NEWEST';
