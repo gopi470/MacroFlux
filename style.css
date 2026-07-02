@@ -20,6 +20,8 @@ input, textarea, [contenteditable="true"], .stealth-input {
   --teal:        #00dca0;
   --teal-dim:    rgba(0, 220, 160, 0.16);
   --teal-glow:   rgba(0, 220, 160, 0.15);
+  --teal-rgb:    0, 220, 160;
+  --lead-rgb:    120, 255, 230;
   --amber:       #f59e0b;
   --red:         #ef4444;
 
@@ -35,18 +37,20 @@ input, textarea, [contenteditable="true"], .stealth-input {
 
 /* ── Theme 2 (Modern Black + White) Overrides ─────────────────── */
 html.theme-modern, body.theme-modern {
-  --bg:          #030303;
-  --panel:       rgba(10, 10, 10, 0.88);
-  --border:      rgba(255, 255, 255, 0.14);
-  --border-hi:   rgba(255, 255, 255, 0.45);
+  --bg:          #0a0a0a;
+  --panel:       rgba(18, 18, 18, 0.95);
+  --border:      rgba(255, 255, 255, 0.15);
+  --border-hi:   rgba(255, 255, 255, 0.3);
 
   --teal:        #ffffff;
-  --teal-dim:    rgba(255, 255, 255, 0.10);
-  --teal-glow:   rgba(255, 255, 255, 0.35);
-  --amber:       #e5e5e5;
-  --red:         #ff4a4a;
+  --teal-dim:    rgba(255, 255, 255, 0.08);
+  --teal-glow:   rgba(255, 255, 255, 0); /* No glow */
+  --teal-rgb:    255, 255, 255;
+  --lead-rgb:    255, 255, 255;
+  --amber:       #a3a3a3;
+  --red:         #ffffff;
 
-  --text:        #f3f4f6;
+  --text:        #ffffff;
   --text-muted:  rgba(255, 255, 255, 0.55);
   --text-label:  rgba(255, 255, 255, 0.45);
 }
@@ -71,93 +75,163 @@ body.theme-modern .bg-grid {
     linear-gradient(to bottom, rgba(255, 255, 255, 0.02) 1px, transparent 1px) !important;
 }
 
-/* Dynamically convert green moving particles to glowing white/silver embers */
+/* Render background canvas naturally in native silver/white without dimming filters */
 body.theme-modern #particleCanvas {
-  filter: grayscale(1) brightness(2.5) contrast(1.2) opacity(0.35) !important;
+  filter: none !important;
+  opacity: 1 !important;
 }
 
 body.theme-modern .bg-vignette {
   background: 
-    radial-gradient(ellipse 65% 60% at 50% 50%, rgba(255, 255, 255, 0.02), transparent 75%),
+    radial-gradient(ellipse 65% 60% at 50% 50%, rgba(255, 255, 255, 0.01), transparent 75%),
     radial-gradient(ellipse 100% 100% at 50% 50%, transparent 45%, rgba(0, 0, 0, 0.98)) !important;
 }
 
 body.theme-modern .noise {
-  opacity: 0.025 !important;
+  opacity: 0.02 !important;
 }
 
-/* Glassmorphic glows on containers/panels */
+/* Glassmorphic flat panels (no glow) */
 body.theme-modern .container {
-  box-shadow: 0 0 45px rgba(255, 255, 255, 0.03), inset 0 0 20px rgba(255, 255, 255, 0.02) !important;
-  border-color: rgba(255, 255, 255, 0.18) !important;
+  box-shadow: none !important;
+  border-color: rgba(255, 255, 255, 0.2) !important;
 }
 
 body.theme-modern .panel-header {
-  border-bottom-color: rgba(255, 255, 255, 0.18) !important;
+  border-bottom-color: rgba(255, 255, 255, 0.2) !important;
 }
 
 body.theme-modern .panel-title {
-  text-shadow: 0 0 8px rgba(255, 255, 255, 0.5) !important;
+  text-shadow: none !important;
   color: #ffffff !important;
 }
 
 body.theme-modern .divider {
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.25), transparent) !important;
+  background: rgba(255, 255, 255, 0.15) !important;
 }
 
 body.theme-modern .exec-btn {
-  background: rgba(255, 255, 255, 0.04) !important;
-  border-color: rgba(255, 255, 255, 0.25) !important;
+  background: rgba(255, 255, 255, 0.05) !important;
+  border-color: rgba(255, 255, 255, 0.3) !important;
   color: #ffffff !important;
-  text-shadow: 0 0 4px rgba(255, 255, 255, 0.4) !important;
+  text-shadow: none !important;
 }
 
 body.theme-modern .exec-btn:hover {
-  background: rgba(255, 255, 255, 0.1) !important;
+  background: rgba(255, 255, 255, 0.15) !important;
   border-color: #ffffff !important;
-  box-shadow: 0 0 15px rgba(255, 255, 255, 0.2) !important;
+  box-shadow: none !important;
 }
 
 body.theme-modern .terminal {
-  border-color: rgba(255, 255, 255, 0.15) !important;
-  box-shadow: 0 0 20px rgba(255, 255, 255, 0.02) !important;
+  border-color: rgba(255, 255, 255, 0.2) !important;
+  box-shadow: none !important;
 }
 
 body.theme-modern .terminal-bar {
   background: rgba(255, 255, 255, 0.03) !important;
-  border-bottom-color: rgba(255, 255, 255, 0.12) !important;
+  border-bottom-color: rgba(255, 255, 255, 0.15) !important;
 }
 
 body.theme-modern .terminal-body {
-  background: rgba(5, 5, 5, 0.65) !important;
+  background: rgba(10, 10, 10, 0.75) !important;
 }
 
 body.theme-modern .dd-trigger {
-  background: rgba(255, 255, 255, 0.02) !important;
-  border-color: rgba(255, 255, 255, 0.15) !important;
+  background: rgba(255, 255, 255, 0.03) !important;
+  border-color: rgba(255, 255, 255, 0.2) !important;
 }
 
 body.theme-modern .dd-trigger:hover,
+body.theme-modern .theme-toggle-btn:hover,
 body.theme-modern .dd-trigger.open {
-  background: rgba(255, 255, 255, 0.06) !important;
+  background: rgba(255, 255, 255, 0.1) !important;
   border-color: #ffffff !important;
+  box-shadow: none !important;
 }
 
 body.theme-modern .dd-menu {
   background: #0a0a0a !important;
-  border-color: rgba(255, 255, 255, 0.25) !important;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.95), 0 0 1px rgba(255, 255, 255, 0.3) !important;
+  border-color: rgba(255, 255, 255, 0.3) !important;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.95) !important;
 }
 
 body.theme-modern .dd-item:hover,
 body.theme-modern .dd-item.focused {
-  background: rgba(255, 255, 255, 0.08) !important;
+  background: rgba(255, 255, 255, 0.1) !important;
   border-left-color: #ffffff !important;
 }
 
 body.theme-modern .hw-status-bar {
+  background: rgba(255, 255, 255, 0.03) !important;
+  border-color: rgba(255, 255, 255, 0.15) !important;
+}
+
+/* Sidebar Toggle Handles (Flat monochrome, no glow) */
+body.theme-modern .sidebar-toggle-handle {
+  color: #ffffff !important;
+  border-color: rgba(255, 255, 255, 0.25) !important;
+  box-shadow: none !important;
+}
+
+body.theme-modern .sidebar-toggle-handle:hover {
+  background: rgba(255, 255, 255, 0.1) !important;
+  box-shadow: none !important;
+  border-color: #ffffff !important;
+}
+
+body.theme-modern .sidebar-toggle-handle.left {
+  background: rgba(18, 18, 18, 0.95) !important;
+  border-color: rgba(255, 255, 255, 0.2) !important;
+}
+
+body.theme-modern .sidebar-toggle-handle.left:hover {
+  background: rgba(255, 255, 255, 0.1) !important;
+}
+
+body.theme-modern .system-sidebar {
+  background: rgba(18, 18, 18, 0.95) !important;
+  border-color: rgba(255, 255, 255, 0.2) !important;
+}
+
+body.theme-modern .system-sidebar.left {
+  background: rgba(18, 18, 18, 0.95) !important;
+  border-color: rgba(255, 255, 255, 0.2) !important;
+}
+
+/* Logout Button (Monochrome, no red/green/glow) */
+body.theme-modern .logout-btn {
+  background: rgba(255, 255, 255, 0.03) !important;
+  border-color: rgba(255, 255, 255, 0.2) !important;
+  color: #ffffff !important;
+  box-shadow: none !important;
+}
+
+body.theme-modern .logout-btn:hover {
+  background: rgba(255, 255, 255, 0.1) !important;
+  border-color: #ffffff !important;
+  box-shadow: none !important;
+}
+
+/* Fix any remaining green placeholder texts and form controls */
+body.theme-modern input::placeholder,
+body.theme-modern textarea::placeholder {
+  color: rgba(255, 255, 255, 0.4) !important;
+}
+
+body.theme-modern .input-wrap,
+body.theme-modern input,
+body.theme-modern textarea {
+  border-color: rgba(255, 255, 255, 0.2) !important;
+  color: #ffffff !important;
   background: rgba(255, 255, 255, 0.02) !important;
-  border-color: rgba(255, 255, 255, 0.12) !important;
+}
+
+body.theme-modern input:focus,
+body.theme-modern textarea:focus {
+  border-color: #ffffff !important;
+  background: rgba(255, 255, 255, 0.08) !important;
+  box-shadow: none !important;
 }
 
 /* ── Background ─────────────────────────────────────────────── */

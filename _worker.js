@@ -2,6 +2,9 @@ const SHARED_NAV_STYLE = `
   :root {
     --teal: #00dca0;
     --teal-dim: rgba(0, 220, 160, 0.16);
+    --teal-glow: rgba(0, 220, 160, 0.15);
+    --teal-rgb: 0, 220, 160;
+    --lead-rgb: 120, 255, 230;
     --border: rgba(0, 220, 160, 0.2);
     --border-hi: rgba(0, 220, 160, 0.4);
     --panel: rgba(5, 26, 20, 0.95);
@@ -15,10 +18,13 @@ const SHARED_NAV_STYLE = `
   html.theme-modern, body.theme-modern {
     --teal: #ffffff;
     --teal-dim: rgba(255, 255, 255, 0.12);
+    --teal-glow: rgba(255, 255, 255, 0.35);
+    --teal-rgb: 255, 255, 255;
+    --lead-rgb: 255, 255, 255;
     --border: rgba(255, 255, 255, 0.15);
     --border-hi: rgba(255, 255, 255, 0.4);
     --panel: rgba(15, 15, 15, 0.9);
-    --bg: #000000;
+    --bg: #030303;
     --text: #ffffff;
     --text-muted: rgba(255, 255, 255, 0.55);
     --text-label: rgba(255, 255, 255, 0.45);
