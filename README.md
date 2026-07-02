@@ -14,11 +14,10 @@ Live Instance: https://your-custom-domain.com
 4. [Authentication and Security](#authentication-and-security)
 5. [Endpoints and API Reference](#endpoints-and-api-reference)
 6. [System Specifications](#system-specifications)
-7. [Setup Instructions](#setup-instructions)
-8. [Environment Variables Reference](#environment-variables-reference)
-9. [Common Troubleshooting](#common-troubleshooting)
-10. [Project File Directory](#project-file-directory)
-11. [License](#license)
+7. [Environment Variables Reference](#environment-variables-reference)
+8. [Common Troubleshooting](#common-troubleshooting)
+9. [Project File Directory](#project-file-directory)
+10. [License](#license)
 
 ---
 
@@ -111,12 +110,6 @@ For deep-dives into the codebase technical design, edge-processing algorithms, d
 * **Vault Processing**: Local client-side EXIF rendering, custom HTML5 audio PCM decoders, and mobile pinch-to-zoom handlers.
 * **Performance Tuning**: DB write-bypass filters and log equalization algorithms.
 
-## Setup Instructions
-
-For a detailed step-by-step setup guide on provisioning Cloudflare Workers, D1 database, KV namespaces, environment secrets, and configuring the MacroDroid automation on your Android device, please refer to the dedicated [setup.md](setup.md) guide.
-
-
----
 
 ## Environment Variables Reference
 
