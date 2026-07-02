@@ -388,6 +388,7 @@ To establish communication between the Android hardware and the Cloudflare Edge 
 | `README.md` | Root | Primary system manual highlighting setup, routes, and high-level structure. |
 | `READMEext.md` | Root | Extended technical developer reference detailing internal state and logic. |
 | `docs/data_flow_diagram.png` | `docs/` | System data flow visual diagram. |
+| `docs/Webhook_Master_Control__2.macro` | `docs/` | Pre-configured MacroDroid automation script containing all triggers and telemetry dispatchers to import directly into the MacroDroid app. |
 
 ---
 

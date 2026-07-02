@@ -33,6 +33,8 @@ What started as a simple toggle controller grew into a full surveillance and tel
 
 > [!IMPORTANT]
 > To get started quickly with deploying the Cloudflare Worker, provisioning the D1 SQL database, and setting up MacroDroid on your Android device, please refer to the step-by-step **[setup.md](setup.md)** guide.
+>
+> You can import the pre-configured MacroDroid macro template **[docs/Webhook_Master_Control__2.macro](docs/Webhook_Master_Control__2.macro)** directly into your MacroDroid app to connect your phone.
 
 ---
 
@@ -148,6 +150,7 @@ For deep-dives into the codebase technical design, edge-processing algorithms, d
 - .assetsignore: Cloudflare assets controller listing files that should be ignored during static worker updates.
 - README.md: The primary documentation detailing system architecture, credentials, endpoint references, optimization, and setup.
 - READMEext.md: The extended technical documentation detailing low-level algorithmic designs, binary parsing steps, state merges, and concurrency plans.
+- docs/Webhook_Master_Control__2.macro: Pre-configured MacroDroid automation script containing all triggers and telemetry dispatchers to import directly into the MacroDroid app.
 
 ---
 

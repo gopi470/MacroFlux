@@ -115,7 +115,9 @@ Once deployed, Cloudflare will output your worker's live URL (e.g. `https://remo
 
 ## 5. MacroDroid Device Configuration
 
-To connect your Android device to the server:
+To connect your Android device to the server, you can import the pre-built MacroDroid template file **[docs/Webhook_Master_Control__2.macro](docs/Webhook_Master_Control__2.macro)** directly into your MacroDroid app and configure the local variables.
+
+Alternatively, to manually configure the device connection:
 
 ### A. Telemetry Dispatch (Outgoing Status)
 Configure a MacroDroid macro triggered by interval (e.g., every 5 minutes) or battery/network changes to make a `GET` request:
