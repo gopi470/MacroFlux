@@ -15,7 +15,10 @@ No coding experience is required. Just follow the steps one by one.
 ## 1. Prerequisites (What you need on your computer)
 
 Before starting, make sure you have:
-1. **A Cloudflare Account:** Create a free account at [cloudflare.com](https://www.cloudflare.com/) if you do not have one.
+1. **A Cloudflare Account:**
+   * Go to **[dash.cloudflare.com/sign-up](https://dash.cloudflare.com/sign-up)** and register a free account.
+   * Verify your email address.
+   * *Note:* You do **not** need to manually navigate to `Compute -> Workers & Pages` to click "Create application" or build a worker template inside the browser. The deployment tools will automatically register and build the application on Cloudflare for you!
 2. **Node.js installed:** Node.js is a runtime tool that allows you to run commands. Download and install it from [nodejs.org](https://nodejs.org/). (Choose the **LTS** version and click Next, Next, Next until done).
 3. **MacroDroid on your phone:** Download it from the Google Play Store on the Android device you want to control.
 4. **Terminal / Command Prompt:**
